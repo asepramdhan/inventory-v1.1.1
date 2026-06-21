@@ -6,6 +6,11 @@ use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+// IMPORT CLASS PHPSPREADSHEET
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class StoreController extends Controller
 {
@@ -146,5 +151,86 @@ class StoreController extends Controller
         ]);
 
         return to_route('stores.index');
+    }
+
+    public function export(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|string',
+        ]);
+
+        // Mengubah string id kembali menjadi array
+        $idsArray = explode(',', $request->ids);
+
+        // Ambil data toko milik user yang sedang login (Proteksi IDOR)
+        $stores = Store::whereIn('id', $idsArray)
+            ->where('user_id', Auth::user()->id)
+            ->get();
+
+        // Nama file berakhiran .xlsx
+        $fileName = 'Laporan_Toko_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+        // 1. Inisialisasi Spreadsheet Baru
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // 2. Tulis Header Kolom (Baris 1)
+        $sheet->setCellValue('A1', 'Tanggal');
+        $sheet->setCellValue('B1', 'Platform');
+        $sheet->setCellValue('C1', 'Nama Toko');
+        $sheet->setCellValue('D1', 'Biaya Admin (%)');
+        $sheet->setCellValue('E1', 'Biaya Proses (Rp)');
+        $sheet->setCellValue('F1', 'Status');
+
+        // 3. Styling Header agar Tebal (Bold)
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+
+        // 4. Looping untuk Mengisi Baris Data (Dimulai dari Baris 2)
+        $row = 2;
+        foreach ($stores as $store) {
+            $sheet->setCellValue('A' . $row, $store->created_at->format('Y-m-d H:i:s'));
+            $sheet->setCellValue('B' . $row, ucfirst($store->platform));
+            $sheet->setCellValue('C' . $row, $store->name);
+            $sheet->setCellValue('D' . $row, (float) $store->admin_fee / 100);
+            $sheet->setCellValue('E' . $row, $store->processing_fee);
+            $sheet->setCellValue('F' . $row, $store->active ? 'Aktif' : 'Tidak Aktif');
+            $row++;
+        }
+
+        if ($row > 2) {
+            // 1. FORMAT PERSEN TANPA DESIMAL (Kolom D)
+            $sheet->getStyle('D2:D' . ($row - 1))
+                ->getNumberFormat()
+                ->setFormatCode('0%'); // <--- '0%' artinya angka bulat tanpa desimal
+
+            // 2. FORMAT RUPIAH (Kolom E) yang sudah kita buat sebelumnya
+            $sheet->getStyle('E2:E' . ($row - 1))
+                ->getNumberFormat()
+                ->setFormatCode('"Rp"#,##0');
+
+            $sheet->getStyle('E2:E' . ($row - 1))
+                ->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        }
+
+        // 5. Otomatis Mengatur Lebar Kolom (Auto Size) agar tidak terpotong (###) di Excel
+        foreach (range('A', 'F') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // 6. Siapkan Proses Writer ke format XLSX
+        $writer = new Xlsx($spreadsheet);
+
+        // 7. Stream data langsung ke Browser untuk diunduh
+        $response = new StreamedResponse(function () use ($writer) {
+            $writer->save('php://output');
+        });
+
+        // 8. Atur HTTP Header khusus untuk dokumen Excel (.xlsx)
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+        $response->headers->set('Cache-Control', 'max-age=0');
+
+        return $response;
     }
 }

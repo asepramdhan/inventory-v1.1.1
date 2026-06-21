@@ -2,12 +2,13 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 /* eslint-disable curly */
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { Calendar, Coins, Info, MoreHorizontalIcon, Percent, Plus, Search, StoreIcon, Trash2 } from 'lucide-react';
+import { Calendar, Coins, FileSpreadsheet, Info, MoreHorizontalIcon, Percent, Plus, Search, StoreIcon, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import StoreController from '@/actions/App/Http/Controllers/StoreController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -81,6 +82,17 @@ export default function Store({ stores, filters }: any) {
       onSuccess: () => setSelectedIds([]),
       preserveScroll: true
     });
+  };
+
+  // Fungsi Aksi Massal (Export Excel Terpilih)
+  const handleBulkExport = () => {
+    if (selectedIds.length === 0) return;
+
+    // Menggabungkan array ID menjadi string terpisah koma (misal: 1,2,3)
+    const idsQuery = selectedIds.join(',');
+
+    // Menggunakan native browser redirect khusus untuk download file agar tidak merusak state Inertia
+    window.location.href = `/master-data/store/export?ids=${idsQuery}`;
   };
 
   const resetForm = () => {
@@ -266,7 +278,7 @@ export default function Store({ stores, filters }: any) {
         <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
           <div className="p-6">
             <Table>
-              <TableCaption>Daftar seluruh toko / marketplace yang tersimpan di sistem.</TableCaption>
+              <TableCaption className='py-6'>Daftar seluruh toko / marketplace yang tersimpan di sistem.</TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[50px]">
@@ -276,11 +288,11 @@ export default function Store({ stores, filters }: any) {
                       aria-label="Select all"
                     />
                   </TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Platform</TableHead>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Admin (%)</TableHead>
-                  <TableHead>Proses (Rp)</TableHead>
+                  <TableHead className="w-50">Tanggal</TableHead>
+                  <TableHead className='w-30'>Platform</TableHead>
+                  <TableHead className="w-30">Nama Toko</TableHead>
+                  <TableHead className="w-40 text-center">Admin (%)</TableHead>
+                  <TableHead className='w-35'>Proses (Rp)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
@@ -335,15 +347,25 @@ export default function Store({ stores, filters }: any) {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className='capitalize'>{store.platform}</TableCell>
+                        <TableCell className='capitalize'>
+                          <Badge className={
+                            `${store.platform === 'shopee' ? 'bg-orange-600 text-white' : ''} 
+                            ${store.platform === 'lazada' ? 'bg-blue-600 text-white' : ''}
+                            ${store.platform === 'tiktok' ? 'bg-slate-600 text-white' : ''}`
+                          }>
+                            {store.platform}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="font-medium">{store.name}</TableCell>
-                        <TableCell>{formatPercent(store.admin_fee)}</TableCell>
+                        <TableCell className="text-center">{formatPercent(store.admin_fee)}</TableCell>
                         <TableCell>
-                          {new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR',
-                            maximumFractionDigits: 0
-                          }).format(store.processing_fee)}
+                          <Badge variant="secondary">
+                            {new Intl.NumberFormat('id-ID', {
+                              style: 'currency',
+                              currency: 'IDR',
+                              maximumFractionDigits: 0
+                            }).format(store.processing_fee)}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           {store.active == true ? (
@@ -458,6 +480,17 @@ export default function Store({ stores, filters }: any) {
               Batal
             </Button>
 
+            {/* TOMBOL BARU: EXPORT EXCEL */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkExport}
+              className="rounded-full gap-1.5 text-xs h-8 border-emerald-600/30 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/20 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Export Excel
+            </Button>
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
@@ -504,9 +537,14 @@ export default function Store({ stores, filters }: any) {
             <div className="space-y-4">
               <div className="flex justify-between items-center py-2.5 border-b border-dashed">
                 <span className="text-sm text-muted-foreground">Platform</span>
-                <span className="text-sm font-semibold capitalize bg-primary/10 px-2.5 py-0.5 rounded text-primary">
-                  {selectedStore?.platform}
-                </span>
+                <Badge className={`
+                  ${selectedStore?.platform === 'shopee' ? 'bg-orange-600 text-white' : ''}
+                  ${selectedStore?.platform === 'lazada' ? 'bg-blue-600 text-white' : ''}
+                  ${selectedStore?.platform === 'tiktok' ? 'bg-slate-600 text-white' : ''
+                  }`
+                }>
+                  <span className="capitalize">{selectedStore?.platform}</span>
+                </Badge>
               </div>
 
               <div className="flex justify-between items-center py-2.5 border-b border-dashed">
@@ -522,13 +560,13 @@ export default function Store({ stores, filters }: any) {
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <Coins className="h-3.5 w-3.5" /> Biaya Proses Pesanan
                 </span>
-                <span className="text-sm font-semibold text-foreground">
+                <Badge variant="secondary">
                   {new Intl.NumberFormat('id-ID', {
                     style: 'currency',
                     currency: 'IDR',
                     maximumFractionDigits: 0
                   }).format(selectedStore?.processing_fee ?? 0)}
-                </span>
+                </Badge>
               </div>
 
               <div className="flex justify-between items-center py-2.5 border-b border-dashed">
