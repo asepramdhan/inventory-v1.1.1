@@ -55,6 +55,27 @@ export default function Product({ products }: any) {
     }
   };
 
+  // Fungsi tampil tanggal dan waktu
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return { dateStr: '-', timeStr: '-' };
+
+    const date = new Date(dateString);
+
+    const dateStr = date.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const timeStr = date.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).replace('.', ':');
+
+    return { dateStr, timeStr };
+  };
+
   return (
     <>
       <Head title="Master Produk" />
@@ -209,8 +230,8 @@ export default function Product({ products }: any) {
               <TableHeader>
                 <TableRow>
                   {/* 2. Sesuaikan Header dengan kolom database kita */}
-                  <TableHead className="w-\[50px\]">Tanggal</TableHead>
-                  <TableHead className="w-\[150px\]">SKU</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>SKU</TableHead>
                   <TableHead>Nama Produk</TableHead>
                   <TableHead>Stok</TableHead>
                   <TableHead>Harga Jual</TableHead>
@@ -228,12 +249,16 @@ export default function Product({ products }: any) {
                 ) : (
                   products.map((product: any) => (
                     <TableRow key={product.id}>
-                      <TableCell>{new Date(product.created_at).toLocaleDateString('id-ID', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium text-sm text-foreground">
+                            {formatDateTime(product.created_at).dateStr}
+                          </span>
+                          <span className="text-xs text-muted-foreground italic">
+                            Pukul {formatDateTime(product.created_at).timeStr} WIB
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium">{product.sku}</TableCell>
                       <TableCell>{product.name}</TableCell>
                       <TableCell>{product.stock}</TableCell>

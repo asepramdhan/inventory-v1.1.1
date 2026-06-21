@@ -13,8 +13,18 @@ return new class extends Migration
     {
         Schema::create('stores', function (Blueprint $table) {
             $table->id();
+            // user
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            // platform
+            $table->string('platform');
+            // name
             $table->string('name');
+            // biaya admin
+            $table->decimal('admin_fee', 15, 2);
+            // biaya proses pesanan
+            $table->decimal('processing_fee', 15, 2);
+            // status
+            $table->boolean('active')->default(true);
             $table->timestamps();
         });
     }
