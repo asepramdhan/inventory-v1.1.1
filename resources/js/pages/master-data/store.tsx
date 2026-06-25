@@ -2,7 +2,7 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 /* eslint-disable curly */
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { Calendar, Coins, FileSpreadsheet, Info, MoreHorizontalIcon, Percent, Plus, Search, StoreIcon, Trash2 } from 'lucide-react';
+import { Calendar, Coins, FileSpreadsheet, Info, MoreHorizontalIcon, Pencil, Percent, Plus, Search, StoreIcon, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import StoreController from '@/actions/App/Http/Controllers/StoreController';
 import Heading from '@/components/heading';
@@ -33,6 +33,11 @@ export default function Store({ stores, filters }: any) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedStore, setSelectedStore] = useState<any>(null);
 
+  // ---- STATE BARU: FILTER PLATFORM & STATUS ----
+  const [platformFilter, setPlatformFilter] = useState(filters?.platform || 'all');
+  const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
+  // -----------------------------------------------
+
   // State Form fields
   const [platform, setPlatform] = useState('shopee');
   const [rawPrice, setRawPrice] = useState('');
@@ -44,18 +49,22 @@ export default function Store({ stores, filters }: any) {
     setSelectedIds([]);
   }, [stores]);
 
-  // Debounce search server-side
+  // Effect untuk server-side search & filtering dengan debounce 300ms
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       router.get(
         StoreController.index(),
-        { search: search },
+        {
+          search: search,
+          platform: platformFilter,
+          status: statusFilter
+        },
         { preserveState: true, replace: true }
       );
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [search]);
+  }, [search, platformFilter, statusFilter]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -264,15 +273,46 @@ export default function Store({ stores, filters }: any) {
           </div>
         </div>
 
-        <div className="relative w-full max-w-sm ml-auto">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Cari toko atau platform..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        {/* BARIS SEKSI FILTER UTAMA */}
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full bg-card p-3 rounded-lg border border-sidebar-border/60">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Filter Dropdown Platform */}
+            <Select value={platformFilter} onValueChange={setPlatformFilter}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Semua Platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Platform</SelectItem>
+                <SelectItem value="shopee">Shopee</SelectItem>
+                <SelectItem value="lazada">Lazada</SelectItem>
+                <SelectItem value="tiktok">Tiktok</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Filter Dropdown Status */}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Semua Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="active">Aktif</SelectItem>
+                <SelectItem value="inactive">Tidak Aktif</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Kotak Input Pencarian dipindah ke kanan sebaris dengan filter dropdown */}
+          <div className="relative w-full max-w-sm sm:ml-auto">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Cari nama toko..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
 
         <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
@@ -316,8 +356,7 @@ export default function Store({ stores, filters }: any) {
                   stores.data.map((store: any, index: number) => {
                     const isSelected = selectedIds.includes(store.id);
                     return (
-                      <TableRow
-                        key={store.id}
+                      <TableRow key={store.id}
                         // FITUR: Zebra Striping, Hover & Clickable style
                         className={`
                           cursor-pointer transition-colors hover:bg-muted/70
@@ -359,7 +398,7 @@ export default function Store({ stores, filters }: any) {
                         <TableCell className="font-medium">{store.name}</TableCell>
                         <TableCell className="text-center">{formatPercent(store.admin_fee)}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary">
+                          <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                             {new Intl.NumberFormat('id-ID', {
                               style: 'currency',
                               currency: 'IDR',
@@ -368,15 +407,7 @@ export default function Store({ stores, filters }: any) {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {store.active == true ? (
-                            <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20">
-                              Aktif
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20">
-                              Tidak Aktif
-                            </span>
-                          )}
+                          <Badge className={store.active ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300' : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'}>{store.active ? 'Aktif' : 'Tidak Aktif'}</Badge>
                         </TableCell>
                         {/* Action Cell - StopPropagation agar tidak memicu detil Sheet */}
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -399,11 +430,15 @@ export default function Store({ stores, filters }: any) {
                                     setIsSheetOpenEdit(true);
                                   }}
                                 >
+                                  <Pencil className="h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+                                  <DropdownMenuItem variant="destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
                                 </AlertDialogTrigger>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -560,7 +595,7 @@ export default function Store({ stores, filters }: any) {
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <Coins className="h-3.5 w-3.5" /> Biaya Proses Pesanan
                 </span>
-                <Badge variant="secondary">
+                <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                   {new Intl.NumberFormat('id-ID', {
                     style: 'currency',
                     currency: 'IDR',
@@ -571,11 +606,7 @@ export default function Store({ stores, filters }: any) {
 
               <div className="flex justify-between items-center py-2.5 border-b border-dashed">
                 <span className="text-sm text-muted-foreground">Status Operasional</span>
-                {selectedStore?.active == true ? (
-                  <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded ring-1 ring-green-600/20">Aktif</span>
-                ) : (
-                  <span className="text-xs font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded ring-1 ring-red-600/20">Tidak Aktif</span>
-                )}
+                <Badge className={selectedStore?.active ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300' : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'}>{selectedStore?.active ? 'Aktif' : 'Tidak Aktif'}</Badge>
               </div>
 
               <div className="flex justify-between items-start py-2.5 border-b border-dashed">

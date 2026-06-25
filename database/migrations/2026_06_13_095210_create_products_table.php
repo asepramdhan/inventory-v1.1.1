@@ -14,10 +14,17 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            // category
+            $table->foreignId('category_id')->constrained()->cascadeOnDelete();
+            // image
+            $table->string('image')->nullable();
             $table->string('sku')->unique(); // Contoh: MEOW-FOOD-01
             $table->string('name');          // Contoh: Makanan Kucing Premium 1kg
             $table->integer('stock')->default(0);
             $table->decimal('price', 15, 2);
+            $table->text('description')->nullable();
+            // status
+            $table->boolean('active')->default(true);
             $table->timestamps();
         });
     }

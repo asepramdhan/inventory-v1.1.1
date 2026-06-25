@@ -12,11 +12,33 @@ class CategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $categories = Category::where('user_id', Auth::user()->id)->latest()->get();
+        $search = $request->input('search');
+        $status = $request->input('status');
+
+        $categories = Category::where('user_id', Auth::user()->id)
+            // Filter Pencarian
+            ->when($search, function ($query, $search) {
+                return $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
+            })
+            // Filter Status Aktif/Tidak Aktif
+            ->when($status && $status !== 'all', function ($query) use ($status) {
+                $isActive = $status === 'active' ? 1 : 0;
+                return $query->where('active', $isActive);
+            })
+            ->latest()
+            ->paginate(10)
+            ->withQueryString(); // Memastikan parameter ?search tetap terbawa di link paginasi
+
         return Inertia::render('master-data/category', [
             'categories' => $categories,
+            'filters' => [
+                'search' => $search ?? '',
+                'status' => $status ?? 'all',
+            ],
         ]);
     }
 
@@ -35,6 +57,7 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'active' => 'required|boolean',
         ]);
 
         Category::create($validated + ['user_id' => Auth::user()->id]);
@@ -67,9 +90,12 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'active' => 'required|boolean',
         ]);
 
-        Category::findOrFail($id)->update($validated);
+        $category = Category::where('user_id', Auth::user()->id)->findOrFail($id);
+
+        $category->update($validated);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori berhasil diperbarui.']);
 
@@ -81,8 +107,39 @@ class CategoryController extends Controller
      */
     public function destroy(string $id)
     {
-        Category::findOrFail($id)->delete();
+        $category = Category::where('user_id', Auth::user()->id)->findOrFail($id);
+
+        $category->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori berhasil dihapus.']);
+
+        return to_route('categories.index');
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:categories,id', // Validasi memastikan ID-nya benar-benar ada di tabel categories
+        ]);
+
+        // Hapus data secara massal, pastikan hanya menghapus milik user yang sedang login
+        $deletedCount = Category::whereIn('id', $request->ids)
+            ->where('user_id', Auth::user()->id)
+            ->delete();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "{$deletedCount} Kategori berhasil dihapus sekaligus."
+        ]);
+
+        return to_route('categories.index');
+    }
+
+    // Tambahkan Method Export Excel placeholder jika diperlukan
+    public function export(Request $request)
+    {
+        $ids = $request->query('ids');
+        // Logika export Excel menggunakan Maatwebsite Excel atau library pilihanmu...
     }
 }

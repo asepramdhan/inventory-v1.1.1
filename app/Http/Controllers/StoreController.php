@@ -20,13 +20,25 @@ class StoreController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $platform = $request->input('platform');
+        $status = $request->input('status');
 
         $stores = Store::where('user_id', Auth::user()->id)
+            // Filter Pencarian
             ->when($search, function ($query, $search) {
                 return $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('platform', 'like', "%{$search}%");
                 });
+            })
+            // Filter Platform (Shopee, Lazada, Tiktok)
+            ->when($platform && $platform !== 'all', function ($query) use ($platform) {
+                return $query->where('platform', $platform);
+            })
+            // Filter Status Aktif/Tidak Aktif
+            ->when($status && $status !== 'all', function ($query) use ($status) {
+                $isActive = $status === 'active' ? 1 : 0;
+                return $query->where('active', $isActive);
             })
             ->latest()
             ->paginate(10)
@@ -36,6 +48,8 @@ class StoreController extends Controller
             'stores' => $stores,
             'filters' => [
                 'search' => $search ?? '',
+                'platform' => $platform ?? 'all',
+                'status' => $status ?? 'all',
             ],
         ]);
     }

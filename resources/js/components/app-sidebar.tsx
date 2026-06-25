@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { ArrowRightLeft, Box, ChartBar, DollarSign, LayoutGrid, Megaphone, ShoppingBagIcon, Store, Tags } from 'lucide-react';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
+import ProductHppController from '@/actions/App/Http/Controllers/ProductHppController';
 import StoreController from '@/actions/App/Http/Controllers/StoreController';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
@@ -51,14 +52,14 @@ const analysisItems: NavItem[] = [
 
 const masterDataItems: NavItem[] = [
     {
+        title: 'HPP Produk',
+        href: ProductHppController.index(),
+        icon: DollarSign,
+    },
+    {
         title: 'Kategori',
         href: CategoryController.index(),
         icon: Tags,
-    },
-    {
-        title: 'HPP',
-        href: '#',
-        icon: DollarSign,
     },
     {
         title: 'Produk',
