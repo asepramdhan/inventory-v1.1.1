@@ -4,6 +4,7 @@ import CategoryController from '@/actions/App/Http/Controllers/CategoryControlle
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductHppController from '@/actions/App/Http/Controllers/ProductHppController';
 import StoreController from '@/actions/App/Http/Controllers/StoreController';
+import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -45,7 +46,7 @@ const analysisItems: NavItem[] = [
     },
     {
         title: 'Transaksi',
-        href: '#',
+        href: TransactionController.index(),
         icon: ShoppingBagIcon,
     },
 ];

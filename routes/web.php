@@ -4,12 +4,21 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductHppController;
 use App\Http\Controllers\StoreController;
+use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    // Menu Keuangan & Analisa - Daftar Transaksi
+    Route::get('/finance/transactions', [TransactionController::class, 'index'])->name('transactions.index');
+    Route::post('/finance/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
+    Route::patch('/finance/transactions/{transaction}/status', [TransactionController::class, 'statusUpdate'])->name('transactions.status-update');
+    Route::patch('/finance/transactions/bulk-status', [TransactionController::class, 'bulkStatusUpdate'])->name('transactions.bulk-status');
+    Route::post('/finance/transactions/bulk-delete', [TransactionController::class, 'bulkDelete'])->name('transactions.bulk-delete');
+
+    // Menu Master Data
     // Halaman utama daftar HPP & Filter
     Route::get('/master-data/product-hpp', [ProductHppController::class, 'index'])->name('product-hpp.index');
     // Proses simpan data (Satu route untuk create sekaligus update)
