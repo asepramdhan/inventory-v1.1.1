@@ -633,7 +633,7 @@ export default function Product({ products, categoriesList, filters }: any) {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={`outline`}>{product.stock}</Badge>
+                          <Badge variant={product.stock < 5 ? 'destructive' : 'outline'}>{product.stock}</Badge>
                         </TableCell>
                         {/* Format angka ke dalam mata uang Rupiah */}
                         <TableCell>
@@ -1189,9 +1189,7 @@ export default function Product({ products, categoriesList, filters }: any) {
 
 Product.layout = {
   breadcrumbs: [
-    {
-      title: 'Master Produk',
-      href: ProductController.index(),
-    },
+    { title: 'Master Data', href: '#' },
+    { title: 'Master Produk', href: ProductController.index() },
   ],
 };

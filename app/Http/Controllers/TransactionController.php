@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionController extends Controller
 {
@@ -80,6 +83,7 @@ class TransactionController extends Controller
             'status' => 'required|string|in:pending,processing,completed,cancelled',
             'transaction_date' => 'required|date',
             'discount' => 'nullable|numeric|min:0',
+            'affiliate_fee' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -110,6 +114,7 @@ class TransactionController extends Controller
                 'status' => $request->status,
                 'subtotal' => 0,
                 'discount' => $request->discount ?? 0,
+                'affiliate_fee' => $request->affiliate_fee ?? 0,
                 'grand_total' => 0,
                 'marketplace_admin_fee' => 0,
                 'transaction_date' => $request->transaction_date,
@@ -298,5 +303,82 @@ class TransactionController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Data transaksi berhasil dihapus & stok produk telah dikembalikan!']);
 
         return to_route('transactions.index');
+    }
+
+    public function export(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|string',
+        ]);
+
+        // Mengubah string id kembali menjadi array
+        $idsArray = explode(',', $request->ids);
+
+        // Ambil data transaksi milik user yang sedang login (Proteksi IDOR)
+        $transactions = Transaction::whereIn('id', $idsArray)
+            ->where('user_id', Auth::user()->id)
+            ->get();
+
+        // Nama file berakhiran .xlsx
+        $fileName = 'Daftar_Transaksi_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+        // 1. Inisialisasi Spreadsheet Baru
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // 2. Tulis Header Kolom (Baris 1)
+        $sheet->setCellValue('A1', 'Tanggal Transaksi');
+        $sheet->setCellValue('B1', 'No. Pesanan');
+        $sheet->setCellValue('C1', 'Toko / Platform');
+        $sheet->setCellValue('D1', 'Total Bayar');
+        $sheet->setCellValue('E1', 'Biaya Admin');
+        $sheet->setCellValue('F1', 'Komisi Affiliate');
+        $sheet->setCellValue('G1', 'Status');
+
+        // 3. Styling Header agar Tebal (Bold)
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+
+        // 4. Looping untuk Mengisi Baris Data (Dimulai dari Baris 2)
+        $row = 2;
+        foreach ($transactions as $transaction) {
+            $sheet->setCellValue('A' . $row, $transaction->created_at->format('Y-m-d H:i:s'));
+            $sheet->setCellValue('B' . $row, $transaction->invoice_number);
+            $sheet->setCellValue('C' . $row, $transaction->store->name);
+            $sheet->setCellValue('D' . $row, $transaction->grand_total);
+            $sheet->setCellValue('E' . $row, $transaction->marketplace_admin_fee);
+            $sheet->setCellValue('F' . $row, $transaction->affiliate_fee ?? 0);
+            $sheet->setCellValue(
+                'G' . $row,
+                // Jika statusnya 'pending' maka tampilkan 'Menunggu' Jika 'processing' maka tampilkan 'Diproses' Jika 'completed' maka tampilkan 'Selesai' Jika 'cancelled' maka tampilkan 'Dibatalkan'
+                $transaction->status === 'pending' ? 'Menunggu' : ($transaction->status === 'processing' ? 'Diproses' : ($transaction->status === 'completed' ? 'Selesai' : 'Dibatalkan'))
+            );
+            $row++;
+        }
+
+        // Tambahkan format rupiah untuk kolom F di bagian bawah bffo format range
+        if ($row > 2) {
+            $sheet->getStyle('F2:F' . ($row - 1))->getNumberFormat()->setFormatCode('"Rp"#,##0');
+            $sheet->getStyle('F2:F' . ($row - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        }
+
+        // 5. Otomatis Mengatur Lebar Kolom (Auto Size) agar tidak terpotong (###) di Excel
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // 6. Siapkan Proses Writer ke format XLSX
+        $writer = new Xlsx($spreadsheet);
+
+        // 7. Stream data langsung ke Browser untuk diunduh
+        $response = new StreamedResponse(function () use ($writer) {
+            $writer->save('php://output');
+        });
+
+        // 8. Atur HTTP Header khusus untuk dokumen Excel (.xlsx)
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+        $response->headers->set('Cache-Control', 'max-age=0');
+
+        return $response;
     }
 }

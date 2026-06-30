@@ -644,9 +644,7 @@ export default function Category({ categories, filters }: any) {
 
 Category.layout = {
   breadcrumbs: [
-    {
-      title: 'Toko / Marketplace',
-      href: CategoryController.index(),
-    },
+    { title: 'Master Data', href: '#' },
+    { title: 'Toko / Marketplace', href: CategoryController.index() },
   ],
 };

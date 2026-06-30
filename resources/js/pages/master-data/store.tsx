@@ -753,9 +753,7 @@ export default function Store({ stores, filters }: any) {
 
 Store.layout = {
   breadcrumbs: [
-    {
-      title: 'Toko / Marketplace',
-      href: StoreController.index(),
-    },
+    { title: 'Master Data', href: '#' },
+    { title: 'Toko / Marketplace', href: StoreController.index() },
   ],
 };

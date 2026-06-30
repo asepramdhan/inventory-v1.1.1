@@ -97,6 +97,10 @@ export default function Transactions({ transactions, storesList, productsList, f
   const [storeId, setStoreId] = useState<string>('');
   const [status, setStatus] = useState<string>('pending');
 
+  // ---- AFFILIATE BERFORMAT RUPIAH ----
+  const [rawAffiliate, setRawAffiliate] = useState('');
+  const [displayAffiliate, setDisplayAffiliate] = useState('');
+
   // ---- DISKON BERFORMAT RUPIAH ----
   const [rawDiscount, setRawDiscount] = useState('');
   const [displayDiscount, setDisplayDiscount] = useState('');
@@ -235,12 +239,20 @@ export default function Transactions({ transactions, storesList, productsList, f
     setItems(updatedItems);
   };
 
+  const handleAffiliateChange = (value: string) => {
+    const numericValue = value.replace(/\D/g, '');
+    setRawAffiliate(numericValue);
+    setDisplayAffiliate(numericValue ? new Intl.NumberFormat('id-ID').format(parseInt(numericValue, 10)) : '');
+  };
+
   const resetForm = () => {
     setStoreId('');
     setStatus('pending');
     setRawDiscount('');
     setDisplayDiscount('');
     setItems([{ product_id: '', quantity: 1, selling_price: '', display_selling_price: '' }]);
+    setRawAffiliate('');
+    setDisplayAffiliate('');
   };
 
   const formatDateTime = (dateString: string) => {
@@ -288,7 +300,10 @@ export default function Transactions({ transactions, storesList, productsList, f
   }, 0) || 0;
 
   const netProfitCalculated = selectedTransaction
-    ? (parseFloat(selectedTransaction.grand_total) - parseFloat(selectedTransaction.marketplace_admin_fee) - totalHppSnapshotSum)
+    ? (parseFloat(selectedTransaction.grand_total) -
+      parseFloat(selectedTransaction.marketplace_admin_fee) -
+      parseFloat(selectedTransaction.affiliate_fee || 0) - // <-- Dikurangi komisi affiliate
+      totalHppSnapshotSum)
     : 0;
 
   return (
@@ -395,6 +410,21 @@ export default function Transactions({ transactions, storesList, productsList, f
                           {/* Melempar nilai numerik bersih ke Laravel Form Request */}
                           <input type="hidden" name="discount" value={rawDiscount} />
                           <InputError message={errors.discount} />
+                        </div>
+
+                        {/* Potongan Komisi Affiliate */}
+                        <div className="grid gap-1.5">
+                          <Label htmlFor="affiliate_fee_display">Komisi Affiliate (Rp) <span className="text-muted-foreground text-[10px]">(Jika ada)</span></Label>
+                          <Input
+                            id="affiliate_fee_display"
+                            type="text"
+                            placeholder="0"
+                            value={displayAffiliate}
+                            onChange={(e) => handleAffiliateChange(e.target.value)}
+                            className="bg-background"
+                          />
+                          <input type="hidden" name="affiliate_fee" value={rawAffiliate} />
+                          <InputError message={errors.affiliate_fee} />
                         </div>
 
                         {/* Bagian Entri Produk Bersifat Dinamis */}
@@ -828,6 +858,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                   <div className="flex justify-between"><span>Potongan Diskon Global:</span><span>Rp {parseFloat(selectedTransaction.discount).toLocaleString('id-ID')}</span></div>
                   <div className="flex justify-between font-semibold border-t pt-2"><span>Grand Total Payout (Omzet):</span><span className="text-foreground">Rp {parseFloat(selectedTransaction.grand_total).toLocaleString('id-ID')}</span></div>
                   <div className="flex justify-between text-red-600 dark:text-red-400"><span>Potongan Admin Platform Riil:</span><span>-Rp {parseFloat(selectedTransaction.marketplace_admin_fee).toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-orange-600"><span>Beban Komisi Affiliate:</span><span>-Rp {parseFloat(selectedTransaction.affiliate_fee || 0).toLocaleString('id-ID')}</span></div>
                   <div className="flex justify-between text-amber-600"><span>Total Beban HPP Snapshot:</span><span>-Rp {totalHppSnapshotSum.toLocaleString('id-ID')}</span></div>
                   <div className="flex justify-between font-extrabold text-sm border-t border-dashed mt-2 pt-2"><span>Profit Bersih Riil (Netto):</span><span className={netProfitCalculated >= 0 ? 'text-emerald-600' : 'text-destructive'}>Rp {netProfitCalculated.toLocaleString('id-ID')}</span></div>
                 </div>

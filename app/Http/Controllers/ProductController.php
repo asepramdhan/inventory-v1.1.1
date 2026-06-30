@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductController extends Controller
 {
@@ -206,10 +209,80 @@ class ProductController extends Controller
         return to_route('products.index');
     }
 
-    // Tambahkan Method Export Excel placeholder jika diperlukan
     public function export(Request $request)
     {
-        $ids = $request->query('ids');
-        // Logika export Excel menggunakan Maatwebsite Excel atau library pilihanmu...
+        $request->validate([
+            'ids' => 'required|string',
+        ]);
+
+        // Mengubah string id kembali menjadi array
+        $idsArray = explode(',', $request->ids);
+
+        // Ambil data produk milik user yang sedang login (Proteksi IDOR)
+        $products = Product::whereIn('id', $idsArray)
+            ->where('user_id', Auth::user()->id)
+            ->get();
+
+        // Nama file berakhiran .xlsx
+        $fileName = 'Daftar_Master_Produk_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+        // 1. Inisialisasi Spreadsheet Baru
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // 2. Tulis Header Kolom (Baris 1)
+        $sheet->setCellValue('A1', 'Tanggal');
+        $sheet->setCellValue('B1', 'SKU');
+        $sheet->setCellValue('C1', 'Nama Produk');
+        $sheet->setCellValue('D1', 'Kategori');
+        $sheet->setCellValue('E1', 'Stok');
+        $sheet->setCellValue('F1', 'Harga Jual');
+        $sheet->setCellValue('G1', 'Status');
+
+        // 3. Styling Header agar Tebal (Bold)
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+
+        // 4. Looping untuk Mengisi Baris Data (Dimulai dari Baris 2)
+        $row = 2;
+        foreach ($products as $product) {
+            $sheet->setCellValue('A' . $row, $product->created_at->format('Y-m-d H:i:s'));
+            $sheet->setCellValue('B' . $row, trim($product->sku));
+            $sheet->setCellValue('C' . $row, $product->name);
+            $sheet->setCellValue('D' . $row, $product->category->name);
+            $sheet->setCellValue('E' . $row, $product->stock);
+            $sheet->setCellValue('F' . $row, $product->price);
+            $sheet->setCellValue('G' . $row, $product->active ? 'Aktif' : 'Tidak Aktif');
+            $row++;
+        }
+
+        if ($row > 2) {
+            $sheet->getStyle('F2:F' . ($row - 1))
+                ->getNumberFormat()
+                ->setFormatCode('"Rp"#,##0');
+
+            $sheet->getStyle('F2:F' . ($row - 1))
+                ->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        }
+
+        // 5. Otomatis Mengatur Lebar Kolom (Auto Size) agar tidak terpotong (###) di Excel
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // 6. Siapkan Proses Writer ke format XLSX
+        $writer = new Xlsx($spreadsheet);
+
+        // 7. Stream data langsung ke Browser untuk diunduh
+        $response = new StreamedResponse(function () use ($writer) {
+            $writer->save('php://output');
+        });
+
+        // 8. Atur HTTP Header khusus untuk dokumen Excel (.xlsx)
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+        $response->headers->set('Cache-Control', 'max-age=0');
+
+        return $response;
     }
 }

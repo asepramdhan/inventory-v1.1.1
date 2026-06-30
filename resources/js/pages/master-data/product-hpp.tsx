@@ -137,6 +137,31 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
     }
   };
 
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return { dateStr: '-', timeStr: '-' };
+
+    // PERBAIKAN: Jika string berakhiran 'Z', potong huruf Z-nya 
+    // agar JavaScript menganggapnya sebagai waktu lokal murni tanpa konversi UTC
+    const cleanDateString = dateString.endsWith('Z')
+      ? dateString.slice(0, -1)
+      : dateString;
+
+    const date = new Date(cleanDateString);
+    const dateStr = date.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const timeStr = date.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit', // Menampilkan sampai detik agar presisi
+    }).replace('.', ':');
+
+    return { dateStr, timeStr };
+  };
+
   // Perhitungan Otomatis Komponen HPP (Live di Frontend)
   const numPurchase = parseInt(rawPurchase) || 0;
   const numPackaging = parseInt(rawPackaging) || 0;
@@ -237,18 +262,19 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
                     />
                   </TableHead>
                   <TableHead>Gambar</TableHead>
+                  <TableHead>Tanggal</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Nama Produk</TableHead>
                   <TableHead>Harga Jual</TableHead>
                   <TableHead>Total HPP</TableHead>
-                  <TableHead>Margin Bersih</TableHead>
+                  <TableHead>Margin</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products.data.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                       <Empty>
                         <EmptyHeader>
                           <EmptyMedia variant="icon"><Box /></EmptyMedia>
@@ -312,6 +338,16 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
                               <Box className="h-4 w-4" />
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium text-xs text-foreground">
+                              {formatDateTime(product.created_at).dateStr}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground italic">
+                              Pukul {formatDateTime(product.created_at).timeStr} WIB
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell className="font-medium font-mono text-xs">{product.sku}</TableCell>
                         <TableCell>
@@ -697,6 +733,7 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
 
 ProductHpp.layout = {
   breadcrumbs: [
+    { title: 'Master Data', href: '#' },
     { title: 'HPP Produk', href: ProductHppController.index() },
   ],
 };

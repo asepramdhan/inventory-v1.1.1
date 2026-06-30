@@ -1,6 +1,8 @@
 import { Link } from '@inertiajs/react';
 import { ArrowRightLeft, Box, ChartBar, DollarSign, LayoutGrid, Megaphone, ShoppingBagIcon, Store, Tags } from 'lucide-react';
+import AdsAffiliateController from '@/actions/App/Http/Controllers/AdsAffiliateController';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
+import MarginAnalysisController from '@/actions/App/Http/Controllers/MarginAnalysisController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductHppController from '@/actions/App/Http/Controllers/ProductHppController';
 import StoreController from '@/actions/App/Http/Controllers/StoreController';
@@ -31,12 +33,12 @@ const mainNavItems: NavItem[] = [
 const analysisItems: NavItem[] = [
     {
         title: 'Analisa Margin',
-        href: '#',
+        href: MarginAnalysisController.index(),
         icon: ChartBar,
     },
     {
         title: 'Iklan & Affiliasi',
-        href: '#',
+        href: AdsAffiliateController.index(),
         icon: Megaphone,
     },
     {

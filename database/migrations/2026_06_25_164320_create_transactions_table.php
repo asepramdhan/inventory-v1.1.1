@@ -29,6 +29,9 @@ return new class extends Migration
             // Biaya Potongan Marketplace Riil saat pesanan selesai
             $table->decimal('marketplace_admin_fee', 15, 2)->default(0); // Potongan admin riil (% + flat)
 
+            // Menambahkan kolom biaya affiliate
+            $table->decimal('affiliate_fee', 15, 2)->default(0);
+
             // Tanggal transaksi dibuat di marketplace (bisa berbeda dengan created_at sistem)
             $table->dateTime('transaction_date');
             $table->timestamps();

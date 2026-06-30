@@ -9,6 +9,9 @@ use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductHppController extends Controller
 {
@@ -96,5 +99,96 @@ class ProductHppController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk HPP berhasil disimpan!']);
 
         return to_route('product-hpp.index');
+    }
+
+    public function export(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|string',
+        ]);
+
+        // Mengubah string id kembali menjadi array
+        $idsArray = explode(',', $request->ids);
+
+        // Ambil data produk hpp milik user yang sedang login (Proteksi IDOR)
+        $productHpps = Product::whereIn('id', $idsArray)
+            ->where('user_id', Auth::user()->id)
+            ->get();
+
+        // Nama file berakhiran .xlsx
+        $fileName = 'Daftar_Produk_HPP_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+        // 1. Inisialisasi Spreadsheet Baru
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // 2. Tulis Header Kolom (Baris 1)
+        $sheet->setCellValue('A1', 'Tanggal');
+        $sheet->setCellValue('B1', 'SKU');
+        $sheet->setCellValue('C1', 'Nama Produk');
+        $sheet->setCellValue('D1', 'Harga Jual');
+        $sheet->setCellValue('E1', 'Total HPP');
+        $sheet->setCellValue('F1', 'Margin Bersih');
+
+        // 3. Styling Header agar Tebal (Bold)
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+
+        // 4. Looping untuk Mengisi Baris Data (Dimulai dari Baris 2)
+        $row = 2;
+        foreach ($productHpps as $productHpp) {
+            $sheet->setCellValue('A' . $row, $productHpp->created_at->format('Y-m-d H:i:s'));
+            $sheet->setCellValue('B' . $row, trim($productHpp->sku));
+            $sheet->setCellValue('C' . $row, $productHpp->name);
+            $sheet->setCellValue('D' . $row, $productHpp->price);
+            $sheet->setCellValue('E' . $row, $productHpp->hpp->total_hpp);
+            $sheet->setCellValue('F' . $row, $productHpp->price - $productHpp->hpp->total_hpp);
+            $row++;
+        }
+
+        if ($row > 2) {
+            $sheet->getStyle('D2:D' . ($row - 1))
+                ->getNumberFormat()
+                ->setFormatCode('"Rp"#,##0');
+
+            $sheet->getStyle('D2:D' . ($row - 1))
+                ->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+
+            $sheet->getStyle('E2:E' . ($row - 1))
+                ->getNumberFormat()
+                ->setFormatCode('"Rp"#,##0');
+
+            $sheet->getStyle('E2:E' . ($row - 1))
+                ->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+
+            $sheet->getStyle('F2:F' . ($row - 1))
+                ->getNumberFormat()
+                ->setFormatCode('"Rp"#,##0');
+
+            $sheet->getStyle('F2:F' . ($row - 1))
+                ->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        }
+
+        // 5. Otomatis Mengatur Lebar Kolom (Auto Size) agar tidak terpotong (###) di Excel
+        foreach (range('A', 'F') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // 6. Siapkan Proses Writer ke format XLSX
+        $writer = new Xlsx($spreadsheet);
+
+        // 7. Stream data langsung ke Browser untuk diunduh
+        $response = new StreamedResponse(function () use ($writer) {
+            $writer->save('php://output');
+        });
+
+        // 8. Atur HTTP Header khusus untuk dokumen Excel (.xlsx)
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+        $response->headers->set('Cache-Control', 'max-age=0');
+
+        return $response;
     }
 }

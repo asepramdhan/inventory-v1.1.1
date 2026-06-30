@@ -6,6 +6,9 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CategoryController extends Controller
 {
@@ -136,10 +139,62 @@ class CategoryController extends Controller
         return to_route('categories.index');
     }
 
-    // Tambahkan Method Export Excel placeholder jika diperlukan
     public function export(Request $request)
     {
-        $ids = $request->query('ids');
-        // Logika export Excel menggunakan Maatwebsite Excel atau library pilihanmu...
+        $request->validate([
+            'ids' => 'required|string',
+        ]);
+
+        // Mengubah string id kembali menjadi array
+        $idsArray = explode(',', $request->ids);
+
+        // Ambil data kategori milik user yang sedang login (Proteksi IDOR)
+        $categories = Category::whereIn('id', $idsArray)
+            ->where('user_id', Auth::user()->id)
+            ->get();
+
+        // Nama file berakhiran .xlsx
+        $fileName = 'Daftar_Kategori_Produk_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+        // 1. Inisialisasi Spreadsheet Baru
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // 2. Tulis Header Kolom (Baris 1)
+        $sheet->setCellValue('A1', 'Tanggal');
+        $sheet->setCellValue('B1', 'Nama Kategori');
+        $sheet->setCellValue('C1', 'Status');
+
+        // 3. Styling Header agar Tebal (Bold)
+        $sheet->getStyle('A1:C1')->getFont()->setBold(true);
+
+        // 4. Looping untuk Mengisi Baris Data (Dimulai dari Baris 2)
+        $row = 2;
+        foreach ($categories as $categori) {
+            $sheet->setCellValue('A' . $row, $categori->created_at->format('Y-m-d H:i:s'));
+            $sheet->setCellValue('B' . $row, $categori->name);
+            $sheet->setCellValue('C' . $row, $categori->active ? 'Aktif' : 'Tidak Aktif');
+            $row++;
+        }
+
+        // 5. Otomatis Mengatur Lebar Kolom (Auto Size) agar tidak terpotong (###) di Excel
+        foreach (range('A', 'C') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // 6. Siapkan Proses Writer ke format XLSX
+        $writer = new Xlsx($spreadsheet);
+
+        // 7. Stream data langsung ke Browser untuk diunduh
+        $response = new StreamedResponse(function () use ($writer) {
+            $writer->save('php://output');
+        });
+
+        // 8. Atur HTTP Header khusus untuk dokumen Excel (.xlsx)
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+        $response->headers->set('Cache-Control', 'max-age=0');
+
+        return $response;
     }
 }
