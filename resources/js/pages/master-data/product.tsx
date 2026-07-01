@@ -16,6 +16,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
@@ -632,8 +633,9 @@ export default function Product({ products, categoriesList, filters }: any) {
                             {product.category?.name || 'Tanpa Kategori'}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={product.stock < 5 ? 'destructive' : 'outline'}>{product.stock}</Badge>
+                        {/* TAMPILAN BAGUSNYA: CELL STOK QUICK INLINE UPDATE */}
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          <InlineStockUpdater product={product} />
                         </TableCell>
                         {/* Format angka ke dalam mata uang Rupiah */}
                         <TableCell>
@@ -1193,3 +1195,85 @@ Product.layout = {
     { title: 'Master Produk', href: ProductController.index() },
   ],
 };
+
+function InlineStockUpdater({ product }: { product: any }) {
+  const [open, setOpen] = useState(false);
+  const [stockVal, setStockVal] = useState(product.stock?.toString() || '0');
+  const [loading, setLoading] = useState(false);
+
+  // Mengamankan value input agar sinkron jika data dari database berubah
+  useEffect(() => {
+    setStockVal(product.stock?.toString() || '0');
+  }, [product.stock]);
+
+  // Fungsi submit update stok saja
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    router.put(`/master-data/product/${product.id}/update-stock`, {
+      stock: parseInt(stockVal) || 0
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setOpen(false);
+      },
+      onFinish: () => setLoading(false)
+    });
+  };
+
+  // Kondisi untuk menentukan apakah stok tipis (di bawah 5)
+  const isLowStock = product.stock < 5;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        {/* Tombol berbasis DIV dengan class dinamis sesuai kondisi stock */}
+        <div
+          className={`cursor-pointer p-1.5 px-3 rounded text-center font-bold text-sm inline-flex items-center gap-1 transition-colors border ${isLowStock
+              ? 'bg-destructive/10 text-destructive border-destructive hover:bg-destructive/20 dark:bg-destructive/20'
+              : 'hover:bg-muted dark:hover:bg-muted/40 border-dashed border-muted-foreground/40 text-foreground'
+            }`}
+        >
+          {/* Angka Stok */}
+          <span>{product.stock}</span>
+
+          {/* Label pcs */}
+          <span className={`text-xs font-normal ${isLowStock ? 'text-destructive/80' : 'text-muted-foreground'}`}>
+            pcs
+          </span>
+        </div>
+      </PopoverTrigger>
+
+      {/* Penting: stopPropagation di sini mencegah klik di popover membuka Sheet Detail Produk */}
+      <PopoverContent
+        className="w-56 p-3"
+        onClick={(e) => e.stopPropagation()}
+        align="center"
+      >
+        <form onSubmit={handleSave} className="space-y-3">
+          <div className="space-y-1">
+            <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Quick Update Stock</h4>
+            <p className="text-xs font-medium text-foreground max-w-[180px] truncate">{product.name}</p>
+          </div>
+
+          <div className="flex gap-2 items-center">
+            <Input
+              type="number"
+              value={stockVal}
+              onChange={(e) => setStockVal(e.target.value)}
+              className="h-8 text-sm"
+              min="0"
+              required
+              disabled={loading}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <Button size="sm" className="h-8 px-2.5" type="submit" disabled={loading}>
+              {loading ? '...' : 'Simpan'}
+            </Button>
+          </div>
+        </form>
+      </PopoverContent>
+    </Popover>
+  );
+}

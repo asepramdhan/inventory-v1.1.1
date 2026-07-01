@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { Head, router } from '@inertiajs/react';
-import { ArrowDownRight, ArrowUpRight, Building2, Calendar, DollarSign, Percent, ShoppingBag, TrendingUp } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Calendar, DollarSign, Percent, ShoppingBag, TrendingUp } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
 import MarginAnalysisController from '@/actions/App/Http/Controllers/MarginAnalysisController';
@@ -15,6 +15,8 @@ interface Props {
     total_omzet: number;
     total_admin_fee: number;
     total_hpp: number;
+    total_affiliate_fee: number;
+    total_ads_fee: number;
     net_profit: number;
     average_margin_percentage: number;
     profit_pending: number;
@@ -32,29 +34,31 @@ interface Props {
 }
 
 export default function MarginAnalysis({ summary, trendData, storePerformance, productPerformance, storesList, filters }: Props) {
-  // State untuk manajemen filter local sebelum di-submit
+  // 1. Amankan inisialisasi state dengan memaksa store_id menjadi String
   const [startDate, setStartDate] = useState(filters.start_date);
   const [endDate, setEndDate] = useState(filters.end_date);
-  const [storeId, setStoreId] = useState(filters.store_id);
+  const [storeId, setStoreId] = useState(String(filters.store_id ?? 'all'));
 
-  // 2. PENTING: Paksa state lokal sinkron setiap kali Laravel mengirimkan props filter baru
+  // 2. Paksa state lokal sinkron dan pastikan tipe datanya selalu String saat props berubah
   useEffect(() => {
     setStartDate(filters.start_date);
     setEndDate(filters.end_date);
-    setStoreId(filters.store_id);
+    setStoreId(String(filters.store_id ?? 'all'));
   }, [filters.start_date, filters.end_date, filters.store_id]);
 
-  // Fungsi untuk memicu reload data berdasarkan filter ke Laravel
+  // 3. Gunakan window.location.pathname dan tambahkan replace: true agar history browser tidak penuh
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    router.get('/finance/margin-analysis', {
+    router.get(window.location.pathname, {
       start_date: startDate,
       end_date: endDate,
       store_id: storeId
-    }, { preserveState: true });
+    }, {
+      preserveState: true,
+      replace: true // Mengganti URL saat ini tanpa menumpuk tombol 'Back' di browser
+    });
   };
 
-  // Helper untuk format Rupiah yang rapi
   const formatIDR = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -69,22 +73,19 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
       <Head title="Analisa Margin & Profit" />
 
       <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-        {/* HEADER & FILTER BAR (STACKED & RIGHT-ALIGNED) */}
+        {/* HEADER & FILTER BAR */}
         <div className="flex flex-col gap-5 border-b pb-6">
-          {/* Baris 1: Judul & Deskripsi Halaman */}
           <div>
             <Heading
               title="Analisa Margin"
-              description="Pantau profitabilitas riil toko dan produk Anda setelah dipotong beban HPP & admin marketplace."
+              description="Pantau profitabilitas riil toko dan produk Anda setelah dipotong beban HPP, admin marketplace, dan biaya affiliate."
             />
           </div>
 
-          {/* Baris 2: Toolbar Filter (Di bawah header, rata kanan di desktop) */}
           <form
             onSubmit={handleFilterSubmit}
             className="flex flex-col gap-3 w-full sm:flex-row justify-center sm:flex-wrap"
           >
-            {/* Kapsul Filter Tanggal */}
             <div className="flex items-center gap-2 bg-card px-3 h-10 rounded-lg border shadow-sm w-full sm:w-auto">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               <input
@@ -102,7 +103,6 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
               />
             </div>
 
-            {/* Dropdown Pilih Toko */}
             <div className="w-full sm:w-48">
               <Select value={storeId} onValueChange={(value) => setStoreId(value)}>
                 <SelectTrigger className="w-full h-10 text-xs bg-card shadow-sm">
@@ -119,103 +119,138 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
               </Select>
             </div>
 
-            {/* Tombol Terapkan */}
             <Button type="submit" size="sm" className="h-10 px-5 w-full sm:w-auto font-medium shadow-sm shrink-0">
               Terapkan
             </Button>
           </form>
         </div>
 
-        {/* 1. KARTU RINGKASAN UTAMA (SUMMARY CARDS) */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          {/* Card Total Omzet */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Total Omzet</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold">{formatIDR(summary.total_omzet)}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Bruto (Pendapatan Kotor)</p>
-            </CardContent>
-          </Card>
+        {/* Hitung Total Seluruh Beban di atas return atau langsung sebelum layout kartu */}
+        {(() => {
+          const totalBeban = summary.total_hpp + summary.total_admin_fee + summary.total_affiliate_fee + summary.total_ads_fee;
 
-          {/* Card Total HPP */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Beban Pokok (HPP)</CardTitle>
-              <ShoppingBag className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-destructive">{formatIDR(summary.total_hpp)}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Modal Produk Terkunci</p>
-            </CardContent>
-          </Card>
+          return (
+            /* Menggunakan min-h-[210px] agar tinggi kartu seragam dan pas untuk menampung rincian biaya */
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
 
-          {/* Card Potongan Admin */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Potongan Admin</CardTitle>
-              <Building2 className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-orange-500">{formatIDR(summary.total_admin_fee)}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Biaya Sistem & Platform</p>
-            </CardContent>
-          </Card>
+              {/* CARD 1: TOTAL OMZET */}
+              <Card className="shadow-sm border-muted/60 flex flex-col min-h-[210px] justify-between">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Omzet</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col justify-between">
+                  {/* PEMBUNGKUS INI MEMBUAT ANGKA PAS DI TENGAH MATI */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <span className="text-3xl font-bold tracking-tight text-foreground">
+                      {formatIDR(summary.total_omzet)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground border-t pt-1.5 border-dashed mt-auto">
+                    Akumulasi nilai transaksi bruto (Kotor)
+                  </p>
+                </CardContent>
+              </Card>
 
-          {/* Card Profit Bersih */}
-          <Card className="border-emerald-500/30 bg-emerald-500/[0.02] lg:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-              <CardTitle className="text-xs font-bold text-emerald-600">Profit Riil (Selesai)</CardTitle>
-              <TrendingUp className="h-4 w-4 text-emerald-600" />
-            </CardHeader>
-            <CardContent>
-              {/* Angka Utama Naik ke Atas agar sejajar dengan Card Lain */}
-              <div className="text-2xl font-black text-emerald-600 tracking-tight">
-                {formatIDR(summary.net_profit)}
-              </div>
+              {/* CARD 2: GABUNGAN TOTAL BEBAN PENGELUARAN */}
+              <Card className="shadow-sm border-muted/60 flex flex-col min-h-[210px] justify-between">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Beban & Biaya</CardTitle>
+                  <ShoppingBag className="h-4 w-4 text-destructive shrink-0" />
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col justify-between">
+                  {/* PEMBUNGKUS INI MEMBUAT ANGKA PAS DI TENGAH MATI */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <span className="text-3xl font-bold tracking-tight text-destructive">
+                      {formatIDR(totalBeban)}
+                    </span>
+                  </div>
 
-              {/* Kunci Perapian: Gabungkan subteks dan badge dalam satu baris horizontal */}
-              <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-dashed border-emerald-500/10">
-                {/* <p className="text-[10px] text-muted-foreground whitespace-nowrap">
-                  Uang Riil (Selesai)
-                </p> */}
+                  <div className="pt-1.5 border-t border-dashed border-muted flex flex-col gap-0.5 text-[11px] mt-auto">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>• Pokok (HPP):</span>
+                      <span className="font-medium text-foreground">{formatIDR(summary.total_hpp)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>• Admin Marketplace:</span>
+                      <span className="font-medium text-foreground">{formatIDR(summary.total_admin_fee)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>• Biaya Iklan (Ads):</span>
+                      <span className="text-purple-600 font-semibold">{formatIDR(summary.total_ads_fee)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>• Komisi Affiliate:</span>
+                      <span className="text-indigo-600 font-semibold">{formatIDR(summary.total_affiliate_fee)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <div className="flex gap-1 text-[8px] font-bold tracking-tight">
-                  <span className="bg-amber-500/10 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 px-1 py-0.5 rounded">
-                    PND: {formatIDR(summary.profit_pending)}
-                  </span>
-                  <span className="bg-blue-500/10 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1 py-0.5 rounded">
-                    PRS: {formatIDR(summary.profit_processing)}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              {/* CARD 3: PROFIT BERSIH RIIL */}
+              <Card className="border-emerald-500/30 bg-emerald-500/[0.01] shadow-sm flex flex-col min-h-[210px] justify-between">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Profit Riil (Selesai)</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-emerald-600 shrink-0" />
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col justify-between">
+                  {/* PEMBUNGKUS INI MEMBUAT ANGKA PAS DI TENGAH MATI */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <span className="text-3xl font-black text-emerald-600 tracking-tight">
+                      {formatIDR(summary.net_profit)}
+                    </span>
+                  </div>
 
-          {/* Card Persentase Margin */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Rata-rata Margin</CardTitle>
-              <Percent className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{summary.average_margin_percentage}%</div>
-              <div className="flex items-center gap-1 mt-1">
-                {summary.average_margin_percentage >= 20 ? (
-                  <span className="text-[10px] text-emerald-600 font-semibold flex items-center"><ArrowUpRight className="h-3 w-3 inline" /> Sehat (&gt;20%)</span>
-                ) : (
-                  <span className="text-[10px] text-amber-600 font-semibold flex items-center"><ArrowDownRight className="h-3 w-3 inline" /> Tipis (&lt;20%)</span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  <div className="pt-1.5 border-t border-dashed border-emerald-500/20 mt-auto">
+                    <div className="flex flex-row justify-between items-center text-[10px] font-medium text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                        Pending: <strong className="text-amber-600 font-bold ml-0.5">{formatIDR(summary.profit_pending)}</strong>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                        Proses: <strong className="text-blue-600 font-bold ml-0.5">{formatIDR(summary.profit_processing)}</strong>
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-        {/* 2. AREA GRAFIK (CHARTS SECTION) */}
+              {/* CARD 4: RATA-RATA MARGIN */}
+              <Card className="shadow-sm border-muted/60 flex flex-col min-h-[210px] justify-between">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rata-Rata Margin</CardTitle>
+                  <Percent className="h-4 w-4 text-primary shrink-0" />
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col justify-between">
+                  {/* PEMBUNGKUS INI MEMBUAT ANGKA PAS DI TENGAH MATI */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <span className="text-3xl font-bold tracking-tight text-primary">
+                      {summary.average_margin_percentage}%
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t pt-1.5 border-dashed mt-auto">
+                    <span className="text-[11px] text-muted-foreground">Status Margin:</span>
+                    {summary.average_margin_percentage >= 20 ? (
+                      <span className="text-[11px] text-emerald-600 font-semibold flex items-center">
+                        <ArrowUpRight className="h-3.5 w-3.5 inline mr-0.5 shrink-0" /> Sehat (&gt;20%)
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-amber-600 font-semibold flex items-center">
+                        <ArrowDownRight className="h-3.5 w-3.5 inline mr-0.5 shrink-0" /> Tipis (&lt;20%)
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
+          );
+        })()}
+
+        {/* 2. AREA GRAFIK */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          {/* Grafik Tren Omzet vs Net Profit */}
           <Card className="lg:col-span-4">
             <CardHeader>
               <CardTitle className="text-sm font-semibold">Tren Pertumbuhan Profit Harian</CardTitle>
@@ -246,7 +281,6 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
             </CardContent>
           </Card>
 
-          {/* Grafik Kontribusi Toko */}
           <Card className="lg:col-span-3">
             <CardHeader>
               <CardTitle className="text-sm font-semibold">Performa Profit Antar Toko</CardTitle>
@@ -268,7 +302,7 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
           </Card>
         </div>
 
-        {/* 3. TABEL RANKING PRODUK (PRODUCT PROFITABILITY RANKING) */}
+        {/* 3. TABEL RANKING PRODUK */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold">Top 10 Produk Berdasarkan Kontribusi Profit</CardTitle>

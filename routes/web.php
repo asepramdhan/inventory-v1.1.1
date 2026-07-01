@@ -31,6 +31,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/master-data/category/export', [CategoryController::class, 'export'])->name('categories.export');
     Route::post('/master-data/category/bulk-delete', [CategoryController::class, 'bulkDestroy'])->name('categories.bulk-destroy');
     Route::resource('products', ProductController::class);
+    Route::put('/master-data/product/{product}/update-stock', [ProductController::class, 'updateStock']);
     Route::get('/master-data/product/export', [ProductController::class, 'export'])->name('products.export');
     Route::post('/master-data/product/bulk-delete', [ProductController::class, 'bulkDestroy'])->name('products.bulk-destroy');
     Route::resource('stores', StoreController::class);

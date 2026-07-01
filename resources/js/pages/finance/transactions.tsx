@@ -4,7 +4,7 @@
 /* eslint-disable curly */
 import { Form, Head, router } from '@inertiajs/react';
 import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Plus, RefreshCw, Search, ShoppingBag, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -29,32 +29,20 @@ function CopyButton({ value }: { value: string }) {
     e.preventDefault();
 
     try {
-      // 1. Jika di HTTPS / Localhost resmi
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(value);
       } else {
-        // 2. Fallback untuk HTTP biasa (.test) + Solusi Focus Trap Shadcn Sheet
         const textArea = document.createElement('textarea');
         textArea.value = value;
-
-        // Buat tidak terlihat tapi tetap berada di dalam hierarki komponen
         textArea.style.position = 'absolute';
         textArea.style.opacity = '0';
         textArea.style.pointerEvents = 'none';
-
-        // PERUBAHAN UTAMA: Masukkan ke dalam elemen tombol saat ini (e.currentTarget)
-        // Dengan begini, posisi teks tiruan ada DI DALAM Sheet, sehingga LOLOS dari Focus Trap
         e.currentTarget.appendChild(textArea);
-
         textArea.select();
-        textArea.setSelectionRange(0, 99999); // Ekstra support untuk browser HP
+        textArea.setSelectionRange(0, 99999);
         document.execCommand('copy');
-
-        // Hapus kembali dari dalam tombol setelah selesai disalin
         e.currentTarget.removeChild(textArea);
       }
-
-      // Jalankan animasi centang
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -67,7 +55,6 @@ function CopyButton({ value }: { value: string }) {
       type="button"
       variant="ghost"
       size="icon"
-      // Ditambahkan class 'relative' agar textarea absolute aman di dalam scope button
       className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-muted ml-1.5 inline-flex items-center justify-center rounded-md transition-colors relative"
       onClick={handleCopy}
     >
@@ -80,6 +67,16 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+const getLocalDatetimeString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export default function Transactions({ transactions, storesList, productsList, filters }: any) {
   const [search, setSearch] = useState(filters?.search || '');
   const [storeFilter, setStoreFilter] = useState(filters?.store_id || 'all');
@@ -90,54 +87,52 @@ export default function Transactions({ transactions, storesList, productsList, f
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
-  // State Pilihan Checkbox (Bulk Action)
+  // REFS UNTUK AUTO FOCUS
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
+
+  // STATE MANAGEMENT PENCARIAN PRODUK
+  const [openProductSearchIndex, setOpenProductSearchIndex] = useState<number | null>(null);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  // State Form fields Terkontrol untuk Select Dropdown & Dynamic Items
   const [storeId, setStoreId] = useState<string>('');
   const [status, setStatus] = useState<string>('pending');
+  const [invoiceNumber, setInvoiceNumber] = useState<string>('');
+  const [transactionDate, setTransactionDate] = useState<string>(getLocalDatetimeString());
+  const [submitAction, setSubmitAction] = useState<'save_close' | 'save_another'>('save_close');
 
-  // ---- AFFILIATE BERFORMAT RUPIAH ----
   const [rawAffiliate, setRawAffiliate] = useState('');
   const [displayAffiliate, setDisplayAffiliate] = useState('');
-
-  // ---- DISKON BERFORMAT RUPIAH ----
   const [rawDiscount, setRawDiscount] = useState('');
   const [displayDiscount, setDisplayDiscount] = useState('');
 
-  // Modifikasi items awal untuk menampung display rupiah
   const [items, setItems] = useState<any[]>([
     { product_id: '', quantity: 1, selling_price: '', display_selling_price: '' }
   ]);
 
-  // Fungsi Mendapatkan Waktu Sekarang Sesuai Zona Waktu Lokal secara Akurat
-  const getLocalDatetimeString = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
+  // Efek memicu Auto Focus saat form tambah transaksi manual dibuka
+  useEffect(() => {
+    if (isCreateSheetOpen) {
+      setTimeout(() => {
+        invoiceInputRef.current?.focus();
+      }, 150);
+    }
+  }, [isCreateSheetOpen]);
 
-  // Reset pilihan ceklis saat data transaksi berubah dari server
   useEffect(() => {
     setSelectedIds([]);
   }, [transactions]);
 
-  // SINKRONISASI AGAR DATA DI DALAM SHEET DETAIL SELALU UPDATE OTOMATIS
   useEffect(() => {
     if (selectedTransaction) {
-      // Cari data transaksi terbaru dari props berdasarkan ID transaksi yang sedang dibuka
       const freshData = transactions.data.find((tx: any) => tx.id === selectedTransaction.id);
       if (freshData) {
         setSelectedTransaction(freshData);
       }
     }
-  }, [transactions.data]); // Efek ini berjalan setiap kali ada data baru dari server
+  }, [transactions.data]);
 
-  // Debounce filter server-side
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       router.get(
@@ -149,7 +144,6 @@ export default function Transactions({ transactions, storesList, productsList, f
     return () => clearTimeout(delayDebounceFn);
   }, [search, storeFilter, statusFilter]);
 
-  // Handler Ceklis Massal
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const allIds = transactions.data.map((tx: any) => tx.id);
@@ -174,7 +168,7 @@ export default function Transactions({ transactions, storesList, productsList, f
     }, {
       preserveScroll: true,
       onSuccess: () => {
-        setSelectedIds([]); // Reset checkbox setelah berhasil
+        setSelectedIds([]);
       }
     });
   };
@@ -187,14 +181,12 @@ export default function Transactions({ transactions, storesList, productsList, f
     });
   };
 
-  // Fungsi Aksi Massal: Export Excel Terpilih
   const handleBulkExport = () => {
     if (selectedIds.length === 0) return;
     const idsQuery = selectedIds.join(',');
     window.location.href = `/finance/transactions/export?ids=${idsQuery}`;
   };
 
-  // Manajemen Baris Item Produk Dinamis Dalam Form Manual
   const handleAddItem = () => {
     setItems([...items, { product_id: '', quantity: 1, selling_price: '', display_selling_price: '' }]);
   };
@@ -203,26 +195,22 @@ export default function Transactions({ transactions, storesList, productsList, f
     setItems(items.filter((_, i) => i !== index));
   };
 
-  // ---- HANDLER FORMAT RUPIAH PADA DISKON ----
   const handleDiscountChange = (value: string) => {
     const numericValue = value.replace(/\D/g, '');
     setRawDiscount(numericValue);
     setDisplayDiscount(numericValue ? new Intl.NumberFormat('id-ID').format(parseInt(numericValue, 10)) : '');
   };
 
-  // ---- HANDLER DINAMIS INPUT PRODUK & HARGA JUAL ----
   const handleItemChange = (index: number, field: string, value: any) => {
     const updatedItems = [...items];
 
     if (field === 'selling_price') {
-      // Jika user mengetik manual harga jual di row item
       const numericValue = value.replace(/\D/g, '');
       updatedItems[index]['selling_price'] = numericValue;
       updatedItems[index]['display_selling_price'] = numericValue
         ? new Intl.NumberFormat('id-ID').format(parseInt(numericValue, 10))
         : '';
     } else if (field === 'product_id') {
-      // Otomatisasi Harga Jual Master Produk saat produk dipilih dari Dropdown
       updatedItems[index]['product_id'] = value;
       const selectedProd = productsList.find((p: any) => p.id.toString() === value);
       if (selectedProd) {
@@ -248,6 +236,8 @@ export default function Transactions({ transactions, storesList, productsList, f
   const resetForm = () => {
     setStoreId('');
     setStatus('pending');
+    setInvoiceNumber('');
+    setTransactionDate(getLocalDatetimeString());
     setRawDiscount('');
     setDisplayDiscount('');
     setItems([{ product_id: '', quantity: 1, selling_price: '', display_selling_price: '' }]);
@@ -257,27 +247,12 @@ export default function Transactions({ transactions, storesList, productsList, f
 
   const formatDateTime = (dateString: string) => {
     if (!dateString) return { dateStr: '-', timeStr: '-' };
-
-    // PERBAIKAN: Jika string berakhiran 'Z', potong huruf Z-nya 
-    // agar JavaScript menganggapnya sebagai waktu lokal murni tanpa konversi UTC
-    const cleanDateString = dateString.endsWith('Z')
-      ? dateString.slice(0, -1)
-      : dateString;
-
+    const cleanDateString = dateString.endsWith('Z') ? dateString.slice(0, -1) : dateString;
     const date = new Date(cleanDateString);
-    const dateStr = date.toLocaleDateString('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    const timeStr = date.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit', // Menampilkan sampai detik agar presisi
-    }).replace('.', ':');
-
-    return { dateStr, timeStr };
+    return {
+      dateStr: date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+      timeStr: date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace('.', ':')
+    };
   };
 
   const getStatusBadge = (status: string) => {
@@ -302,7 +277,7 @@ export default function Transactions({ transactions, storesList, productsList, f
   const netProfitCalculated = selectedTransaction
     ? (parseFloat(selectedTransaction.grand_total) -
       parseFloat(selectedTransaction.marketplace_admin_fee) -
-      parseFloat(selectedTransaction.affiliate_fee || 0) - // <-- Dikurangi komisi affiliate
+      parseFloat(selectedTransaction.affiliate_fee || 0) -
       totalHppSnapshotSum)
     : 0;
 
@@ -336,9 +311,19 @@ export default function Transactions({ transactions, storesList, productsList, f
                   {...TransactionController.store.form()}
                   options={{ preserveScroll: true }}
                   onSuccess={() => {
-                    setIsCreateSheetOpen(false);
-                    resetForm();
-                    setFormKey((prev) => prev + 1);
+                    if (submitAction === 'save_close') {
+                      setIsCreateSheetOpen(false);
+                      resetForm();
+                      setFormKey((prev) => prev + 1);
+                    } else {
+                      // Hanya reset nomor invoice agar daftar item produk bertahan
+                      setInvoiceNumber('');
+
+                      // Auto-Focus kembali ke kolom No. Pesanan
+                      setTimeout(() => {
+                        invoiceInputRef.current?.focus();
+                      }, 100);
+                    }
                   }}
                   className="flex flex-col flex-1 overflow-hidden"
                 >
@@ -364,7 +349,16 @@ export default function Transactions({ transactions, storesList, productsList, f
                           {/* No Invoice */}
                           <div className="grid gap-1.5">
                             <Label htmlFor="invoice_number">No. Pesanan</Label>
-                            <Input id="invoice_number" name="invoice_number" placeholder="Contoh: 260001247..." className="bg-background" required />
+                            <Input
+                              ref={invoiceInputRef}
+                              id="invoice_number"
+                              name="invoice_number"
+                              placeholder="Contoh: 260001247..."
+                              className="bg-background font-semibold"
+                              required
+                              value={invoiceNumber}
+                              onChange={(e) => setInvoiceNumber(e.target.value)}
+                            />
                             <InputError message={errors.invoice_number} />
                           </div>
                         </div>
@@ -391,7 +385,15 @@ export default function Transactions({ transactions, storesList, productsList, f
                           {/* Tanggal & Waktu Akurat */}
                           <div className="grid gap-1.5">
                             <Label htmlFor="transaction_date">Tanggal & Waktu</Label>
-                            <Input id="transaction_date" name="transaction_date" type="datetime-local" defaultValue={getLocalDatetimeString()} className="bg-background" required />
+                            <Input
+                              id="transaction_date"
+                              name="transaction_date"
+                              type="datetime-local"
+                              className="bg-background"
+                              required
+                              value={transactionDate}
+                              onChange={(e) => setTransactionDate(e.target.value)}
+                            />
                             <InputError message={errors.transaction_date} />
                           </div>
                         </div>
@@ -407,7 +409,6 @@ export default function Transactions({ transactions, storesList, productsList, f
                             onChange={(e) => handleDiscountChange(e.target.value)}
                             className="bg-background"
                           />
-                          {/* Melempar nilai numerik bersih ke Laravel Form Request */}
                           <input type="hidden" name="discount" value={rawDiscount} />
                           <InputError message={errors.discount} />
                         </div>
@@ -437,69 +438,146 @@ export default function Transactions({ transactions, storesList, productsList, f
                           </div>
 
                           <div className="space-y-3">
-                            {items.map((item, index) => (
-                              <div key={index} className="grid grid-cols-12 gap-2 items-end border p-3 rounded-lg bg-muted/10 relative group">
-                                <div className="col-span-6 grid gap-1.5">
-                                  <Label className="text-[11px] text-muted-foreground">Produk</Label>
-                                  <Select value={item.product_id} onValueChange={(v) => handleItemChange(index, 'product_id', v)}>
-                                    <SelectTrigger className="w-full bg-background">
-                                      <SelectValue placeholder="Pilih Produk" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {productsList?.map((p: any) => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                                  <input type="hidden" name={`items[${index}][product_id]`} value={item.product_id} />
-                                </div>
+                            {items.map((item, index) => {
+                              const activeProduct = productsList.find((p: any) => p.id.toString() === item.product_id.toString());
+                              const productLabel = activeProduct ? activeProduct.name : 'Cari & Pilih Produk...';
 
-                                <div className="col-span-2 grid gap-1.5">
-                                  <Label className="text-[11px] text-muted-foreground">Qty</Label>
-                                  <Input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 1)} name={`items[${index}][quantity]`} className="bg-background px-2" required />
-                                </div>
+                              return (
+                                <div key={index} className="grid grid-cols-12 gap-2 items-end border p-3 rounded-lg bg-muted/10 relative group">
 
-                                <div className="col-span-3 grid gap-1.5">
-                                  <Label className="text-[11px] text-muted-foreground">Harga Jual (Rp)</Label>
-                                  <Input
-                                    type="text"
-                                    placeholder="0"
-                                    value={item.display_selling_price || ''}
-                                    onChange={(e) => handleItemChange(index, 'selling_price', e.target.value)}
-                                    className="bg-background px-2"
-                                    required
-                                  />
-                                  {/* Melempar nilai numerik bersih terindeks sesuai skema array items manual Laravel */}
-                                  <input type="hidden" name={`items[${index}][selling_price]`} value={item.selling_price} />
-                                </div>
+                                  {/* FIX SEMPURNA: SEARCHABLE DROPDOWN DENGAN RADIX PORTAL */}
+                                  <div className="col-span-6 grid gap-1.5 relative">
+                                    <Label className="text-[11px] text-muted-foreground">Produk</Label>
 
-                                <div className="col-span-1 flex justify-center pb-1">
-                                  <Button type="button" variant="ghost" size="icon" disabled={items.length === 1} onClick={() => handleRemoveItem(index)} className="text-destructive size-8 hover:bg-destructive/10">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                                    <DropdownMenu
+                                      open={openProductSearchIndex === index}
+                                      onOpenChange={(open) => {
+                                        if (!open) setOpenProductSearchIndex(null);
+                                      }}
+                                    >
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          className="w-full bg-background justify-between font-normal text-left truncate h-9 px-3 border border-input text-xs"
+                                          onClick={() => {
+                                            setOpenProductSearchIndex(index);
+                                            setProductSearchQuery('');
+                                          }}
+                                        >
+                                          <span className="truncate">{productLabel}</span>
+                                          <Search className="h-3 w-3 shrink-0 opacity-50 ml-2" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
 
-                                {/* PEMBARUAN LOGIKA: Diberikan 'col-span-12' agar letak error turun ke bawah row secara rapi */}
-                                {errors[`items.${index}.quantity`] && (
-                                  <div className="col-span-12 mt-1">
-                                    <InputError message={errors[`items.${index}.quantity`]} />
+                                      {/* Content ini menggunakan Portal secara otomatis sehingga melayang sempurna di atas kontainer scroll */}
+                                      <DropdownMenuContent
+                                        align="start"
+                                        className="w-[var(--radix-dropdown-menu-trigger-width)] p-2 flex flex-col gap-1.5 max-h-60 overflow-hidden z-[100]"
+                                      >
+                                        {/* Kolom input cari di dalam dropdown */}
+                                        <div className="relative" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                                          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                          <Input
+                                            placeholder="Ketik kata kunci produk..."
+                                            className="h-8 pl-8 text-xs bg-background"
+                                            value={productSearchQuery}
+                                            onChange={(e) => setProductSearchQuery(e.target.value)}
+                                            autoFocus
+                                          />
+                                        </div>
+
+                                        {/* Opsi Item Produk */}
+                                        <div className="flex-1 overflow-y-auto space-y-0.5 pr-1 text-xs max-h-40 no-scrollbar">
+                                          {productsList
+                                            ?.filter((p: any) => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                                            .map((p: any) => (
+                                              <DropdownMenuItem
+                                                key={p.id}
+                                                className={`w-full text-left px-2 py-1.5 rounded cursor-pointer ${item.product_id === p.id.toString() ? 'bg-accent font-semibold text-accent-foreground' : ''}`}
+                                                onSelect={() => {
+                                                  handleItemChange(index, 'product_id', p.id.toString());
+                                                  setOpenProductSearchIndex(null);
+                                                }}
+                                              >
+                                                {p.name}
+                                              </DropdownMenuItem>
+                                            ))}
+                                          {productsList?.filter((p: any) => p.name.toLowerCase().includes(productSearchQuery.toLowerCase())).length === 0 && (
+                                            <div className="text-[11px] text-muted-foreground text-center py-3">Produk tidak ditemukan</div>
+                                          )}
+                                        </div>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+
+                                    <input type="hidden" name={`items[${index}][product_id]`} value={item.product_id} />
                                   </div>
-                                )}
-                                {errors[`items.${index}.product_id`] && (
-                                  <div className="col-span-12 mt-1">
-                                    <InputError message={errors[`items.${index}.product_id`]} />
+
+                                  <div className="col-span-2 grid gap-1.5">
+                                    <Label className="text-[11px] text-muted-foreground">Qty</Label>
+                                    <Input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 1)} name={`items[${index}][quantity]`} className="bg-background px-2 text-xs h-9" required />
                                   </div>
-                                )}
-                              </div>
-                            ))}
+
+                                  <div className="col-span-3 grid gap-1.5">
+                                    <Label className="text-[11px] text-muted-foreground">Harga Jual (Rp)</Label>
+                                    <Input
+                                      type="text"
+                                      placeholder="0"
+                                      value={item.display_selling_price || ''}
+                                      onChange={(e) => handleItemChange(index, 'selling_price', e.target.value)}
+                                      className="bg-background px-2 text-xs h-9"
+                                      required
+                                    />
+                                    <input type="hidden" name={`items[${index}][selling_price]`} value={item.selling_price} />
+                                  </div>
+
+                                  <div className="col-span-1 flex justify-center pb-1">
+                                    <Button type="button" variant="ghost" size="icon" disabled={items.length === 1} onClick={() => handleRemoveItem(index)} className="text-destructive size-8 hover:bg-destructive/10">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+
+                                  {errors[`items.${index}.quantity`] && (
+                                    <div className="col-span-12 mt-1">
+                                      <InputError message={errors[`items.${index}.quantity`]} />
+                                    </div>
+                                  )}
+                                  {errors[`items.${index}.product_id`] && (
+                                    <div className="col-span-12 mt-1">
+                                      <InputError message={errors[`items.${index}.product_id`]} />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
 
-                      <SheetFooter className="p-6 border-t bg-background mt-auto flex-row gap-2 sm:justify-end">
-                        <Button type="submit" disabled={processing}>
-                          {processing ? 'Menyimpan...' : 'Simpan Transaksi'}
+                      <SheetFooter className="p-6 border-t bg-background mt-auto flex flex-col sm:flex-row gap-2 sm:justify-end">
+                        <Button
+                          type="submit"
+                          disabled={processing}
+                          onClick={() => setSubmitAction('save_close')}
+                          className="w-full sm:w-auto"
+                        >
+                          {processing && submitAction === 'save_close' ? 'Menyimpan...' : 'Simpan Transaksi'}
                         </Button>
+
+                        <Button
+                          type="submit"
+                          variant="outline"
+                          disabled={processing}
+                          onClick={() => setSubmitAction('save_another')}
+                          className="w-full sm:w-auto border border-input bg-background hover:bg-accent text-accent-foreground"
+                        >
+                          {processing && submitAction === 'save_another' ? 'Menyimpan...' : 'Simpan & Buat Lagi'}
+                        </Button>
+
                         <SheetClose asChild>
-                          <Button variant="outline" type="button" disabled={processing}>Batal</Button>
+                          <Button variant="outline" type="button" disabled={processing} className="w-full sm:w-auto">
+                            Batal
+                          </Button>
                         </SheetClose>
                       </SheetFooter>
                     </>
@@ -590,7 +668,6 @@ export default function Transactions({ transactions, storesList, productsList, f
                           setIsSheetOpen(true);
                         }}
                       >
-                        {/* Checkbox Massal */}
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={isSelected}
@@ -599,7 +676,6 @@ export default function Transactions({ transactions, storesList, productsList, f
                           />
                         </TableCell>
 
-                        {/* CELL GAMBAR DENGAN HOVER PREVIEW */}
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {firstProductImage ? (
                             <HoverCard openDelay={0} closeDelay={0}>
@@ -698,7 +774,7 @@ export default function Transactions({ transactions, storesList, productsList, f
         </div>
       </div>
 
-      {/* ================= FLOATING ACTION BAR HAPUS MASSAL ================= */}
+      {/* FLOATING ACTION BAR */}
       {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/4 z-50 flex items-center gap-4 rounded-full border bg-background/95 p-2 pl-4 pr-2 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300">
           <span className="text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
@@ -710,7 +786,6 @@ export default function Transactions({ transactions, storesList, productsList, f
               Batal
             </Button>
 
-            {/* PEMBARUAN: DROPDOWN UBAH STATUS MASSAL */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -718,7 +793,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                   size="sm"
                   className="rounded-full gap-1.5 text-xs h-8 border-blue-600/30 text-blue-600 bg-blue-50/50 hover:bg-blue-600 hover:text-white"
                 >
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin-slow" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                   Ubah Status
                 </Button>
               </DropdownMenuTrigger>
@@ -753,7 +828,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 <Button
                   variant="destructive"
                   size="sm"
-                  className="rounded-full gap-1.5 text-xs h-8 bg-red-600 hover:bg-red-700 animate-none"
+                  className="rounded-full gap-1.5 text-xs h-8 bg-red-600 hover:bg-red-700"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Hapus Massal
@@ -778,7 +853,7 @@ export default function Transactions({ transactions, storesList, productsList, f
         </div>
       )}
 
-      {/* ================= DETAIL TRANSAKSI SHEET ================= */}
+      {/* DETAIL TRANSAKSI SHEET */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="w-full sm:max-w-xl flex flex-col h-full p-0">
           <SheetHeader className="p-6 pb-0">
@@ -811,7 +886,6 @@ export default function Transactions({ transactions, storesList, productsList, f
                   <Select
                     defaultValue={selectedTransaction.status}
                     onValueChange={(newStatus) => {
-                      // Panggil route patch untuk single id
                       router.patch(`/finance/transactions/${selectedTransaction.id}/status`, { status: newStatus });
                     }}
                   >

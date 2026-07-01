@@ -163,6 +163,21 @@ class ProductController extends Controller
         return to_route('products.index');
     }
 
+    public function updateStock(Request $request, Product $product)
+    {
+        $request->validate([
+            'stock' => 'required|integer|min:0',
+        ]);
+
+        $product->update([
+            'stock' => $request->stock
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Stok berhasil diperbarui secara instan!']);
+
+        return to_route('products.index');
+    }
+
     /**
      * Remove the specified resource from storage.
      */
