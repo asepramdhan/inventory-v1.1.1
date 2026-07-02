@@ -149,6 +149,7 @@ class AdsAffiliateController extends Controller
             'store_id' => 'required|in:' . implode(',', $userStoreIds),
             'date' => 'required|date',
             'amount_spent' => 'required|numeric|min:0',
+            'affiliate_fee' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
         ]);
 
@@ -159,6 +160,7 @@ class AdsAffiliateController extends Controller
             ],
             [
                 'amount_spent' => $validated['amount_spent'],
+                'affiliate_fee' => $validated['affiliate_fee'] ?? 0,
                 'description' => $validated['description'] ?? null,
             ]
         );
@@ -181,11 +183,15 @@ class AdsAffiliateController extends Controller
         $validated = $request->validate([
             'store_id' => 'required|in:' . implode(',', $userStoreIds),
             'amount_spent' => 'required|numeric|min:0',
+            'affiliate_fee' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string',
         ]);
 
         $expense->update([
             'store_id' => $validated['store_id'],
-            'amount_spent' => $validated['amount_spent']
+            'amount_spent' => $validated['amount_spent'],
+            'affiliate_fee' => $validated['affiliate_fee'] ?? 0,
+            'description' => $validated['description'] ?? null,
         ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Log pengeluaran berhasil diperbarui!']);

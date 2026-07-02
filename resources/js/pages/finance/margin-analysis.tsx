@@ -205,11 +205,11 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
                     <div className="flex flex-row justify-between items-center text-[10px] font-medium text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                        Pending: <strong className="text-amber-600 font-bold ml-0.5">{formatIDR(summary.profit_pending)}</strong>
+                        PND: <strong className="text-amber-600 font-bold ml-0.5">{formatIDR(summary.profit_pending)}</strong>
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
-                        Proses: <strong className="text-blue-600 font-bold ml-0.5">{formatIDR(summary.profit_processing)}</strong>
+                        PRS: <strong className="text-blue-600 font-bold ml-0.5">{formatIDR(summary.profit_processing)}</strong>
                       </span>
                     </div>
                   </div>

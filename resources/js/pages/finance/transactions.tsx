@@ -94,6 +94,8 @@ export default function Transactions({ transactions, storesList, productsList, f
   const [openProductSearchIndex, setOpenProductSearchIndex] = useState<number | null>(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
 
+  const productInputRef = useRef<HTMLInputElement>(null);
+
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const [storeId, setStoreId] = useState<string>('');
@@ -119,6 +121,17 @@ export default function Transactions({ transactions, storesList, productsList, f
       }, 150);
     }
   }, [isCreateSheetOpen]);
+
+  // Ganti 'openProductDropdown' dengan nama state dropdown produk Anda
+  useEffect(() => {
+    if (openProductSearchIndex) {
+      // Beri sedikit timeout 50ms agar animasi popover selesai terbuka dulu baru di-focus
+      const timer = setTimeout(() => {
+        productInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [openProductSearchIndex]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -452,7 +465,14 @@ export default function Transactions({ transactions, storesList, productsList, f
                                     <DropdownMenu
                                       open={openProductSearchIndex === index}
                                       onOpenChange={(open) => {
-                                        if (!open) setOpenProductSearchIndex(null);
+                                        if (open) {
+                                          // Dipicu saat dropdown mau dibuka
+                                          setOpenProductSearchIndex(index);
+                                          setProductSearchQuery('');
+                                        } else {
+                                          // Dipicu saat dropdown mau ditutup (click outside atau klik trigger lagi)
+                                          setOpenProductSearchIndex(null);
+                                        }
                                       }}
                                     >
                                       <DropdownMenuTrigger asChild>
@@ -460,10 +480,6 @@ export default function Transactions({ transactions, storesList, productsList, f
                                           type="button"
                                           variant="outline"
                                           className="w-full bg-background justify-between font-normal text-left truncate h-9 px-3 border border-input text-xs"
-                                          onClick={() => {
-                                            setOpenProductSearchIndex(index);
-                                            setProductSearchQuery('');
-                                          }}
                                         >
                                           <span className="truncate">{productLabel}</span>
                                           <Search className="h-3 w-3 shrink-0 opacity-50 ml-2" />
@@ -479,11 +495,11 @@ export default function Transactions({ transactions, storesList, productsList, f
                                         <div className="relative" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                                           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                                           <Input
+                                            ref={productInputRef}
                                             placeholder="Ketik kata kunci produk..."
                                             className="h-8 pl-8 text-xs bg-background"
                                             value={productSearchQuery}
                                             onChange={(e) => setProductSearchQuery(e.target.value)}
-                                            autoFocus
                                           />
                                         </div>
 
@@ -515,7 +531,19 @@ export default function Transactions({ transactions, storesList, productsList, f
 
                                   <div className="col-span-2 grid gap-1.5">
                                     <Label className="text-[11px] text-muted-foreground">Qty</Label>
-                                    <Input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 1)} name={`items[${index}][quantity]`} className="bg-background px-2 text-xs h-9" required />
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={item.quantity}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        // Jika dikosongkan, biarkan kosong dulu di state agar bisa diketik ulang
+                                        handleItemChange(index, 'quantity', val === '' ? '' : (parseInt(val) || 1));
+                                      }}
+                                      name={`items[${index}][quantity]`}
+                                      className="bg-background px-2 text-xs h-9"
+                                      required
+                                    />
                                   </div>
 
                                   <div className="col-span-3 grid gap-1.5">
