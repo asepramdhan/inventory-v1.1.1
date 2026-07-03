@@ -305,6 +305,98 @@ class TransactionController extends Controller
         return back();
     }
 
+    public function importStatusExcel(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls|max:10240', // Maksimal 10MB
+        ]);
+
+        $file = $request->file('file');
+
+        try {
+            // Load file Excel menggunakan PhpSpreadsheet yang sudah di-import di controller Anda
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray();
+
+            if (count($rows) <= 1) {
+                throw ValidationException::withMessages(['file' => 'File Excel kosong atau tidak memiliki baris data.']);
+            }
+
+            // 1. Cari index kolom berdasarkan header Shopee
+            $headerRow = $rows[0];
+            $invoiceIndex = null;
+            $statusIndex = null;
+
+            foreach ($headerRow as $index => $headerValue) {
+                $cleanHeader = trim($headerValue);
+                if ($cleanHeader === 'No. Pesanan') {
+                    $invoiceIndex = $index;
+                } elseif ($cleanHeader === 'Status Pesanan') {
+                    $statusIndex = $index;
+                }
+            }
+
+            if ($invoiceIndex === null || $statusIndex === null) {
+                throw ValidationException::withMessages([
+                    'file' => 'Format kolom Excel Shopee tidak dikenali. Pastikan terdapat kolom "No. Pesanan" dan "Status Pesanan".'
+                ]);
+            }
+
+            $userId = Auth::user()->id;
+            $updatedCount = 0;
+
+            // 2. Looping data (Mulai dari baris ke-2 / index 1)
+            for ($i = 1; $i < count($rows); $i++) {
+                $invoiceNumber = trim($rows[$i][$invoiceIndex] ?? '');
+                $shopeeStatus = trim($rows[$i][$statusIndex] ?? '');
+
+                if (empty($invoiceNumber)) {
+                    continue;
+                }
+
+                // Pemetaan status Shopee ke status sistem database Anda
+                // Sesuaikan padanan string ini dengan status ekspor riil dari Shopee
+                $mappedStatus = null;
+                switch (strtolower($shopeeStatus)) {
+                    case 'selesai':
+                        $mappedStatus = 'completed';
+                        break;
+                    case 'perlu dikirim':
+                    case 'dikirim':
+                        $mappedStatus = 'processing';
+                        break;
+                    case 'dibatalkan':
+                        $mappedStatus = 'cancelled';
+                        break;
+                    case 'menunggu':
+                        $mappedStatus = 'pending';
+                        break;
+                }
+
+                if ($mappedStatus) {
+                    // Update hanya transaksi milik user yang sedang login
+                    $updated = Transaction::where('user_id', $userId)
+                        ->where('invoice_number', $invoiceNumber)
+                        ->update(['status' => $mappedStatus]);
+
+                    if ($updated) {
+                        $updatedCount++;
+                    }
+                }
+            }
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => "Berhasil memperbarui {$updatedCount} status pesanan dari Excel."]);
+
+            return back();
+        } catch (\Exception $e) {
+            if ($e instanceof ValidationException) {
+                throw $e;
+            }
+            throw ValidationException::withMessages(['file' => 'Gagal membaca file Excel: ' . $e->getMessage()]);
+        }
+    }
+
     public function export(Request $request)
     {
         $request->validate([

@@ -243,6 +243,39 @@ export default function Transactions({ transactions, storesList, productsList, f
     window.location.href = `/finance/transactions/export?ids=${idsQuery}`;
   };
 
+  // State untuk memantau loading status saat upload excel
+  const [uploadProcessing, setUploadProcessing] = useState(false);
+
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      setUploadProcessing(true);
+
+      // Menggunakan URL string langsung agar sinkron dengan standard codingan Anda yang lain
+      router.post('/finance/transactions/import-excel', formData, {
+        forceFormData: true,
+        onSuccess: () => {
+          setUploadProcessing(false);
+          // Anda bisa mengganti alert ini dengan toast library Anda jika diperlukan
+          // alert('Status pesanan berhasil diperbarui!');
+          if (e.target) e.target.value = '';
+        },
+        onError: (err: any) => {
+          setUploadProcessing(false);
+          alert(err.file || 'Gagal mengupload file Excel.');
+          if (e.target) e.target.value = '';
+        },
+        onFinish: () => {
+          setUploadProcessing(false);
+        }
+      });
+    }
+  };
+
   const handleAddItem = () => {
     setItems([...items, { product_id: '', quantity: 1, selling_price: '', display_selling_price: '' }]);
   };
@@ -348,6 +381,24 @@ export default function Transactions({ transactions, storesList, productsList, f
             description="Manajemen data penjualan dari seluruh platform marketplace terintegrasi."
           />
           <div className="flex flex-wrap gap-2">
+            <div className="relative">
+              <input
+                type="file"
+                id="excel-status-upload"
+                accept=".xlsx, .xls"
+                className="hidden"
+                onChange={handleExcelUpload}
+                disabled={uploadProcessing}
+              />
+              <Label
+                htmlFor="excel-status-upload"
+                className={`inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border border-blue-600/20 bg-blue-50/40 text-blue-600 hover:bg-blue-600 hover:text-white shadow-sm dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white h-9 px-3 cursor-pointer ${uploadProcessing ? 'opacity-50 pointer-events-none' : ''}`}
+              >
+                <RefreshCw className={`h-4 w-4 ${uploadProcessing ? 'animate-spin' : ''}`} />
+                {uploadProcessing ? 'Mengompilasi...' : 'Update Status (Excel)'}
+              </Label>
+            </div>
+
             <Sheet open={isCreateSheetOpen} onOpenChange={(open) => {
               setIsCreateSheetOpen(open);
               if (!open) resetForm();

@@ -19,6 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/finance/transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('/finance/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
     Route::patch('/finance/transactions/{transaction}/status', [TransactionController::class, 'statusUpdate'])->name('transactions.status-update');
+    Route::post('/finance/transactions/import-excel', [TransactionController::class, 'importStatusExcel'])->name('transactions.import-excel');
     Route::patch('/finance/transactions/bulk-status', [TransactionController::class, 'bulkStatusUpdate'])->name('transactions.bulk-status');
     Route::post('/finance/transactions/bulk-delete', [TransactionController::class, 'bulkDelete'])->name('transactions.bulk-delete');
 
