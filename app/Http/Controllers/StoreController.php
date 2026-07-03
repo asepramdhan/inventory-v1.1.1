@@ -79,7 +79,7 @@ class StoreController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Toko / Marketplace berhasil ditambahkan.']);
 
-        return to_route('stores.index');
+        return back();
     }
 
     /**
@@ -124,7 +124,7 @@ class StoreController extends Controller
             'message' => 'Toko / Marketplace berhasil diperbarui.'
         ]);
 
-        return to_route('stores.index');
+        return back();
     }
 
     /**
@@ -144,7 +144,7 @@ class StoreController extends Controller
             'message' => 'Toko / Marketplace berhasil dihapus.'
         ]);
 
-        return to_route('stores.index');
+        return back();
     }
 
     public function bulkDestroy(Request $request)
@@ -164,7 +164,7 @@ class StoreController extends Controller
             'message' => "{$deletedCount} Toko berhasil dihapus sekaligus."
         ]);
 
-        return to_route('stores.index');
+        return back();
     }
 
     public function export(Request $request)

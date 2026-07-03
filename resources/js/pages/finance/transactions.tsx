@@ -78,9 +78,35 @@ const getLocalDatetimeString = () => {
 };
 
 export default function Transactions({ transactions, storesList, productsList, filters }: any) {
-  const [search, setSearch] = useState(filters?.search || '');
-  const [storeFilter, setStoreFilter] = useState(filters?.store_id || 'all');
-  const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
+  const [search, setSearch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tx_filter_search') || filters.search || '';
+    }
+    return filters.search || '';
+  });
+
+  const [storeFilter, setStoreFilter] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tx_filter_store') || filters.store_id || 'all';
+    }
+    return filters.store_id || 'all';
+  });
+
+  const [statusFilter, setStatusFilter] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tx_filter_status') || filters.status || 'all';
+    }
+    return filters.status || 'all';
+  });
+
+  // Efek untuk menyimpan filter transaksi ke localStorage saat ada perubahan
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tx_filter_search', search);
+      localStorage.setItem('tx_filter_store', storeFilter);
+      localStorage.setItem('tx_filter_status', statusFilter);
+    }
+  }, [search, storeFilter, statusFilter]);
 
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -157,6 +183,17 @@ export default function Transactions({ transactions, storesList, productsList, f
     return () => clearTimeout(delayDebounceFn);
   }, [search, storeFilter, statusFilter]);
 
+  const handleResetFilter = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tx_filter_search');
+      localStorage.removeItem('tx_filter_store');
+      localStorage.removeItem('tx_filter_status');
+    }
+    setSearch('');
+    setStoreFilter('all');
+    setStatusFilter('all');
+  };
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const allIds = transactions.data.map((tx: any) => tx.id);
@@ -177,9 +214,15 @@ export default function Transactions({ transactions, storesList, productsList, f
   const handleBulkStatusUpdate = (newStatus: string) => {
     router.patch('/finance/transactions/bulk-status', {
       ids: selectedIds,
-      status: newStatus
+      status: newStatus,
+
+      // Tambahkan 3 baris ini agar backend tahu filter apa yang sedang aktif saat ini
+      search: search,
+      store_id: storeFilter,
+      status_filter: statusFilter // gunakan 'status_filter' agar tidak bentrok dengan key 'status' baru di atas
     }, {
-      preserveScroll: true,
+      preserveState: true,   // Mempertahankan state filter di frontend agar tidak ter-reset
+      preserveScroll: true, // Mempertahankan posisi scroll tabel
       onSuccess: () => {
         setSelectedIds([]);
       }
@@ -331,6 +374,11 @@ export default function Transactions({ transactions, storesList, productsList, f
                     } else {
                       // Hanya reset nomor invoice agar daftar item produk bertahan
                       setInvoiceNumber('');
+
+                      // =========================================================
+                      // PERBAIKAN: Paksa set ulang tanggal ke jam dan detik waktu sekarang
+                      // =========================================================
+                      setTransactionDate(getLocalDatetimeString());
 
                       // Auto-Focus kembali ke kolom No. Pesanan
                       setTimeout(() => {
@@ -643,6 +691,20 @@ export default function Transactions({ transactions, storesList, productsList, f
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input type="search" placeholder="Cari No. Pesanan..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
+
+          {/* ========================================================= */}
+          {/* TOMBOL RESET FILTER BARU DI PASANG DI SINI */}
+          {/* ========================================================= */}
+          {(search !== '' || storeFilter !== 'all' || statusFilter !== 'all') && (
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={handleResetFilter}
+              className="h-9 px-2 lg:px-3 text-xs text-muted-foreground hover:text-destructive transition-colors"
+            >
+              Reset
+            </Button>
+          )}
         </div>
 
         {/* TABEL DATA UTAMA */}

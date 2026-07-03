@@ -54,20 +54,24 @@ class MarginAnalysisController extends Controller
         // ==========================================
         // DATA 1: RINGKASAN UTAMA (SUMMARY CARDS)
         // ==========================================
-        // Ambil akumulasi transaksi dari tabel transactions
+        // Ambil akumulasi transaksi dari tabel transactions (KINI TANPA SUM affiliate_fee transaksi)
         $summaryRaw = (clone $baseQuery)
             ->selectRaw('
-        COALESCE(SUM(grand_total), 0) as total_omzet,
-        COALESCE(SUM(marketplace_admin_fee), 0) as total_admin_fee,
-        COALESCE(SUM(items_hpp.total_transaction_hpp), 0) as total_hpp,
-        COALESCE(SUM(affiliate_fee), 0) as total_affiliate_fee
-    ')
+                COALESCE(SUM(grand_total), 0) as total_omzet,
+                COALESCE(SUM(marketplace_admin_fee), 0) as total_admin_fee,
+                COALESCE(SUM(items_hpp.total_transaction_hpp), 0) as total_hpp
+            ')
             ->first();
 
         $totalOmzet = (float) $summaryRaw->total_omzet;
         $totalAdminFee = (float) $summaryRaw->total_admin_fee;
         $totalHpp = (float) $summaryRaw->total_hpp;
-        $totalAffiliateFee = (float) $summaryRaw->total_affiliate_fee;
+
+        // AMBIL TOTAL KOMISI AFFILIATE DARI TABEL 'store_daily_ads' (LOG MANUAL HARIAN)
+        $totalAffiliateFee = (float) DB::table('store_daily_ads')
+            ->whereIn('store_id', $activeStoreIds)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->sum('affiliate_fee');
 
         // AMBIL TOTAL BIAYA IKLAN DARI TABEL SEPARATE 'store_daily_ads'
         $totalAdsFee = (float) DB::table('store_daily_ads')
@@ -81,9 +85,9 @@ class MarginAnalysisController extends Controller
         // Hitung profit berjalan (dana tertahan) tanpa memotong iklan harian di dalamnya
         $ongoingRaw = (clone $baseQuery)
             ->selectRaw("
-        COALESCE(SUM(CASE WHEN status IN ('pending', 'menunggu') THEN (grand_total - marketplace_admin_fee - COALESCE(affiliate_fee, 0) - COALESCE(items_hpp.total_transaction_hpp, 0)) ELSE 0 END), 0) as profit_pending,
-        COALESCE(SUM(CASE WHEN status IN ('processing', 'dikirim') THEN (grand_total - marketplace_admin_fee - COALESCE(affiliate_fee, 0) - COALESCE(items_hpp.total_transaction_hpp, 0)) ELSE 0 END), 0) as profit_processing
-    ")
+                COALESCE(SUM(CASE WHEN status IN ('pending', 'menunggu') THEN (grand_total - marketplace_admin_fee - COALESCE(items_hpp.total_transaction_hpp, 0)) ELSE 0 END), 0) as profit_pending,
+                COALESCE(SUM(CASE WHEN status IN ('processing', 'dikirim') THEN (grand_total - marketplace_admin_fee - COALESCE(items_hpp.total_transaction_hpp, 0)) ELSE 0 END), 0) as profit_processing
+            ")
             ->first();
 
         $profitPending = (float) $ongoingRaw->profit_pending;
@@ -96,8 +100,8 @@ class MarginAnalysisController extends Controller
             'total_omzet' => $totalOmzet,
             'total_admin_fee' => $totalAdminFee,
             'total_hpp' => $totalHpp,
-            'total_affiliate_fee' => $totalAffiliateFee,
-            'total_ads_fee' => $totalAdsFee, // Data iklan terkirim aman ke frontend!
+            'total_affiliate_fee' => $totalAffiliateFee, // Aman memakai log manual!
+            'total_ads_fee' => $totalAdsFee,
             'net_profit' => $realNetProfit,
             'average_margin_percentage' => $averageMargin,
             'profit_pending' => $profitPending,
@@ -107,45 +111,48 @@ class MarginAnalysisController extends Controller
         // ==========================================
         // DATA 2: TREN HARIAN (UNTUK LINE CHART)
         // ==========================================
-        // 1. Ambil transaksi harian
+        // 1. Ambil transaksi harian (KINI TANPA affiliate_fee transaksi)
         $trendDataRaw = (clone $baseQuery)
             ->selectRaw('
-        DATE_FORMAT(transaction_date, "%Y-%m-%d") as date,
-        COALESCE(SUM(grand_total), 0) as omzet,
-        COALESCE(SUM(marketplace_admin_fee), 0) as admin_fee,
-        COALESCE(SUM(items_hpp.total_transaction_hpp), 0) as hpp,
-        COALESCE(SUM(affiliate_fee), 0) as affiliate_fee
-    ')
+                DATE_FORMAT(transaction_date, "%Y-%m-%d") as date,
+                COALESCE(SUM(grand_total), 0) as omzet,
+                COALESCE(SUM(marketplace_admin_fee), 0) as admin_fee,
+                COALESCE(SUM(items_hpp.total_transaction_hpp), 0) as hpp
+            ')
             ->groupBy(DB::raw('DATE_FORMAT(transaction_date, "%Y-%m-%d")'))
             ->orderBy(DB::raw('DATE_FORMAT(transaction_date, "%Y-%m-%d")'), 'ASC')
             ->get();
 
-        // 2. Ambil data iklan harian gembok berdasarkan tanggal
+        // 2. Ambil data iklan DAN affiliate harian gembok berdasarkan tanggal dari tabel store_daily_ads
         $dailyAdsMap = DB::table('store_daily_ads')
             ->whereIn('store_id', $activeStoreIds)
             ->whereBetween('date', [$startDate, $endDate])
             ->groupBy('date')
-            ->selectRaw('date, SUM(amount_spent) as total_ads')
-            ->pluck('total_ads', 'date')
-            ->toArray(); // Menghasilkan array ['2026-06-01' => 50000, ...]
+            ->selectRaw('date, SUM(amount_spent) as total_ads, SUM(affiliate_fee) as total_affiliate')
+            ->get()
+            ->keyBy('date')
+            ->toArray(); // Menghasilkan array format objek per tanggal
 
-        // 3. Gabungkan data Transaksi & Iklan menggunakan PHP Map
+        // 3. Gabungkan data Transaksi & Iklan/Affiliate menggunakan PHP Map
         $trendData = $trendDataRaw->map(function ($item) use ($dailyAdsMap) {
             $date = $item->date;
             $omzet = (float) $item->omzet;
-            $adsFee = (float) ($dailyAdsMap[$date] ?? 0); // Ambil jika ada, jika tidak ada = 0
+
+            // Ambil data biaya iklan & affiliate dari map harian jika tersedia
+            $adsFee = (float) ($dailyAdsMap[$date]->total_ads ?? 0);
+            $affiliateFee = (float) ($dailyAdsMap[$date]->total_affiliate ?? 0);
 
             return [
                 'date' => $date,
                 'omzet' => $omzet,
-                'net_profit' => $omzet - (float)$item->admin_fee - (float)$item->hpp - (float)$item->affiliate_fee - $adsFee
+                'net_profit' => $omzet - (float)$item->admin_fee - (float)$item->hpp - $affiliateFee - $adsFee
             ];
         });
 
         // ==========================================
         // DATA 3: PERFORMA PER TOKO (UNTUK BAR CHART)
         // ==========================================
-        // 1. Ambil performa penjualan toko
+        // 1. Ambil performa penjualan toko (KINI TANPA affiliate_fee transaksi)
         $storePerformanceRaw = Transaction::query()
             ->leftJoinSub($subQueryHpp, 'items_hpp', function ($join) {
                 $join->on('transactions.id', '=', 'items_hpp.transaction_id');
@@ -156,32 +163,34 @@ class MarginAnalysisController extends Controller
             ->whereIn('transactions.store_id', $activeStoreIds)
             ->groupBy('transactions.store_id', 'stores.name', 'stores.platform')
             ->selectRaw('
-        transactions.store_id,
-        stores.name as store_name,
-        stores.platform,
-        COALESCE(SUM(grand_total), 0) as omzet,
-        COALESCE(SUM(marketplace_admin_fee), 0) as admin_fee,
-        COALESCE(SUM(items_hpp.total_transaction_hpp), 0) as hpp,
-        COALESCE(SUM(affiliate_fee), 0) as affiliate_fee
-    ')
+                transactions.store_id,
+                stores.name as store_name,
+                stores.platform,
+                COALESCE(SUM(grand_total), 0) as omzet,
+                COALESCE(SUM(marketplace_admin_fee), 0) as admin_fee,
+                COALESCE(SUM(items_hpp.total_transaction_hpp), 0) as hpp
+            ')
             ->get();
 
-        // 2. Ambil total pengeluaran iklan per toko
+        // 2. Ambil pengeluaran iklan DAN affiliate total per toko dari store_daily_ads
         $storeAdsMap = DB::table('store_daily_ads')
             ->whereIn('store_id', $activeStoreIds)
             ->whereBetween('date', [$startDate, $endDate])
             ->groupBy('store_id')
-            ->selectRaw('store_id, SUM(amount_spent) as total_ads')
-            ->pluck('total_ads', 'store_id')
-            ->toArray(); // Menghasilkan array [store_id => total_pengeluaran_iklan]
+            ->selectRaw('store_id, SUM(amount_spent) as total_ads, SUM(affiliate_fee) as total_affiliate')
+            ->get()
+            ->keyBy('store_id')
+            ->toArray();
 
-        // 3. Satukan data performa toko dengan pengeluaran iklan masing-masing
+        // 3. Satukan data performa toko dengan pengeluaran iklan & affiliate masing-masing
         $storePerformance = $storePerformanceRaw->map(function ($item) use ($storeAdsMap) {
             $storeId = $item->store_id;
             $omzet = (float) $item->omzet;
-            $adsFee = (float) ($storeAdsMap[$storeId] ?? 0);
 
-            $profit = $omzet - (float)$item->admin_fee - (float)$item->hpp - (float)$item->affiliate_fee - $adsFee;
+            $adsFee = (float) ($storeAdsMap[$storeId]->total_ads ?? 0);
+            $affiliateFee = (float) ($storeAdsMap[$storeId]->total_affiliate ?? 0);
+
+            $profit = $omzet - (float)$item->admin_fee - (float)$item->hpp - $affiliateFee - $adsFee;
 
             return [
                 'store_name' => $item->store_name,
@@ -193,7 +202,7 @@ class MarginAnalysisController extends Controller
         });
 
         // ==========================================
-        // DATA 4: RANKING PRODUK
+        // DATA 4: RANKING PRODUK (Tetap aman tidak berpengaruh iklan/affiliate global)
         // ==========================================
         $productPerformance = DB::table('transaction_items')
             ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')

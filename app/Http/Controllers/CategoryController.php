@@ -67,7 +67,7 @@ class CategoryController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori berhasil ditambahkan.']);
 
-        return to_route('categories.index');
+        return back();
     }
 
     /**
@@ -102,7 +102,7 @@ class CategoryController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori berhasil diperbarui.']);
 
-        return to_route('categories.index');
+        return back();
     }
 
     /**
@@ -116,7 +116,7 @@ class CategoryController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori berhasil dihapus.']);
 
-        return to_route('categories.index');
+        return back();
     }
 
     public function bulkDestroy(Request $request)
@@ -136,7 +136,7 @@ class CategoryController extends Controller
             'message' => "{$deletedCount} Kategori berhasil dihapus sekaligus."
         ]);
 
-        return to_route('categories.index');
+        return back();
     }
 
     public function export(Request $request)

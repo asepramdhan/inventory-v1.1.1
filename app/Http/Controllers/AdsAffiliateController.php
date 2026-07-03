@@ -31,7 +31,7 @@ class AdsAffiliateController extends Controller
         // DATA 1: AKUMULASI METRIK UTAMA (CARD)
         // ==========================================
 
-        // A. Ambil total omzet dan total affiliate dari tabel transaksi (Exclude Cancelled)
+        // A. Ambil total omzet dan total affiliate RIIL TRANSAKSI dari tabel transaksi (Exclude Cancelled)
         $transactionSummary = Transaction::query()
             ->whereIn('store_id', $userStoreIds)
             ->whereBetween('transaction_date', [$fullStartDate, $fullEndDate])
@@ -41,29 +41,33 @@ class AdsAffiliateController extends Controller
             })
             ->selectRaw('
                 COALESCE(SUM(grand_total), 0) as total_omzet,
-                COALESCE(SUM(affiliate_fee), 0) as total_affiliate
+                COALESCE(SUM(affiliate_fee), 0) as total_affiliate_order
             ')
             ->first();
 
         $totalOmzet = (float) $transactionSummary->total_omzet;
-        $totalAffiliate = (float) $transactionSummary->total_affiliate;
+        $totalAffiliateTransactions = (float) $transactionSummary->total_affiliate_order;
 
-        // B. Ambil total biaya iklan dari tabel store_daily_ads
-        $totalAds = StoreDailyAds::query()
+        // B. Ambil total biaya iklan DAN affiliate HARIAN MANUAL dari tabel store_daily_ads
+        $adsSummaryQuery = StoreDailyAds::query()
             ->whereIn('store_id', $userStoreIds)
             ->whereBetween('date', [$startDate, $endDate])
             ->when($storeId && $storeId !== 'all', function ($q) use ($storeId) {
                 return $q->where('store_id', $storeId);
-            })
-            ->sum('amount_spent');
+            });
 
-        $totalMarketingCost = $totalAds + $totalAffiliate;
+        $totalAds = (float) $adsSummaryQuery->sum('amount_spent');
+        $totalAffiliateManual = (float) $adsSummaryQuery->sum('affiliate_fee'); // <-- Ambil data manual harian
+
+        // Total Marketing Cost = Total Iklan + Affiliate Manual + Affiliate Riil Transaksi
+        $totalMarketingCost = $totalAds + $totalAffiliateManual + $totalAffiliateTransactions;
         $marketingToOmzetRatio = $totalOmzet > 0 ? round(($totalMarketingCost / $totalOmzet) * 100, 2) : 0;
 
         $summary = [
             'total_omzet' => $totalOmzet,
-            'total_ads' => (float) $totalAds,
-            'total_affiliate' => $totalAffiliate,
+            'total_ads' => $totalAds,
+            'total_affiliate' => $totalAffiliateManual, // Dipakai Card 3 (Harian Manual)
+            'total_affiliate_transactions' => $totalAffiliateTransactions, // Dipakai Card 4 (Riil Order)
             'total_marketing_cost' => $totalMarketingCost,
             'marketing_ratio_percentage' => $marketingToOmzetRatio,
         ];
@@ -78,22 +82,29 @@ class AdsAffiliateController extends Controller
                 ->where('store_id', $store->id)
                 ->whereBetween('transaction_date', [$fullStartDate, $fullEndDate])
                 ->where('status', '!=', 'cancelled')
-                ->selectRaw('COALESCE(SUM(grand_total), 0) as omzet, COALESCE(SUM(affiliate_fee), 0) as affiliate')
+                ->selectRaw('COALESCE(SUM(grand_total), 0) as omzet, COALESCE(SUM(affiliate_fee), 0) as affiliate_order')
                 ->first();
 
-            $ads = StoreDailyAds::where('store_id', $store->id)
+            // Ambil dari store_daily_ads untuk iklan dan affiliate manual harian
+            $dailyAdsData = StoreDailyAds::where('store_id', $store->id)
                 ->whereBetween('date', [$startDate, $endDate])
-                ->sum('amount_spent');
+                ->selectRaw('COALESCE(SUM(amount_spent), 0) as ads, COALESCE(SUM(affiliate_fee), 0) as affiliate_manual')
+                ->first();
 
             $tOmzet = (float) $omzetAff->omzet;
-            $tMarketing = (float) $ads + (float) $omzetAff->affiliate;
+            $tAds = (float) ($dailyAdsData->ads ?? 0);
+            $tAffManual = (float) ($dailyAdsData->affiliate_manual ?? 0);
+            $tAffOrder = (float) $omzetAff->affiliate_order;
+
+            // Total marketing per toko menggabungkan seluruh beban pengeluaran pemasaran
+            $tMarketing = $tAds + $tAffManual + $tAffOrder;
 
             return [
                 'store_name' => $store->name,
                 'platform' => $store->platform,
                 'omzet' => $tOmzet,
-                'ads_spent' => (float) $ads,
-                'affiliate_fee' => (float) $omzetAff->affiliate,
+                'ads_spent' => $tAds,
+                'affiliate_fee' => $tAffManual, // Tampilkan data input harian di tabel breakdown
                 'total_marketing' => $tMarketing,
                 'ratio' => $tOmzet > 0 ? round(($tMarketing / $tOmzet) * 100, 2) : 0
             ];
@@ -126,7 +137,7 @@ class AdsAffiliateController extends Controller
         return Inertia::render('finance/ads-affiliate', [
             'summary' => $summary,
             'storePerformance' => $storePerformance,
-            'adsExpenses' => $adsExpenses, // Mengisi data utama baris tabel
+            'adsExpenses' => $adsExpenses,
             'storesList' => $storesData->map->only(['id', 'name', 'platform']),
             'filters' => [
                 'start_date' => $startDate,

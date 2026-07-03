@@ -162,7 +162,7 @@ class TransactionController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Transaksi manual berhasil disimpan!']);
 
-        return to_route('transactions.index');
+        return back();
     }
 
     // Fungsi Ubah Status Transaksi
@@ -264,7 +264,7 @@ class TransactionController extends Controller
             'message' => 'Status transaksi dan stok berhasil diperbarui secara massal!'
         ]);
 
-        return to_route('transactions.index');
+        return back();
     }
 
     // Fungsi Hapus Massal Transaksi + Otomatis Mengembalikan Stok
@@ -302,7 +302,7 @@ class TransactionController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Data transaksi berhasil dihapus & stok produk telah dikembalikan!']);
 
-        return to_route('transactions.index');
+        return back();
     }
 
     public function export(Request $request)

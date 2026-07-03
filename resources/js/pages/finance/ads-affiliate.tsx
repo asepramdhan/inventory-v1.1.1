@@ -330,7 +330,10 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
         </div>
 
         {/* METRICS CARDS PANEL */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* PERBAIKAN: Menggunakan xl:grid-cols-5 agar ke-5 card berjejer rapi ke samping pada layar desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+
+          {/* CARD 1: TOTAL BIAYA IKLAN */}
           <Card className="border-sidebar-border/70 bg-card">
             <div className="p-4 flex flex-row items-center justify-between pb-1">
               <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Total Biaya Iklan</span>
@@ -344,19 +347,38 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
             </div>
           </Card>
 
+          {/* CARD 2: TOTAL AFFILIATE HARIAN MANUAL */}
           <Card className="border-sidebar-border/70 bg-card">
             <div className="p-4 flex flex-row items-center justify-between pb-1">
-              <span className="text-xs font-bold text-purple-600 dark:text-purple-400">Total Komisi Affiliate</span>
+              <span className="text-xs font-bold text-purple-600 dark:text-purple-400">Total Biaya Affiliate Harian</span>
               <DollarSign className="h-4 w-4 text-purple-500" />
             </div>
             <div className="px-4 pb-4">
               <div className="text-xl font-extrabold tracking-tight">
                 {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_affiliate || 0)}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Potongan dari order terafiliasi</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Akumulasi biaya affiliate toko</p>
             </div>
           </Card>
 
+          {/* CARD 3: TOTAL AFFILIATE RIIL ORDER TRANSAKSI (CARD BARU YANG ANDA MAKSUD) */}
+          <Card className="border-sidebar-border/70 bg-card">
+            <div className="p-4 flex flex-row items-center justify-between pb-1">
+              <span className="text-xs font-bold text-orange-600 dark:text-orange-400">Total Affiliate (Riil Order)</span>
+              <Box className="h-4 w-4 text-orange-500" />
+            </div>
+            <div className="px-4 pb-4">
+              <div className="text-xl font-extrabold tracking-tight">
+                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_affiliate_transactions || 0)}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {/* Potongan otomatis invoice pesanan */}
+                <Badge variant="destructive" className='text-[10px]'>Belum dihitung ke analisa margin</Badge>
+              </p>
+            </div>
+          </Card>
+
+          {/* CARD 4: TOTAL BEBAN MARKETING */}
           <Card className="border-sidebar-border/70 bg-card">
             <div className="p-4 flex flex-row items-center justify-between pb-1">
               <span className="text-xs font-bold text-muted-foreground">Total Beban Marketing</span>
@@ -370,6 +392,7 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
             </div>
           </Card>
 
+          {/* CARD 5: RASIO BEBAN / OMZET */}
           <Card className="border-sidebar-border/70 bg-card">
             <div className="p-4 flex flex-row items-center justify-between pb-1">
               <span className="text-xs font-bold text-muted-foreground">Rasio Beban / Omzet</span>
@@ -385,6 +408,7 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
               <p className="text-[10px] text-muted-foreground mt-0.5">Batas aman pengeluaran ideal &lt; 15%</p>
             </div>
           </Card>
+
         </div>
 
         {/* BARIS SEKSI FILTER UTAMA */}

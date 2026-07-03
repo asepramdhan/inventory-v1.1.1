@@ -102,7 +102,7 @@ class ProductController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk berhasil ditambahkan.']);
 
-        return to_route('products.index');
+        return back();
     }
 
     /**
@@ -160,7 +160,7 @@ class ProductController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk berhasil diperbarui.']);
 
-        return to_route('products.index');
+        return back();
     }
 
     public function updateStock(Request $request, Product $product)
@@ -175,7 +175,7 @@ class ProductController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Stok berhasil diperbarui secara instan!']);
 
-        return to_route('products.index');
+        return back();
     }
 
     /**
@@ -196,7 +196,7 @@ class ProductController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk berhasil dihapus.']);
 
-        return to_route('products.index');
+        return back();
     }
 
     public function bulkDestroy(Request $request)
@@ -221,7 +221,7 @@ class ProductController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk terpilih berhasil dihapus.']);
 
-        return to_route('products.index');
+        return back();
     }
 
     public function export(Request $request)

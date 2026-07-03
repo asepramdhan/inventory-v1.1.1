@@ -98,7 +98,7 @@ class ProductHppController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk HPP berhasil disimpan!']);
 
-        return to_route('product-hpp.index');
+        return back();
     }
 
     public function export(Request $request)
