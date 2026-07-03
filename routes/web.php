@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdsAffiliateController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\FinancialMutationController;
 use App\Http\Controllers\MarginAnalysisController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductHppController;
@@ -16,6 +17,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Menu Keuangan & Analisa - Daftar Transaksi
     Route::get('/finance/margin-analysis', [MarginAnalysisController::class, 'index'])->name('margin-analysis.index');
+    Route::get('/finance/mutations', [FinancialMutationController::class, 'index'])->name('mutations.index');
+    Route::post('/finance/mutations', [FinancialMutationController::class, 'store'])->name('mutations.store');
     Route::get('/finance/transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('/finance/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
     Route::patch('/finance/transactions/{transaction}/status', [TransactionController::class, 'statusUpdate'])->name('transactions.status-update');

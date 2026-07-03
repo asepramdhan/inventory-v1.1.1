@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { ArrowRightLeft, Box, ChartBar, DollarSign, LayoutGrid, Megaphone, ShoppingBagIcon, Store, Tags } from 'lucide-react';
 import AdsAffiliateController from '@/actions/App/Http/Controllers/AdsAffiliateController';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
+import FinancialMutationController from '@/actions/App/Http/Controllers/FinancialMutationController';
 import MarginAnalysisController from '@/actions/App/Http/Controllers/MarginAnalysisController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductHppController from '@/actions/App/Http/Controllers/ProductHppController';
@@ -43,7 +44,7 @@ const analysisItems: NavItem[] = [
     },
     {
         title: 'Mutasi',
-        href: '#',
+        href: FinancialMutationController.index(),
         icon: ArrowRightLeft,
     },
     {
