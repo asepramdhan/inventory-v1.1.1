@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { Head, router } from '@inertiajs/react';
-import { ArrowDownRight, ArrowUpRight, Calendar, DollarSign, Percent, ShoppingBag, TrendingUp } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Calendar, Clock, DollarSign, Percent, ShoppingBag, TrendingUp, Truck } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
 import MarginAnalysisController from '@/actions/App/Http/Controllers/MarginAnalysisController';
@@ -203,13 +203,13 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
 
                   <div className="pt-1.5 border-t border-dashed border-emerald-500/20 mt-auto">
                     <div className="flex flex-row justify-between items-center text-[10px] font-medium text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                        PND: <strong className="text-amber-600 font-bold ml-0.5">{formatIDR(summary.profit_pending)}</strong>
+                      <span className="flex items-center gap-1 border-b border-b-amber-600/30 pb-1 border-dashed">
+                        <strong className="text-amber-600 font-bold ml-0.5">{formatIDR(summary.profit_pending)}</strong>
+                        <Clock className="w-4 h-4 text-amber-600" />
                       </span>
-                      <span className="flex items-center gap-1">
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
-                        PRS: <strong className="text-blue-600 font-bold ml-0.5">{formatIDR(summary.profit_processing)}</strong>
+                      <span className="flex items-center gap-1 border-b border-b-blue-600/30 pb-1 border-dashed">
+                        <strong className="text-blue-600 font-bold ml-0.5">{formatIDR(summary.profit_processing)}</strong>
+                        <Truck className="w-4 h-4 text-blue-600" />
                       </span>
                     </div>
                   </div>
