@@ -13,11 +13,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+// PERBAIKAN UTAMA: Definisi type-safety yang ketat untuk data akun dari database
+interface Account {
+  id: number;
+  name: string;
+  type: string;
+  current_balance: number;
+  description: string | null;
+  is_active: boolean | number;   // Menerima format boolean maupun integer (0/1) dari MySQL
+  is_default: boolean | number;  // Menerima format boolean maupun integer (0/1) dari MySQL
+}
+
 interface Props {
-  accounts: Array<{
-    is_default: any;
-    is_active: unknown; id: number; name: string; type: string; current_balance: number; description: string
-  }>;
+  accounts: Account[];
   mutations: Array<{
     id: number;
     financial_account_id: number;
@@ -44,14 +52,12 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  // Inertia Form Handling untuk input mutasi manual (MENGGUNAKAN useForm AGAR TIDAK EROR)
+  // Inertia Form Handling untuk input mutasi manual
   const { data, setData, post, processing, errors, reset } = useForm({
     financial_account_id: '',
-    // PERBAIKAN: Mengambil tanggal berdasarkan Local Timezone Browser Anda (Bukan UTC)
     date: (() => {
       const localDate = new Date();
       const year = localDate.getFullYear();
-      // Tambahkan leading zero jika bulan/tanggal di bawah angka 10
       const month = String(localDate.getMonth() + 1).padStart(2, '0');
       const day = String(localDate.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
@@ -73,15 +79,6 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
     description: '',
   });
 
-  // const [isEditAccountOpen, setIsEditAccountOpen] = useState(false);
-  // const [selectedAccount, setSelectedAccount] = useState<any>(null);
-
-  // Form handling untuk edit Akun Kas
-  // const editAccountForm = useForm({
-  //   name: '',
-  //   description: '',
-  // });
-
   const handleAccountSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     accountForm.post('/finance/mutations/accounts', {
@@ -92,29 +89,10 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
     });
   };
 
-  // Fungsi untuk memicu modal edit dan mengisi datanya
-  // const openEditAccountModal = (account: any) => {
-  //   setSelectedAccount(account);
-  //   editAccountForm.setData({
-  //     name: account.name,
-  //     description: account.description || '',
-  //   });
-  //   setIsEditAccountOpen(true);
-  // };
-
-  // Fungsi submit edit akun kas
-  // const handleEditAccountSubmit = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   editAccountForm.patch(`/finance/mutations/accounts/${selectedAccount.id}`, {
-  //     onSuccess: () => {
-  //       setIsEditAccountOpen(false);
-  //     },
-  //   });
-  // };
-
   // Fungsi untuk mengubah status Aktif / Arsip akun kas
-  const handleToggleAccount = (id: number, currentActive: boolean) => {
-    const actionText = currentActive ? 'menonaktifkan (arsip)' : 'mengaktifkan kembali';
+  const handleToggleAccount = (id: number, currentActive: boolean | number) => {
+    const isActiveBool = currentActive === true || currentActive === 1;
+    const actionText = isActiveBool ? 'menonaktifkan (arsip)' : 'mengaktifkan kembali';
     if (confirm(`Apakah Anda yakin ingin ${actionText} akun kas ini?`)) {
       router.patch(`/finance/mutations/accounts/${id}/toggle`, {}, {
         preserveScroll: true,
@@ -153,7 +131,6 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
     setSearch('');
     setAccountFilter('all');
     setTypeFilter('all');
-    // Set default ke 30 hari ke belakang
     const today = new Date();
     const past = new Date();
     past.setDate(today.getDate() - 30);
@@ -174,14 +151,6 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
   const formatIDR = (num: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
-
-  // const getAccountIcon = (type: string) => {
-  //   switch (type) {
-  //     case 'bank': return <Landmark className="h-4 w-4 text-blue-500" />;
-  //     case 'e-wallet': return <Wallet className="h-4 w-4 text-purple-500" />;
-  //     default: return <DollarSign className="h-4 w-4 text-emerald-500" />;
-  //   }
-  // };
 
   const handleDeleteMutation = (id: number) => {
     if (confirm('Apakah Anda yakin ingin menghapus catatan mutasi ini? Saldo akun kas yang bersangkutan akan dikoreksi dan dikembalikan secara otomatis.')) {
@@ -261,7 +230,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                       rows={2}
                       placeholder="Nomor rekening atau catatan pemilik akun..."
                       className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={accountForm.data.description}
+                      value={accountForm.data.description || ''}
                       onChange={(e) => accountForm.setData('description', e.target.value)}
                     />
                     <InputError message={accountForm.errors.description} />
@@ -297,9 +266,9 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                         <SelectValue placeholder="Pilih rekening/kas" />
                       </SelectTrigger>
                       <SelectContent>
-                        {accounts?.filter((acc) => acc.is_active).map((acc) => (
+                        {accounts?.filter((acc) => acc.is_active === true || acc.is_active === 1).map((acc) => (
                           <SelectItem key={acc.id} value={acc.id.toString()}>
-                            {acc.name} ({acc.type.toUpperCase()}) {acc.is_default ? '⭐' : ''}
+                            {acc.name} ({acc.type.toUpperCase()}) {acc.is_default === true || acc.is_default === 1 ? '⭐' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -363,7 +332,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                       id="description"
                       rows={3}
                       placeholder="Detail catatan transaksi keuangan..."
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       value={data.description}
                       onChange={(e) => setData('description', e.target.value)}
                     />
@@ -384,66 +353,71 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
         <div className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Posisi Saldo Kas & Rekening Aktif</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {accounts.map((acc: any) => (
-              <div
-                key={acc.id}
-                className={`relative p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col justify-between ${acc.is_active === false || acc.is_active === 0 ? 'opacity-50 bg-muted/30' : ''
-                  } ${acc.is_default ? 'border-primary ring-1 ring-primary/30' : ''}`}
-              >
-                {/* Label Indikator Status - DIUBAH MENJADI BANDING TEGAS AGAR ANTI-0 */}
-                <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                  {Boolean(acc.is_default) && (
-                    <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full border border-primary/20">
-                      🟢 Default Utama
-                    </span>
-                  )}
-                  {(acc.is_active == false || acc.is_active == 0) && (
-                    <span className="text-[10px] bg-destructive/10 text-destructive font-semibold px-2 py-0.5 rounded-full">
-                      📁 Diarsipkan
-                    </span>
-                  )}
-                </div>
+            {accounts.map((acc: Account) => {
+              // Standarisasi nilai boolean agar aman dari angka 0 / 1 biner database
+              const isActive = acc.is_active === true || acc.is_active === 1;
+              const isDefault = acc.is_default === true || acc.is_default === 1;
 
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                    {acc.type == 'bank' ? '🏦 Bank' : acc.type == 'e-wallet' ? '📱 E-Wallet' : '💵 Tunai'}
-                  </p>
-                  <h3 className="text-sm font-bold mt-1 text-foreground">{acc.name}</h3>
-                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{acc.description || '-'}</p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-2">
-                  <div className="text-lg font-bold tracking-tight text-foreground">
-                    {formatIDR(acc.current_balance)}
+              return (
+                <div
+                  key={acc.id}
+                  className={`relative p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col justify-between ${!isActive ? 'opacity-50 bg-muted/30' : ''
+                    } ${isDefault ? 'border-primary ring-1 ring-primary/30' : ''}`}
+                >
+                  {/* Label Indikator Status - Bebas dari render Angka 0 liar */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    {isDefault ? (
+                      <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full border border-primary/20">
+                        🟢 Default Utama
+                      </span>
+                    ) : null}
+                    {!isActive ? (
+                      <span className="text-[10px] bg-destructive/10 text-destructive font-semibold px-2 py-0.5 rounded-full">
+                        📁 Diarsipkan
+                      </span>
+                    ) : null}
                   </div>
 
-                  {/* DERETAN TOMBOL AKSI KELOLA AKUN */}
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    {/* Menggunakan ternary atau pembungkus Boolean agar tidak mencetak angka 0 ke DOM */}
-                    {!acc.is_default && (acc.is_active == true || acc.is_active == 1) ? (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      {acc.type === 'bank' ? '🏦 Bank' : acc.type === 'e-wallet' ? '📱 E-Wallet' : '💵 Tunai'}
+                    </p>
+                    <h3 className="text-sm font-bold mt-1 text-foreground">{acc.name}</h3>
+                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{acc.description || '-'}</p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-2">
+                    <div className="text-lg font-bold tracking-tight text-foreground">
+                      {formatIDR(acc.current_balance)}
+                    </div>
+
+                    {/* DERETAN TOMBOL AKSI KELOLA AKUN */}
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      {!isDefault && isActive ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-[11px] text-blue-500 font-medium hover:text-blue-600 hover:bg-blue-500/10"
+                          onClick={() => handleSetDefaultAccount(acc.id)}
+                        >
+                          Set Default
+                        </Button>
+                      ) : null}
+
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-[11px] text-blue-500 font-medium hover:text-blue-600 hover:bg-blue-500/10"
-                        onClick={() => handleSetDefaultAccount(acc.id)}
+                        className={`h-7 px-2 text-[11px] font-medium ${isActive ? 'text-destructive hover:bg-destructive/10' : 'text-emerald-600 hover:bg-emerald-500/10'
+                          }`}
+                        onClick={() => handleToggleAccount(acc.id, acc.is_active)}
                       >
-                        Set Default
+                        {isActive ? 'Arsipkan' : 'Aktifkan'}
                       </Button>
-                    ) : null}
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-7 px-2 text-[11px] font-medium ${acc.is_active ? 'text-destructive hover:bg-destructive/10' : 'text-emerald-600 hover:bg-emerald-500/10'
-                        }`}
-                      onClick={() => handleToggleAccount(acc.id, acc.is_active)}
-                    >
-                      {acc.is_active ? 'Arsipkan' : 'Aktifkan'}
-                    </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
