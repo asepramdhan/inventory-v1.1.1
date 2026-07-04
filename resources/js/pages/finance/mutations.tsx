@@ -353,10 +353,12 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
         <div className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Posisi Saldo Kas & Rekening Aktif</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {accounts.map((acc: Account) => {
-              // Standarisasi nilai boolean agar aman dari angka 0 / 1 biner database
-              const isActive = acc.is_active === true || acc.is_active === 1;
-              const isDefault = acc.is_default === true || acc.is_default === 1;
+            {accounts && accounts.map((acc: any) => {
+
+              // SOLUSI UTAMA HOSTING: Normalisasi paksa nilai dari database menjadi Boolean murni
+              // Ini akan membaca dengan benar baik true, 1, "1", false, 0, maupun "0"
+              const isActive = acc.is_active == true || acc.is_active == 1 || acc.is_active == '1';
+              const isDefault = acc.is_default == true || acc.is_default == 1 || acc.is_default == '1';
 
               return (
                 <div
@@ -364,7 +366,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                   className={`relative p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col justify-between ${!isActive ? 'opacity-50 bg-muted/30' : ''
                     } ${isDefault ? 'border-primary ring-1 ring-primary/30' : ''}`}
                 >
-                  {/* Label Indikator Status - Bebas dari render Angka 0 liar */}
+                  {/* Label Indikator Status */}
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
                     {isDefault ? (
                       <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full border border-primary/20">
