@@ -397,7 +397,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                       🟢 Default Utama
                     </span>
                   )}
-                  {(acc.is_active === false || acc.is_active === 0) && (
+                  {(acc.is_active == false || acc.is_active == 0) && (
                     <span className="text-[10px] bg-destructive/10 text-destructive font-semibold px-2 py-0.5 rounded-full">
                       📁 Diarsipkan
                     </span>
@@ -406,7 +406,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
 
                 <div>
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                    {acc.type === 'bank' ? '🏦 Bank' : acc.type === 'e-wallet' ? '📱 E-Wallet' : '💵 Tunai'}
+                    {acc.type == 'bank' ? '🏦 Bank' : acc.type == 'e-wallet' ? '📱 E-Wallet' : '💵 Tunai'}
                   </p>
                   <h3 className="text-sm font-bold mt-1 text-foreground">{acc.name}</h3>
                   <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{acc.description || '-'}</p>
@@ -420,7 +420,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                   {/* DERETAN TOMBOL AKSI KELOLA AKUN */}
                   <div className="flex items-center gap-1.5 mt-1.5">
                     {/* Menggunakan ternary atau pembungkus Boolean agar tidak mencetak angka 0 ke DOM */}
-                    {!acc.is_default && (acc.is_active === true || acc.is_active === 1) ? (
+                    {!acc.is_default && (acc.is_active == true || acc.is_active == 1) ? (
                       <Button
                         variant="ghost"
                         size="sm"
