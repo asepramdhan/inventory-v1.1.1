@@ -21,7 +21,7 @@ class Transaction extends Model
     protected static function booted()
     {
         static::updated(function ($transaction) {
-            if ($transaction->isDirty('status') && $transaction->status === 'completed') {
+            if ($transaction->isDirty('status') && $transaction->status == 'completed') {
 
                 DB::transaction(function () use ($transaction) {
                     // 1. Ambil Nilai Harta Kotor Pesanan
@@ -103,7 +103,7 @@ class Transaction extends Model
 
         // Bagian pembatalan/canceled (tetap aman mengambil dari $oldMutation->amount secara otomatis)
         static::updated(function ($transaction) {
-            if ($transaction->isDirty('status') && $transaction->getOriginal('status') === 'completed' && $transaction->status !== 'completed') {
+            if ($transaction->isDirty('status') && $transaction->getOriginal('status') == 'completed' && $transaction->status != 'completed') {
                 DB::transaction(function () use ($transaction) {
                     $refNumber = $transaction->invoice_number ?? $transaction->id;
 
