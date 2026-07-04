@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class FinancialMutationController extends Controller
@@ -89,6 +90,14 @@ class FinancialMutationController extends Controller
             ->where('user_id', $userId)
             ->firstOrFail();
 
+        // --- PROTEKSI SALDO NEGATIF (SAAT INPUT) ---
+        if ($request->type === 'expense' && $account->current_balance < $request->amount) {
+            // Inertia::flash('error', 'Saldo tidak mencukupi! Saldo terkini di ' . $account->name . ' hanya Rp ' . number_format($account->current_balance, 0, ',', '.'));
+            throw ValidationException::withMessages([
+                'amount' => 'Saldo tidak cukup! Saldo ' . $account->name . ' saat ini Rp ' . number_format($account->current_balance, 0, ',', '.')
+            ]);
+        }
+
         DB::transaction(function () use ($request, $userId, $account) {
             $amount = $request->amount;
 
@@ -115,6 +124,145 @@ class FinancialMutationController extends Controller
         });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Mutasi keuangan berhasil dicatat.']);
+
+        return back();
+    }
+
+    public function storeAccount(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'type' => 'required|in:bank,e-wallet,cash',
+            'current_balance' => 'required|numeric|min:0',
+            'description' => 'nullable|string'
+        ]);
+
+        \App\Models\FinancialAccount::create([
+            'user_id' => Auth::user()->id,
+            'name' => $request->name,
+            'type' => $request->type,
+            'current_balance' => $request->current_balance,
+            'description' => $request->description,
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Akun kas baru berhasil didaftarkan.']);
+
+        return back();
+    }
+
+    // 1. Fungsi Edit Nama & Deskripsi Akun Kas
+    public function updateAccount(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string'
+        ]);
+
+        $account = FinancialAccount::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $account->update([
+            'name' => $request->name,
+            'description' => $request->description,
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Informasi akun kas berhasil diperbarui.']);
+
+        return back();
+    }
+
+    // 2. Fungsi Aktif/Nonaktifkan Akun Kas (Arsip pengganti Hapus)
+    public function toggleAccountStatus($id)
+    {
+        $account = FinancialAccount::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        // Cegah menonaktifkan jika akun ini adalah akun default
+        if ($account->is_default && $account->is_active) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Gagal! Ubah status default akun ini terlebih dahulu sebelum dinonaktifkan.']);
+
+            return back();
+        }
+
+        $account->is_active = !$account->is_active;
+        $account->save();
+
+        $statusText = $account->is_active ? 'diaktifkan kembali.' : 'berhasil dinonaktifkan (diarsipkan).';
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Status akun kas berhasil ' . $statusText]);
+
+        return back();
+    }
+
+    // 3. Fungsi Menjadikan Akun Ini Sebagai Default Pencairan Transaksi
+    public function setDefaultAccount($id)
+    {
+        $userId = Auth::id();
+
+        DB::transaction(function () use ($id, $userId) {
+            // Matikan status default akun lain milik user ini
+            FinancialAccount::where('user_id', $userId)->update(['is_default' => false]);
+
+            // Set akun terpilih menjadi default
+            $account = FinancialAccount::where('id', $id)
+                ->where('user_id', $userId)
+                ->firstOrFail();
+
+            $account->is_default = true;
+            $account->is_active = true; // Otomatis aktif jika jadi default
+            $account->save();
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Akun kas utama pencairan berhasil diubah.']);
+
+        return back();
+    }
+
+    public function destroy($id)
+    {
+        $userId = Auth::user()->id;
+
+        // 1. Cari data mutasi dan pastikan milik user yang sedang login
+        $mutation = FinancialMutation::where('id', $id)
+            ->where('user_id', $userId)
+            ->firstOrFail();
+
+        // 2. Cari akun kas yang terkait dengan mutasi tersebut
+        $account = FinancialAccount::where('id', $mutation->financial_account_id)
+            ->where('user_id', $userId)
+            ->firstOrFail();
+
+        // --- PROTEKSI SALDO NEGATIF (SAAT HAPUS UANG MASUK) ---
+        // Jika mutasi yang dihapus adalah uang masuk, maka saldo kas saat ini akan berkurang.
+        // Kita harus cegah jika pengurangan tersebut membuat kas di bawah 0.
+        if ($mutation->type === 'income' && $account->current_balance < $mutation->amount) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Gagal menghapus! Pembatalan uang masuk ini akan menyebabkan saldo ' . $account->name . ' menjadi minus.']);
+
+            return back();
+        }
+
+        // 3. Jalankan Database Transaction untuk keamanan data ganda
+        DB::transaction(function () use ($mutation, $account) {
+
+            // SISTEM REVERSAL: Balikkan efek saldo kas
+            if ($mutation->type === 'income') {
+                // Jika dulunya Uang Masuk, maka pembatalan akan MENGURANGI saldo kas
+                $account->current_balance -= $mutation->amount;
+            } else {
+                // Jika dulunya Uang Keluar, maka pembatalan akan MENAMBAHKAN KEMBALI saldo kas
+                $account->current_balance += $mutation->amount;
+            }
+
+            // Simpan perubahan saldo terbaru pada akun kas
+            $account->save();
+
+            // Hapus log mutasi dari database
+            $mutation->delete();
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Mutasi keuangan berhasil dihapus.']);
 
         return back();
     }

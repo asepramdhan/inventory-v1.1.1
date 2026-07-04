@@ -19,6 +19,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/finance/margin-analysis', [MarginAnalysisController::class, 'index'])->name('margin-analysis.index');
     Route::get('/finance/mutations', [FinancialMutationController::class, 'index'])->name('mutations.index');
     Route::post('/finance/mutations', [FinancialMutationController::class, 'store'])->name('mutations.store');
+    Route::post('/finance/mutations/accounts', [FinancialMutationController::class, 'storeAccount'])->name('mutations.accounts.store');
+    // Route::patch('/finance/mutations/accounts/{id}', [FinancialMutationController::class, 'updateAccount'])->name('mutations.accounts.update');
+    Route::patch('/finance/mutations/accounts/{id}/toggle', [FinancialMutationController::class, 'toggleAccountStatus'])->name('mutations.accounts.toggle');
+    Route::patch('/finance/mutations/accounts/{id}/default', [FinancialMutationController::class, 'setDefaultAccount'])->name('mutations.accounts.default');
+    Route::delete('/finance/mutations/{id}', [FinancialMutationController::class, 'destroy'])->name('mutations.destroy');
     Route::get('/finance/transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('/finance/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
     Route::patch('/finance/transactions/{transaction}/status', [TransactionController::class, 'statusUpdate'])->name('transactions.status-update');

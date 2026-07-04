@@ -254,7 +254,15 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
                             type="date"
                             name="date"
                             required
-                            defaultValue={new Date().toISOString().split('T')[0]}
+
+                            // PERBAIKAN: Menggunakan fungsi tanggal lokal komputer agar sinkron 100%
+                            defaultValue={(() => {
+                              const localDate = new Date();
+                              const year = localDate.getFullYear();
+                              const month = String(localDate.getMonth() + 1).padStart(2, '0');
+                              const day = String(localDate.getDate()).padStart(2, '0');
+                              return `${year}-${month}-${day}`;
+                            })()}
                           />
                           <InputError message={errors.date} />
                         </div>
