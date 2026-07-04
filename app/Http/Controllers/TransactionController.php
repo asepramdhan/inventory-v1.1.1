@@ -314,7 +314,7 @@ class TransactionController extends Controller
         $file = $request->file('file');
 
         try {
-            // Load file Excel menggunakan PhpSpreadsheet yang sudah di-import di controller Anda
+            // Load file Excel menggunakan PhpSpreadsheet
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
@@ -356,7 +356,6 @@ class TransactionController extends Controller
                 }
 
                 // Pemetaan status Shopee ke status sistem database Anda
-                // Sesuaikan padanan string ini dengan status ekspor riil dari Shopee
                 $mappedStatus = null;
                 switch (strtolower($shopeeStatus)) {
                     case 'selesai':
@@ -375,12 +374,20 @@ class TransactionController extends Controller
                 }
 
                 if ($mappedStatus) {
-                    // Update hanya transaksi milik user yang sedang login
-                    $updated = Transaction::where('user_id', $userId)
+                    // PERBAIKAN UTAMA: Ambil objek modelnya dulu (first) daripada langsung query massal (update)
+                    $transaction = Transaction::where('user_id', $userId)
                         ->where('invoice_number', $invoiceNumber)
-                        ->update(['status' => $mappedStatus]);
+                        ->first();
 
-                    if ($updated) {
+                    // Pastikan transaksi ditemukan dan statusnya memang ada perubahan
+                    if ($transaction && $transaction->status !== $mappedStatus) {
+
+                        // Set status baru
+                        $transaction->status = $mappedStatus;
+
+                        // Menggunakan ->save() agar Event booted() di model Transaction terpicu
+                        $transaction->save();
+
                         $updatedCount++;
                     }
                 }
