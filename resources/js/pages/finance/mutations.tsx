@@ -266,9 +266,9 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                         <SelectValue placeholder="Pilih rekening/kas" />
                       </SelectTrigger>
                       <SelectContent>
-                        {accounts?.filter((acc) => acc.is_active === true || acc.is_active === 1).map((acc) => (
+                        {accounts?.filter((acc) => acc.is_active == true || acc.is_active == 1).map((acc) => (
                           <SelectItem key={acc.id} value={acc.id.toString()}>
-                            {acc.name} ({acc.type.toUpperCase()}) {acc.is_default === true || acc.is_default === 1 ? '⭐' : ''}
+                            {acc.name} ({acc.type.toUpperCase()}) {acc.is_default == true || acc.is_default == 1 ? '⭐' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
