@@ -120,7 +120,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createForm.post('/finance/producer-stocks', {
+    createForm.post('/operational/producer-stocks', {
       onSuccess: () => {
         setIsCreateOpen(false);
         createForm.reset();
@@ -147,7 +147,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
     e.preventDefault();
     if (!selectedInvoice) return;
 
-    payForm.post(`/finance/producer-stocks/${selectedInvoice.id}/pay`, {
+    payForm.post(`/operational/producer-stocks/${selectedInvoice.id}/pay`, {
       onSuccess: () => {
         setIsPayOpen(false);
         setSelectedInvoice(null);

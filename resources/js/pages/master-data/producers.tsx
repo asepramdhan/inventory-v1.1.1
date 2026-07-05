@@ -45,7 +45,7 @@ export default function Producers({ producers }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    post('/finance/producers', {
+    post('/master-data/producers', {
       onSuccess: () => {
         setIsOpen(false);
         reset();
@@ -226,6 +226,6 @@ export default function Producers({ producers }: Props) {
 Producers.layout = {
   breadcrumbs: [
     { title: 'Master Data', href: '#' },
-    { title: 'Master Produsen', href: '/finance/producers' },
+    { title: 'Master Produsen', href: '/master-data/producers' },
   ],
 };
