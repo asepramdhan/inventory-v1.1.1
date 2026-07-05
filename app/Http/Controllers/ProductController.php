@@ -46,7 +46,7 @@ class ProductController extends Controller
                 return $query->where('active', $isActive);
             })
             ->latest()
-            ->paginate(10)
+            ->paginate(50)
             ->withQueryString();
 
         // AMBIL DAFTAR KATEGORI MILIK USER (Kirim ke React Form)

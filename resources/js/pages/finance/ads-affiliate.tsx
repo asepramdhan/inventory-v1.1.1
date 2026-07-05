@@ -620,7 +620,7 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
                     variant="outline"
                     size="sm"
                     disabled={!adsExpenses.prev_page_url}
-                    onClick={() => adsExpenses.prev_page_url && router.get(adsExpenses.prev_page_url, {}, { preserveState: true })}
+                    onClick={() => adsExpenses.prev_page_url && router.get(adsExpenses.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Sebelumnya
                   </Button>
@@ -631,7 +631,7 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
                     variant="outline"
                     size="sm"
                     disabled={!adsExpenses.next_page_url}
-                    onClick={() => adsExpenses.next_page_url && router.get(adsExpenses.next_page_url, {}, { preserveState: true })}
+                    onClick={() => adsExpenses.next_page_url && router.get(adsExpenses.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Selanjutnya
                   </Button>

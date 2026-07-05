@@ -20,7 +20,7 @@ class FinancialMutationController extends Controller
         // 1. Ambil Semua Daftar Akun Keuangan Milik User (untuk dropdown form & widget saldo)
         $accounts = FinancialAccount::where('user_id', $userId)->get();
 
-        // 2. Filter & Ambil Data Mutasi
+        // 2. Buat Base Query Filter (Jangan langsung dieksekusi dulu dengan ->get atau ->paginate)
         $accountId = $request->input('financial_account_id', 'all');
         $type = $request->input('type', 'all');
         $search = $request->input('search');
@@ -29,29 +29,32 @@ class FinancialMutationController extends Controller
         $startDate = $request->input('start_date', Carbon::now($timezone)->subDays(30)->format('Y-m-d'));
         $endDate = $request->input('end_date', Carbon::now($timezone)->format('Y-m-d'));
 
-        $mutations = FinancialMutation::with('account')
+        $query = FinancialMutation::with('account')
             ->where('user_id', $userId)
             ->whereBetween('date', [$startDate, $endDate])
-            ->when($accountId !== 'all', function ($query) use ($accountId) {
-                return $query->where('financial_account_id', $accountId);
+            ->when($accountId !== 'all', function ($q) use ($accountId) {
+                return $q->where('financial_account_id', $accountId);
             })
-            ->when($type !== 'all', function ($query) use ($type) {
-                return $query->where('type', $type);
+            ->when($type !== 'all', function ($q) use ($type) {
+                return $q->where('type', $type);
             })
-            ->when($search, function ($query, $search) {
-                return $query->where(function ($q) use ($search) {
-                    $q->where('category', 'like', "%{$search}%")
+            ->when($search, function ($q, $search) {
+                return $q->where(function ($sub) use ($search) {
+                    $sub->where('category', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%")
                         ->orWhere('reference_number', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy('date', 'desc')
-            ->orderBy('id', 'desc')
-            ->get();
+            });
 
-        // 3. Hitung Total Uang Masuk & Keluar dari data yang terfilter untuk ditaruh di Card Ringkasan
-        $totalIncome = $mutations->where('type', 'income')->sum('amount');
-        $totalExpense = $mutations->where('type', 'expense')->sum('amount');
+        // 3. Hitung Total Uang Masuk & Keluar dari SELURUH data yang lolos filter (Akurat lintas halaman)
+        $totalIncome = (clone $query)->where('type', 'income')->sum('amount');
+        $totalExpense = (clone $query)->where('type', 'expense')->sum('amount');
+
+        // 4. Eksekusi data mutasi dengan Pagination (50 data per halaman)
+        $mutations = $query->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->paginate(50)
+            ->withQueryString(); // Memastikan filter tanggal & pencarian tidak hilang saat klik tombol Next/Prev
 
         return Inertia::render('finance/mutations', [
             'accounts' => $accounts,

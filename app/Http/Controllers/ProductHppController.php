@@ -43,7 +43,7 @@ class ProductHppController extends Controller
                 return $query->where('active', $isActive);
             })
             ->latest()
-            ->paginate(10)
+            ->paginate(50)
             ->withQueryString();
 
         // Ambil list kategori untuk filter dropdown

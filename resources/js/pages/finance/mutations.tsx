@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // PERBAIKAN UTAMA: Definisi type-safety yang ketat untuk data akun dari database
 interface Account {
@@ -27,18 +28,26 @@ interface Account {
 
 interface Props {
   accounts: Account[];
-  mutations: Array<{
-    id: number;
-    financial_account_id: number;
-    date: string;
-    type: 'income' | 'expense';
-    category: string;
-    amount: number;
-    balance_snapshot: number;
-    reference_number: string;
-    description: string;
-    account?: { name: string; type: string };
-  }>;
+  mutations: {
+    data: Array<{
+      id: number;
+      financial_account_id: number;
+      date: string;
+      type: 'income' | 'expense';
+      category: string;
+      amount: number;
+      balance_snapshot: number;
+      reference_number: string;
+      description: string;
+      account?: { name: string; type: string };
+    }>;
+    links: Array<{ url: string | null; label: string; active: boolean }>;
+    current_page: number;
+    last_page: number;
+    from: number;
+    to: number;
+    total: number;
+  };
   summary: { total_income: number; total_expense: number; net_cash_flow: number };
   filters: { financial_account_id: string; type: string; start_date: string; end_date: string; search: string };
 }
@@ -50,6 +59,9 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
   const [typeFilter, setTypeFilter] = useState(filters.type || 'all');
   const [startDate, setStartDate] = useState(filters.start_date || '');
   const [endDate, setEndDate] = useState(filters.end_date || '');
+
+  // 1. TAMBAHKAN STATE PAGE DI SINI:
+  const [page, setPage] = useState(mutations.current_page || 1);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -134,9 +146,31 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
     });
   };
 
-  // Efek auto-filter ketika user mengubah filter dropdown atau tanggal
+  // Ganti seluruh useEffect lama dengan ini:
   useEffect(() => {
     const timer = setTimeout(() => {
+      // Ambil parameter dari URL saat ini untuk mengecek apakah filter benar-back berubah
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentSearch = urlParams.get('search') || '';
+      const currentAccount = urlParams.get('financial_account_id') || 'all';
+      const currentType = urlParams.get('type') || 'all';
+      const currentStart = urlParams.get('start_date') || '';
+      const currentEnd = urlParams.get('end_date') || '';
+
+      // Cek apakah user sedang mengubah isi filter/ketikan pencarian
+      const isFilterChanged =
+        search !== currentSearch ||
+        accountFilter !== currentAccount ||
+        typeFilter !== currentType ||
+        startDate !== currentStart ||
+        endDate !== currentEnd;
+
+      // Jika filter diubah, paksa balik ke halaman 1. Jika tidak, ikuti state page aktif.
+      const targetPage = isFilterChanged ? 1 : page;
+
+      // Jika balik ke page 1, selaraskan juga state-nya agar tombol pagination berubah aktifnya
+      if (isFilterChanged) setPage(1);
+
       router.get(
         '/finance/mutations',
         {
@@ -145,12 +179,14 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
           type: typeFilter,
           start_date: startDate,
           end_date: endDate,
+          page: targetPage, // Kirimkan target halaman yang tepat
         },
-        { preserveState: true, replace: true }
+        { preserveState: true, replace: true, preserveScroll: true }
       );
     }, 400);
+
     return () => clearTimeout(timer);
-  }, [search, accountFilter, typeFilter, startDate, endDate]);
+  }, [search, accountFilter, typeFilter, startDate, endDate, page]); // <- Masukkan 'page' ke dalam dependency
 
   const handleResetFilter = () => {
     setSearch('');
@@ -661,7 +697,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mutations?.length === 0 ? (
+                {mutations?.data?.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-72 text-center p-0">
                       <Empty className="py-8">
@@ -676,7 +712,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                     </TableCell>
                   </TableRow>
                 ) : (
-                  mutations?.map((item) => (
+                  mutations?.data?.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="text-xs text-muted-foreground font-medium">
                         {item.date}
@@ -684,10 +720,23 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                       <TableCell className="text-xs font-semibold text-foreground">
                         {item.account?.name || 'Kas Terhapus'}
                       </TableCell>
-                      <TableCell className="py-2.5">
+                      <TableCell className="py-2.5 max-w-[200px] md:max-w-[300px]">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-xs font-bold text-foreground">{item.category}</span>
-                          {item.description && <span className="text-[11px] text-muted-foreground line-clamp-1">{item.description}</span>}
+                          {item.description && (
+                            <TooltipProvider>
+                              <Tooltip delayDuration={300}>
+                                <TooltipTrigger asChild>
+                                  <span className="text-[11px] text-muted-foreground truncate block cursor-help">
+                                    {item.description}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs text-xs p-2">
+                                  <p>{item.description}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground">
@@ -716,6 +765,36 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
             </Table>
           </CardContent>
         </Card>
+        {/* ================= BARIS TOMBOL PAGINATION BARU ================= */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 pb-6 px-1">
+          <p className="text-xs text-muted-foreground text-center sm:text-left">
+            Menampilkan <span className="font-semibold text-foreground">{mutations.from || 0}</span> sampai{" "}
+            <span className="font-semibold text-foreground">{mutations.to || 0}</span> dari{" "}
+            <span className="font-semibold text-foreground">{mutations.total}</span> riwayat mutasi
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-1">
+            {mutations.links.map((link, idx) => (
+              <Button
+                key={idx}
+                variant={link.active ? "default" : "outline"}
+                size="sm"
+                className={`h-8 text-xs px-3 ${link.active ? 'pointer-events-none' : ''}`}
+                disabled={!link.url}
+                onClick={() => {
+                  if (link.url) {
+                    // Ambil angka page dari URL link bawaan Laravel (contoh: ?page=2 diambil angka 2-nya)
+                    const urlObj = new URL(link.url, window.location.origin);
+                    const pageNumber = urlObj.searchParams.get('page');
+                    if (pageNumber) setPage(Number(pageNumber));
+                  }
+                }}
+                dangerouslySetInnerHTML={{ __html: link.label }}
+              />
+            ))}
+          </div>
+        </div>
+        {/* ================================================================ */}
       </div>
     </>
   );

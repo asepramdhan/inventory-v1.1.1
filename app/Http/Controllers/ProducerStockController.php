@@ -29,17 +29,20 @@ class ProducerStockController extends Controller
         // Hitung total hutang yang belum dibayar ke produsen
         $totalUnpaid = ProducerInvoice::where('user_id', $userId)->where('status', 'unpaid')->sum('total_amount');
 
-        return Inertia::render('finance/producer-stocks', [
+        $masterProducers = \App\Models\Producer::where('user_id', $userId)->get();
+
+        return Inertia::render('operational/producer-stocks', [
             'invoices' => $invoices,
             'accounts' => $accounts,
-            'totalUnpaid' => (float)$totalUnpaid
+            'totalUnpaid' => (float)$totalUnpaid,
+            'masterProducers' => $masterProducers
         ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'producer_name' => 'required|string',
+            'producer_id' => 'required|exists:producers,id',
             'invoice_number' => 'required|string',
             'received_date' => 'required|date',
             'description' => 'nullable|string',
@@ -52,10 +55,12 @@ class ProducerStockController extends Controller
         $userId = Auth::user()->id;
 
         DB::transaction(function () use ($request, $userId) {
+            $producerMaster = \App\Models\Producer::find($request->producer_id);
             // 1. Buat Header Faktur
             $invoice = ProducerInvoice::create([
                 'user_id' => $userId,
-                'producer_name' => $request->producer_name,
+                'producer_id' => $request->producer_id,
+                'producer_name' => $producerMaster->name,
                 'invoice_number' => $request->invoice_number,
                 'received_date' => $request->received_date,
                 'status' => 'unpaid', // Default belum dibayar

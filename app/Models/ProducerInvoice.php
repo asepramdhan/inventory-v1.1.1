@@ -57,4 +57,9 @@ class ProducerInvoice extends Model
     {
         return $this->belongsTo(FinancialAccount::class, 'financial_account_id');
     }
+
+    public function producer(): BelongsTo
+    {
+        return $this->belongsTo(Producer::class, 'producer_id');
+    }
 }

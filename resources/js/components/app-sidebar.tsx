@@ -1,9 +1,10 @@
 import { Link } from '@inertiajs/react';
-import { ArrowRightLeft, Box, ChartBar, DollarSign, LayoutGrid, Megaphone, PackagePlus, ShoppingBagIcon, Store, Tags } from 'lucide-react';
+import { ArrowRightLeft, Box, ChartBar, DollarSign, LayoutGrid, Megaphone, PackagePlus, ShoppingBagIcon, Store, Tags, Users } from 'lucide-react';
 import AdsAffiliateController from '@/actions/App/Http/Controllers/AdsAffiliateController';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
 import FinancialMutationController from '@/actions/App/Http/Controllers/FinancialMutationController';
 import MarginAnalysisController from '@/actions/App/Http/Controllers/MarginAnalysisController';
+import ProducerController from '@/actions/App/Http/Controllers/ProducerController';
 import ProducerStockController from '@/actions/App/Http/Controllers/ProducerStockController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductHppController from '@/actions/App/Http/Controllers/ProductHppController';
@@ -39,45 +40,53 @@ const analysisItems: NavItem[] = [
         icon: ChartBar,
     },
     {
+        title: 'Transaksi',
+        href: TransactionController.index(),
+        icon: ShoppingBagIcon,
+    },
+    {
         title: 'Iklan & Affiliasi',
         href: AdsAffiliateController.index(),
         icon: Megaphone,
     },
     {
-        title: 'Mutasi',
+        title: 'Mutasi Kas',
         href: FinancialMutationController.index(),
         icon: ArrowRightLeft,
     },
+];
+
+const oprationItems: NavItem[] = [
     {
         title: 'Faktur Produsen',
         href: ProducerStockController.index(),
         icon: PackagePlus,
     },
     {
-        title: 'Transaksi',
-        href: TransactionController.index(),
-        icon: ShoppingBagIcon,
+        title: 'Stok & Produk',
+        href: ProductController.index(),
+        icon: Box,
     },
-];
-
-const masterDataItems: NavItem[] = [
     {
         title: 'HPP Produk',
         href: ProductHppController.index(),
         icon: DollarSign,
     },
+];
+
+const masterDataItems: NavItem[] = [
     {
-        title: 'Kategori',
+        title: 'Profil Produsen',
+        href: ProducerController.index(),
+        icon: Users,
+    },
+    {
+        title: 'Kategori Produk',
         href: CategoryController.index(),
         icon: Tags,
     },
     {
-        title: 'Produk',
-        href: ProductController.index(),
-        icon: Box,
-    },
-    {
-        title: 'Toko',
+        title: 'Daftar Toko',
         href: StoreController.index(),
         icon: Store,
     },
@@ -113,8 +122,9 @@ export function AppSidebar() {
 
             <SidebarContent className="py-2">
                 {/* Panggil NavMain untuk masing-masing grup dan berikan labelnya */}
-                <NavMain items={mainNavItems} label="Main" />
+                <NavMain items={mainNavItems} label="Utama" />
                 <NavMain items={analysisItems} label="Keuangan & Analisa" />
+                <NavMain items={oprationItems} label="Stok & Pemasukan" />
                 <NavMain items={masterDataItems} label="Master Data" />
             </SidebarContent>
 

@@ -724,7 +724,7 @@ export default function Product({ products, categoriesList, filters }: any) {
                     variant="outline"
                     size="sm"
                     disabled={!products.prev_page_url}
-                    onClick={() => products.prev_page_url && router.get(products.prev_page_url, {}, { preserveState: true })}
+                    onClick={() => products.prev_page_url && router.get(products.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Sebelumnya
                   </Button>
@@ -735,7 +735,7 @@ export default function Product({ products, categoriesList, filters }: any) {
                     variant="outline"
                     size="sm"
                     disabled={!products.next_page_url}
-                    onClick={() => products.next_page_url && router.get(products.next_page_url, {}, { preserveState: true })}
+                    onClick={() => products.next_page_url && router.get(products.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Selanjutnya
                   </Button>
@@ -1191,7 +1191,7 @@ export default function Product({ products, categoriesList, filters }: any) {
 
 Product.layout = {
   breadcrumbs: [
-    { title: 'Master Data', href: '#' },
+    { title: 'Stok & Pemasukan', href: '#' },
     { title: 'Master Produk', href: ProductController.index() },
   ],
 };
@@ -1231,8 +1231,8 @@ function InlineStockUpdater({ product }: { product: any }) {
         {/* Tombol berbasis DIV dengan class dinamis sesuai kondisi stock */}
         <div
           className={`cursor-pointer p-1.5 px-3 rounded text-center font-bold text-sm inline-flex items-center gap-1 transition-colors border ${isLowStock
-              ? 'bg-destructive/10 text-destructive border-destructive hover:bg-destructive/20 dark:bg-destructive/20'
-              : 'hover:bg-muted dark:hover:bg-muted/40 border-dashed border-muted-foreground/40 text-foreground'
+            ? 'bg-destructive/10 text-destructive border-destructive hover:bg-destructive/20 dark:bg-destructive/20'
+            : 'hover:bg-muted dark:hover:bg-muted/40 border-dashed border-muted-foreground/40 text-foreground'
             }`}
         >
           {/* Angka Stok */}

@@ -47,7 +47,7 @@ class TransactionController extends Controller
                 return $query->where('status', $status);
             })
             ->latest('transaction_date')
-            ->paginate(10)
+            ->paginate(50)
             ->withQueryString();
 
         // Ambil list toko untuk opsi filter dropdown

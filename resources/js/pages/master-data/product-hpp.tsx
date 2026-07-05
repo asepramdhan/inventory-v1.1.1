@@ -421,7 +421,7 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline" size="sm" disabled={!products.prev_page_url}
-                    onClick={() => products.prev_page_url && router.get(products.prev_page_url, {}, { preserveState: true })}
+                    onClick={() => products.prev_page_url && router.get(products.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Sebelumnya
                   </Button>
@@ -430,7 +430,7 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
                   </div>
                   <Button
                     variant="outline" size="sm" disabled={!products.next_page_url}
-                    onClick={() => products.next_page_url && router.get(products.next_page_url, {}, { preserveState: true })}
+                    onClick={() => products.next_page_url && router.get(products.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Selanjutnya
                   </Button>
@@ -733,7 +733,7 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
 
 ProductHpp.layout = {
   breadcrumbs: [
-    { title: 'Master Data', href: '#' },
+    { title: 'Stok & Pemasukan', href: '#' },
     { title: 'HPP Produk', href: ProductHppController.index() },
   ],
 };

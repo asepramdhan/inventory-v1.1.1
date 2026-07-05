@@ -1,7 +1,7 @@
 /* eslint-disable curly */
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, useForm } from '@inertiajs/react';
-import { Calendar, CheckCircle2, DollarSign, Plus, Receipt, Text, Trash2, User } from 'lucide-react';
+import { Calendar, CheckCircle2, DollarSign, Plus, Receipt, Text, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -40,13 +40,19 @@ interface Account {
   current_balance: number;
 }
 
+interface MasterProducer {
+  id: number;
+  name: string;
+}
+
 interface Props {
   invoices: Invoice[];
   accounts: Account[];
   totalUnpaid: number;
+  masterProducers: MasterProducer[];
 }
 
-export default function ProducerStocks({ invoices, accounts, totalUnpaid }: Props) {
+export default function ProducerStocks({ invoices, accounts, totalUnpaid, masterProducers }: Props) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -83,7 +89,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid }: Prop
 
   // --- FORM 1: INPUT NOTA MASUK BARU ---
   const createForm = useForm({
-    producer_name: '',
+    producer_id: '',
     invoice_number: '',
     received_date: (() => {
       const d = new Date();
@@ -178,18 +184,23 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid }: Prop
               <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="producer_name">Nama Produsen / Konveksi</Label>
-                    <div className="relative">
-                      <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="producer_name"
-                        placeholder="Contoh: Konveksi Abadi"
-                        className="pl-9"
-                        value={createForm.data.producer_name}
-                        onChange={(e) => createForm.setData('producer_name', e.target.value)}
-                      />
-                    </div>
-                    <InputError message={createForm.errors.producer_name} />
+                    <Label htmlFor="producer_id">Pilih Produsen / Konveksi</Label>
+                    <Select
+                      value={createForm.data.producer_id}
+                      onValueChange={(val) => createForm.setData('producer_id', val)}
+                    >
+                      <SelectTrigger className="w-full h-9 text-xs">
+                        <SelectValue placeholder="Pilih mitra produsen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {masterProducers?.map((mProd) => (
+                          <SelectItem key={mProd.id} value={mProd.id.toString()} className="text-xs">
+                            🏢 {mProd.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <InputError message={createForm.errors.producer_id} />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="invoice_number">Nomor Nota / Faktur</Label>
@@ -482,7 +493,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid }: Prop
 
 ProducerStocks.layout = {
   breadcrumbs: [
-    { title: 'Keuangan & Analisa', href: '#' },
-    { title: 'Stok & Nota Produsen', href: '/finance/producer-stocks' },
+    { title: 'Stok & Pemasukan', href: '#' },
+    { title: 'Stok & Nota Produsen', href: '/operational/producer-stocks' },
   ],
 };

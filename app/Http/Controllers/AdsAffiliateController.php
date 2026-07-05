@@ -131,7 +131,7 @@ class AdsAffiliateController extends Controller
             ->with('store')
             ->orderBy('date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->paginate(15)
+            ->paginate(50)
             ->withQueryString();
 
         return Inertia::render('finance/ads-affiliate', [

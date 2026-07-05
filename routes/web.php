@@ -4,6 +4,7 @@ use App\Http\Controllers\AdsAffiliateController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\FinancialMutationController;
 use App\Http\Controllers\MarginAnalysisController;
+use App\Http\Controllers\ProducerController;
 use App\Http\Controllers\ProducerStockController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductHppController;
@@ -14,10 +15,19 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Menu Keuangan & Analisa - Daftar Transaksi
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 
     // Menu Keuangan & Analisa - Daftar Transaksi
     Route::get('/finance/margin-analysis', [MarginAnalysisController::class, 'index'])->name('margin-analysis.index');
+
+    Route::get('/finance/transactions', [TransactionController::class, 'index'])->name('transactions.index');
+    Route::post('/finance/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
+    Route::patch('/finance/transactions/{transaction}/status', [TransactionController::class, 'statusUpdate'])->name('transactions.status-update');
+    Route::post('/finance/transactions/import-excel', [TransactionController::class, 'importStatusExcel'])->name('transactions.import-excel');
+    Route::patch('/finance/transactions/bulk-status', [TransactionController::class, 'bulkStatusUpdate'])->name('transactions.bulk-status');
+    Route::post('/finance/transactions/bulk-delete', [TransactionController::class, 'bulkDelete'])->name('transactions.bulk-delete');
+
     Route::get('/finance/mutations', [FinancialMutationController::class, 'index'])->name('mutations.index');
     Route::post('/finance/mutations', [FinancialMutationController::class, 'store'])->name('mutations.store');
     Route::post('/finance/mutations/accounts', [FinancialMutationController::class, 'storeAccount'])->name('mutations.accounts.store');
@@ -26,28 +36,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/finance/mutations/accounts/{id}/toggle', [FinancialMutationController::class, 'toggleAccountStatus'])->name('mutations.accounts.toggle');
     Route::patch('/finance/mutations/accounts/{id}/default', [FinancialMutationController::class, 'setDefaultAccount'])->name('mutations.accounts.default');
     Route::delete('/finance/mutations/{id}', [FinancialMutationController::class, 'destroy'])->name('mutations.destroy');
-    Route::get('/finance/producer-stocks', [ProducerStockController::class, 'index'])->name('producer-stocks.index');
-    Route::post('/finance/producer-stocks', [ProducerStockController::class, 'store'])->name('producer-stocks.store');
-    Route::post('/finance/producer-stocks/{id}/pay', [ProducerStockController::class, 'payInvoice'])->name('producer-stocks.pay');
-    Route::get('/finance/transactions', [TransactionController::class, 'index'])->name('transactions.index');
-    Route::post('/finance/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
-    Route::patch('/finance/transactions/{transaction}/status', [TransactionController::class, 'statusUpdate'])->name('transactions.status-update');
-    Route::post('/finance/transactions/import-excel', [TransactionController::class, 'importStatusExcel'])->name('transactions.import-excel');
-    Route::patch('/finance/transactions/bulk-status', [TransactionController::class, 'bulkStatusUpdate'])->name('transactions.bulk-status');
-    Route::post('/finance/transactions/bulk-delete', [TransactionController::class, 'bulkDelete'])->name('transactions.bulk-delete');
 
-    // Menu Master Data
-    // Halaman utama daftar HPP & Filter
-    Route::get('/master-data/product-hpp', [ProductHppController::class, 'index'])->name('product-hpp.index');
-    // Proses simpan data (Satu route untuk create sekaligus update)
-    Route::post('/master-data/product-hpp/save', [ProductHppController::class, 'save'])->name('product-hpp.save');
-    Route::resource('categories', CategoryController::class);
-    Route::get('/master-data/category/export', [CategoryController::class, 'export'])->name('categories.export');
-    Route::post('/master-data/category/bulk-delete', [CategoryController::class, 'bulkDestroy'])->name('categories.bulk-destroy');
+    // Menu Stok & Pemasukan
+    Route::get('/operational/producer-stocks', [ProducerStockController::class, 'index'])->name('producer-stocks.index');
+    Route::post('/operational/producer-stocks', [ProducerStockController::class, 'store'])->name('producer-stocks.store');
+    Route::post('/operational/producer-stocks/{id}/pay', [ProducerStockController::class, 'payInvoice'])->name('producer-stocks.pay');
+
     Route::resource('products', ProductController::class);
     Route::put('/master-data/product/{product}/update-stock', [ProductController::class, 'updateStock']);
     Route::get('/master-data/product/export', [ProductController::class, 'export'])->name('products.export');
     Route::post('/master-data/product/bulk-delete', [ProductController::class, 'bulkDestroy'])->name('products.bulk-destroy');
+
+    // Menu Master Data
+    Route::get('/master-data/producers', [ProducerController::class, 'index'])->name('producers.index');
+    Route::post('/master-data/producers', [ProducerController::class, 'store'])->name('producers.store');
+
+    Route::get('/master-data/product-hpp', [ProductHppController::class, 'index'])->name('product-hpp.index');
+    Route::post('/master-data/product-hpp/save', [ProductHppController::class, 'save'])->name('product-hpp.save');
+    Route::resource('categories', CategoryController::class);
+    Route::get('/master-data/category/export', [CategoryController::class, 'export'])->name('categories.export');
+    Route::post('/master-data/category/bulk-delete', [CategoryController::class, 'bulkDestroy'])->name('categories.bulk-destroy');
     Route::resource('stores', StoreController::class);
     Route::get('/master-data/store/export', [StoreController::class, 'export'])->name('stores.export');
     Route::post('/master-data/store/bulk-delete', [StoreController::class, 'bulkDestroy'])->name('stores.bulk-destroy');

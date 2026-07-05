@@ -893,7 +893,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                     variant="outline"
                     size="sm"
                     disabled={!transactions.prev_page_url}
-                    onClick={() => transactions.prev_page_url && router.get(transactions.prev_page_url, {}, { preserveState: true })}
+                    onClick={() => transactions.prev_page_url && router.get(transactions.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Sebelumnya
                   </Button>
@@ -904,7 +904,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                     variant="outline"
                     size="sm"
                     disabled={!transactions.next_page_url}
-                    onClick={() => transactions.next_page_url && router.get(transactions.next_page_url, {}, { preserveState: true })}
+                    onClick={() => transactions.next_page_url && router.get(transactions.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Selanjutnya
                   </Button>
