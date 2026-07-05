@@ -164,19 +164,42 @@ class AdsAffiliateController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        StoreDailyAds::updateOrCreate(
-            [
-                'store_id' => $validated['store_id'],
-                'date' => $validated['date'],
-            ],
-            [
-                'amount_spent' => $validated['amount_spent'],
-                'affiliate_fee' => $validated['affiliate_fee'] ?? 0,
-                'description' => $validated['description'] ?? null,
-            ]
-        );
+        // PERBAIKAN: Cari data iklan berdasarkan toko dan tanggal secara manual
+        $dailyAd = StoreDailyAds::where('store_id', $validated['store_id'])
+            ->where('date', $validated['date'])
+            ->first();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Biaya iklan berhasil diperbarui!']);
+        if (!$dailyAd) {
+            // Jika belum ada, buat objek baru
+            $dailyAd = new StoreDailyAds();
+            $dailyAd->store_id = $validated['store_id'];
+            $dailyAd->date = $validated['date'];
+        }
+
+        // Masukkan data baru / perubahan datanya
+        // Kita tambahkan user_id milik toko agar model tahu kas siapa yang harus dipotong
+        // $dailyAd->user_id = $userId;
+        $dailyAd->amount_spent = $validated['amount_spent'];
+        $dailyAd->affiliate_fee = $validated['affiliate_fee'] ?? 0;
+        $dailyAd->description = $validated['description'] ?? null;
+
+        // Gunakan ->save() murni agar Event Model booted() di bawah terpicu 100% lancar!
+        $dailyAd->save();
+
+        // StoreDailyAds::updateOrCreate(
+        //     [
+        //         'store_id' => $validated['store_id'],
+        //         'date' => $validated['date'],
+        //     ],
+        //     [
+        //         'amount_spent' => $validated['amount_spent'],
+        //         'affiliate_fee' => $validated['affiliate_fee'] ?? 0,
+        //         'description' => $validated['description'] ?? null,
+        //     ]
+        // );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Biaya iklan & affiliate berhasil diperbarui!']);
+        // Inertia::flash('toast', ['type' => 'success', 'message' => 'Biaya iklan berhasil diperbarui!']);
 
         return back();
     }
@@ -189,6 +212,7 @@ class AdsAffiliateController extends Controller
         $userId = Auth::user()->id;
         $userStoreIds = Store::where('user_id', $userId)->pluck('id')->toArray();
 
+        // 1. Amankan objek berdasarkan kepemilikan toko user yang login
         $expense = StoreDailyAds::whereIn('store_id', $userStoreIds)->findOrFail($id);
 
         $validated = $request->validate([
@@ -196,14 +220,22 @@ class AdsAffiliateController extends Controller
             'amount_spent' => 'required|numeric|min:0',
             'affiliate_fee' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
+            'date' => 'nullable|date', // Tambahkan ini sebagai opsional pencegah bug state date kosong
         ]);
 
-        $expense->update([
-            'store_id' => $validated['store_id'],
-            'amount_spent' => $validated['amount_spent'],
-            'affiliate_fee' => $validated['affiliate_fee'] ?? 0,
-            'description' => $validated['description'] ?? null,
-        ]);
+        // 2. Lakukan update data
+        $expense->store_id = $validated['store_id'];
+        $expense->amount_spent = $validated['amount_spent'];
+        $expense->affiliate_fee = $validated['affiliate_fee'] ?? 0;
+        $expense->description = $validated['description'] ?? null;
+
+        // Jika di request ada tanggal baru, ikut update. Jika tidak, pertahankan tanggal lama.
+        if (!empty($validated['date'])) {
+            $expense->date = $validated['date'];
+        }
+
+        // 3. Simpan dengan ->save() untuk memastikan sinkronisasi state model berjalan mutlak
+        $expense->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Log pengeluaran berhasil diperbarui!']);
 
@@ -239,11 +271,23 @@ class AdsAffiliateController extends Controller
             'ids.*' => 'numeric'
         ]);
 
-        StoreDailyAds::whereIn('store_id', $userStoreIds)
+        // 1. Ambil data modelnya terlebih dahulu sebagai Collection (Gunakan get(), jangan langsung delete())
+        $expenses = StoreDailyAds::whereIn('store_id', $userStoreIds)
             ->whereIn('id', $validated['ids'])
-            ->delete();
+            ->get();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Semua log terpilih berhasil dihapus massal!']);
+        // Jika tidak ada data yang cocok, langsung kembalikan
+        if ($expenses->isEmpty()) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => 'Tidak ada data valid yang ditemukan untuk dihapus.']);
+            return back();
+        }
+
+        // 2. Looping dan hapus per objek model agar Event booted() static::deleted terpancing!
+        foreach ($expenses as $expense) {
+            $expense->delete();
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Semua log terpilih berhasil dihapus massal dan saldo kas disesuaikan!']);
 
         return back();
     }

@@ -1,3 +1,4 @@
+/* eslint-disable curly */
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, router, useForm } from '@inertiajs/react';
 import { ArrowDownLeft, ArrowUpRight, Calendar, DollarSign, Landmark, Plus, Search, Trash2 } from 'lucide-react';
@@ -109,6 +110,30 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
     }
   };
 
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+
+  // Inertia Form untuk Transfer / Penarikan Saldo
+  const transferForm = useForm({
+    from_account_id: '',
+    to_account_id: '',
+    amount: '',
+    date: (() => {
+      const localDate = new Date();
+      return `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+    })(),
+    description: '',
+  });
+
+  const handleTransferSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    transferForm.post('/finance/mutations/transfer', {
+      onSuccess: () => {
+        setIsTransferOpen(false);
+        transferForm.reset();
+      },
+    });
+  };
+
   // Efek auto-filter ketika user mengubah filter dropdown atau tanggal
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -150,6 +175,18 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
 
   const formatIDR = (num: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+  };
+
+  // Fungsi untuk mengubah angka murni menjadi string berformat titik (Contoh: 1000000 -> "1.000.000")
+  const formatDisplayRupiah = (value: string | number) => {
+    if (!value) return '';
+    const stringValue = value.toString().replace(/\D/g, '');
+    return stringValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Fungsi untuk membersihkan titik saat user mengetik agar kembali jadi angka murni sebelum disimpan ke state
+  const cleanRupiahValue = (value: string) => {
+    return value.replace(/\./g, '');
   };
 
   const handleDeleteMutation = (id: number) => {
@@ -215,10 +252,10 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                     <Label htmlFor="acc_balance">Saldo Awal Saat Ini (Rp)</Label>
                     <Input
                       id="acc_balance"
-                      type="number"
-                      placeholder="Masukkan saldo awal kas..."
-                      value={accountForm.data.current_balance}
-                      onChange={(e) => accountForm.setData('current_balance', e.target.value)}
+                      type="text" // UBAH ke text agar bisa disisipkan karakter titik
+                      placeholder="Contoh: 1.000.000"
+                      value={formatDisplayRupiah(accountForm.data.current_balance)} // Tampilkan format titik
+                      onChange={(e) => accountForm.setData('current_balance', cleanRupiahValue(e.target.value))} // Simpan angka bersih ke database
                     />
                     <InputError message={accountForm.errors.current_balance} />
                   </div>
@@ -308,10 +345,11 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                   <div className="space-y-1.5">
                     <Label htmlFor="amount">Nominal Uang (Rp)</Label>
                     <Input
-                      type="number"
-                      placeholder="Masukkan jumlah nominal..."
-                      value={data.amount}
-                      onChange={(e) => setData('amount', e.target.value)}
+                      id="amount"
+                      type="text" // UBAH ke text
+                      placeholder="Contoh: 50.000"
+                      value={formatDisplayRupiah(data.amount)} // Tampilkan format titik
+                      onChange={(e) => setData('amount', cleanRupiahValue(e.target.value))} // Simpan angka bersih
                     />
                     <InputError message={errors.amount} />
                   </div>
@@ -341,6 +379,92 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
 
                   <SheetFooter className="pt-4 border-t flex-row gap-2 justify-end">
                     <Button type="submit" disabled={processing}>{processing ? 'Menyimpan...' : 'Simpan Transaksi'}</Button>
+                    <SheetClose asChild><Button variant="outline" type="button">Batal</Button></SheetClose>
+                  </SheetFooter>
+                </form>
+              </SheetContent>
+            </Sheet>
+
+            {/* SHEET FORM PENARIKAN / TRANSFER SALDO */}
+            <Sheet open={isTransferOpen} onOpenChange={setIsTransferOpen}>
+              <SheetContent className="flex flex-col h-full sm:max-w-md p-0 gap-0">
+                <SheetHeader className="p-6 border-b bg-background">
+                  <SheetTitle>Transfer / Tarik Saldo Kas</SheetTitle>
+                  <SheetDescription>
+                    Pindahkan dana dari akun kas utama ke akun rekening bank atau e-wallet lainnya.
+                  </SheetDescription>
+                </SheetHeader>
+
+                <form onSubmit={handleTransferSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+                  {/* Akun Asal */}
+                  <div className="space-y-1.5">
+                    <Label>Akun Sumber (Asal Dana)</Label>
+                    <Input
+                      disabled
+                      value={accounts.find(a => a.id.toString() === transferForm.data.from_account_id)?.name || ''}
+                      className="bg-muted"
+                    />
+                  </div>
+
+                  {/* Akun Tujuan */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="to_account_id">Pilih Rekening Bank / Tujuan Penerima</Label>
+                    <Select
+                      value={transferForm.data.to_account_id}
+                      onValueChange={(val) => transferForm.setData('to_account_id', val)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Pilih rekening bank tujuan..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts
+                          ?.filter((acc) => (acc.is_active == true || acc.is_active == 1) && acc.id.toString() !== transferForm.data.from_account_id)
+                          .map((acc) => (
+                            <SelectItem key={acc.id} value={acc.id.toString()}>
+                              {acc.name} ({acc.type.toUpperCase()}) - Saldo: {formatIDR(acc.current_balance)}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <InputError message={transferForm.errors.to_account_id} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ts_date">Tanggal Penarikan</Label>
+                      <Input type="date" id="ts_date" value={transferForm.data.date} onChange={(e) => transferForm.setData('date', e.target.value)} />
+                      <InputError message={transferForm.errors.date} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ts_amount">Nominal Penarikan (Rp)</Label>
+                      <Input
+                        id="ts_amount"
+                        type="text" // UBAH ke text
+                        placeholder="Contoh: 250.000"
+                        value={formatDisplayRupiah(transferForm.data.amount)} // Tampilkan format titik
+                        onChange={(e) => transferForm.setData('amount', cleanRupiahValue(e.target.value))} // Simpan angka bersih
+                      />
+                      <InputError message={transferForm.errors.amount} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ts_description">Catatan Tambahan (Opsional)</Label>
+                    <textarea
+                      id="ts_description"
+                      rows={3}
+                      placeholder="Contoh: Tarik saldo shopee ke BCA bulanan..."
+                      className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={transferForm.data.description}
+                      onChange={(e) => transferForm.setData('description', e.target.value)}
+                    />
+                    <InputError message={transferForm.errors.description} />
+                  </div>
+
+                  <SheetFooter className="pt-4 border-t flex-row gap-2 justify-end">
+                    <Button type="submit" disabled={transferForm.processing} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                      {transferForm.processing ? 'Memproses...' : 'Konfirmasi Penarikan'}
+                    </Button>
                     <SheetClose asChild><Button variant="outline" type="button">Batal</Button></SheetClose>
                   </SheetFooter>
                 </form>
@@ -395,6 +519,27 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
 
                     {/* DERETAN TOMBOL AKSI KELOLA AKUN */}
                     <div className="flex items-center gap-1.5 mt-1.5">
+                      {/* JIKA DEFAULT UTAMA, TAMPILKAN TOMBOL TARIK SALDO */}
+                      {isDefault && isActive ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-[11px] text-emerald-600 font-bold hover:bg-emerald-500/10 border border-emerald-500/20"
+                          onClick={() => {
+                            transferForm.setData({
+                              ...transferForm.data,
+                              from_account_id: acc.id.toString(),
+                              to_account_id: '',
+                              amount: '',
+                              description: ''
+                            });
+                            setIsTransferOpen(true);
+                          }}
+                        >
+                          💸 Tarik Saldo
+                        </Button>
+                      ) : null}
+
                       {!isDefault && isActive ? (
                         <Button
                           variant="ghost"

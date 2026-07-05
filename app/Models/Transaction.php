@@ -89,13 +89,13 @@ class Transaction extends Model
                         'financial_account_id' => $account->id,
                         'date' => now()->toDateString(),
                         'type' => 'income',
-                        'category' => 'Omzet Bersih (' . ucfirst($platformName) . ' - ' . $storeName . ')',
+                        'category' => 'Penjualan (' . ucfirst($platformName) . ' - ' . $storeName . ')',
                         'amount' => $realAmountReceived,
                         'balance_snapshot' => $account->current_balance,
                         'reference_number' => $transaction->invoice_number ?? $transaction->id,
-                        'description' => 'Pencairan auto: Nilai Pesanan Rp ' . number_format($grossAmount, 0, ',', '.') .
-                            ' | Potongan Admin: Rp ' . number_format($adminFee, 0, ',', '.') .
-                            ' | Biaya Proses: Rp ' . number_format($processingFee, 0, ',', '.')
+                        'description' => 'Pencairan auto: Rp ' . number_format($grossAmount, 0, ',', '.') .
+                            ' | Admin: Rp ' . number_format($adminFee, 0, ',', '.') .
+                            ' | Proses: Rp ' . number_format($processingFee, 0, ',', '.')
                     ]);
                 });
             }

@@ -220,6 +220,81 @@ class FinancialMutationController extends Controller
         return back();
     }
 
+    public function transfer(Request $request)
+    {
+        $request->validate([
+            'from_account_id' => 'required|exists:financial_accounts,id',
+            'to_account_id' => 'required|exists:financial_accounts,id|different:from_account_id',
+            'amount' => 'required|numeric|min:1',
+            'date' => 'required|date',
+            'description' => 'nullable|string'
+        ]);
+
+        $userId = Auth::user()->id;
+
+        // 1. Ambil akun asal (Sumber Dana)
+        $fromAccount = FinancialAccount::where('id', $request->from_account_id)
+            ->where('user_id', $userId)
+            ->firstOrFail();
+
+        // 2. Ambil akun tujuan (Rekening Bank Penerima)
+        $toAccount = FinancialAccount::where('id', $request->to_account_id)
+            ->where('user_id', $userId)
+            ->firstOrFail();
+
+        // Proteksi: Pastikan saldo akun asal cukup untuk ditarik
+        if ($fromAccount->current_balance < $request->amount) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'amount' => 'Saldo di ' . $fromAccount->name . ' tidak mencukupi untuk melakukan penarikan!'
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $userId, $fromAccount, $toAccount) {
+            $amount = $request->amount;
+            $date = $request->date;
+            $userDesc = $request->description ? ' (' . $request->description . ')' : '';
+
+            // --- PROSES AKUN ASAL (POTONG SALDO) ---
+            $fromAccount->current_balance -= $amount;
+            $fromAccount->save();
+
+            // Kode Referensi Unik Transfer Internal
+            $refNumber = 'TRF-' . $userId . '-' . date('YmdHis');
+
+            FinancialMutation::create([
+                'user_id' => $userId,
+                'financial_account_id' => $fromAccount->id,
+                'date' => $date,
+                'type' => 'expense',
+                'category' => 'Transfer Keluar',
+                'amount' => $amount,
+                'balance_snapshot' => $fromAccount->current_balance,
+                'reference_number' => $refNumber,
+                'description' => 'Penarikan saldo ke ' . $toAccount->name . $userDesc
+            ]);
+
+            // --- PROSES AKUN TUJUAN (TAMBAH SALDO) ---
+            $toAccount->current_balance += $amount;
+            $toAccount->save();
+
+            FinancialMutation::create([
+                'user_id' => $userId,
+                'financial_account_id' => $toAccount->id,
+                'date' => $date,
+                'type' => 'income',
+                'category' => 'Transfer Masuk',
+                'amount' => $amount,
+                'balance_snapshot' => $toAccount->current_balance,
+                'reference_number' => $refNumber,
+                'description' => 'Penerimaan dana dari ' . $fromAccount->name . $userDesc
+            ]);
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Penarikan saldo berhasil diproses dan mutasi tercatat!']);
+
+        return back();
+    }
+
     public function destroy($id)
     {
         $userId = Auth::user()->id;
