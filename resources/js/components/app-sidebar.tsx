@@ -1,9 +1,10 @@
 import { Link } from '@inertiajs/react';
-import { ArrowRightLeft, Box, ChartBar, DollarSign, LayoutGrid, Megaphone, ShoppingBagIcon, Store, Tags } from 'lucide-react';
+import { ArrowRightLeft, Box, ChartBar, DollarSign, LayoutGrid, Megaphone, PackagePlus, ShoppingBagIcon, Store, Tags } from 'lucide-react';
 import AdsAffiliateController from '@/actions/App/Http/Controllers/AdsAffiliateController';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
 import FinancialMutationController from '@/actions/App/Http/Controllers/FinancialMutationController';
 import MarginAnalysisController from '@/actions/App/Http/Controllers/MarginAnalysisController';
+import ProducerStockController from '@/actions/App/Http/Controllers/ProducerStockController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import ProductHppController from '@/actions/App/Http/Controllers/ProductHppController';
 import StoreController from '@/actions/App/Http/Controllers/StoreController';
@@ -46,6 +47,11 @@ const analysisItems: NavItem[] = [
         title: 'Mutasi',
         href: FinancialMutationController.index(),
         icon: ArrowRightLeft,
+    },
+    {
+        title: 'Faktur Produsen',
+        href: ProducerStockController.index(),
+        icon: PackagePlus,
     },
     {
         title: 'Transaksi',

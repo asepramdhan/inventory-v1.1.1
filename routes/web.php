@@ -4,6 +4,7 @@ use App\Http\Controllers\AdsAffiliateController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\FinancialMutationController;
 use App\Http\Controllers\MarginAnalysisController;
+use App\Http\Controllers\ProducerStockController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductHppController;
 use App\Http\Controllers\StoreController;
@@ -25,6 +26,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/finance/mutations/accounts/{id}/toggle', [FinancialMutationController::class, 'toggleAccountStatus'])->name('mutations.accounts.toggle');
     Route::patch('/finance/mutations/accounts/{id}/default', [FinancialMutationController::class, 'setDefaultAccount'])->name('mutations.accounts.default');
     Route::delete('/finance/mutations/{id}', [FinancialMutationController::class, 'destroy'])->name('mutations.destroy');
+    Route::get('/finance/producer-stocks', [ProducerStockController::class, 'index'])->name('producer-stocks.index');
+    Route::post('/finance/producer-stocks', [ProducerStockController::class, 'store'])->name('producer-stocks.store');
+    Route::post('/finance/producer-stocks/{id}/pay', [ProducerStockController::class, 'payInvoice'])->name('producer-stocks.pay');
     Route::get('/finance/transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('/finance/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
     Route::patch('/finance/transactions/{transaction}/status', [TransactionController::class, 'statusUpdate'])->name('transactions.status-update');

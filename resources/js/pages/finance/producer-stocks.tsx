@@ -1,0 +1,488 @@
+/* eslint-disable curly */
+/* eslint-disable @stylistic/padding-line-between-statements */
+import { Head, useForm } from '@inertiajs/react';
+import { Calendar, CheckCircle2, DollarSign, Plus, Receipt, Text, Trash2, User } from 'lucide-react';
+import { useState } from 'react';
+import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+interface InvoiceItem {
+  id: number;
+  item_name: string;
+  quantity: number;
+  cost_per_item: number;
+  subtotal: number;
+}
+
+interface Invoice {
+  id: number;
+  producer_name: string;
+  invoice_number: string;
+  received_date: string;
+  total_amount: number;
+  status: 'unpaid' | 'paid';
+  paid_date: string | null;
+  description: string | null;
+  items: InvoiceItem[];
+}
+
+interface Account {
+  id: number;
+  name: string;
+  type: string;
+  current_balance: number;
+}
+
+interface Props {
+  invoices: Invoice[];
+  accounts: Account[];
+  totalUnpaid: number;
+}
+
+export default function ProducerStocks({ invoices, accounts, totalUnpaid }: Props) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isPayOpen, setIsPayOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
+  // Helper Formatter Rupiah untuk Tampilan Tabel & Widget
+  const formatIDR = (num: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  // Helper untuk merapikan format tanggal ISO-8601 menjadi YYYY-MM-DD
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+    // Jika string mengandung huruf 'T', potong ambil bagian depannya saja
+    if (dateString.includes('T')) {
+      return dateString.split('T')[0];
+    }
+    return dateString;
+  };
+
+  // Helper Masking Rupiah saat Mengetik di Inputan Form
+  const formatDisplayRupiah = (value: string | number) => {
+    if (!value) return '';
+    const stringValue = value.toString().replace(/\D/g, '');
+    return stringValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const cleanRupiahValue = (value: string) => {
+    return value.replace(/\./g, '');
+  };
+
+  // --- FORM 1: INPUT NOTA MASUK BARU ---
+  const createForm = useForm({
+    producer_name: '',
+    invoice_number: '',
+    received_date: (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    })(),
+    description: '',
+    items: [{ item_name: '', quantity: '1', cost_per_item: '' }],
+  });
+
+  const handleAddItemRow = () => {
+    createForm.setData('items', [
+      ...createForm.data.items,
+      { item_name: '', quantity: '1', cost_per_item: '' }
+    ]);
+  };
+
+  const handleRemoveItemRow = (index: number) => {
+    const updatedItems = [...createForm.data.items];
+    updatedItems.splice(index, 1);
+    createForm.setData('items', updatedItems);
+  };
+
+  const handleItemChange = (index: number, field: string, value: string) => {
+    const updatedItems = [...createForm.data.items];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    createForm.setData('items', updatedItems);
+  };
+
+  const handleCreateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createForm.post('/finance/producer-stocks', {
+      onSuccess: () => {
+        setIsCreateOpen(false);
+        createForm.reset();
+      },
+    });
+  };
+
+  // --- FORM 2: PELUNASAN MINGGUAN ---
+  const payForm = useForm({
+    financial_account_id: '',
+    paid_date: (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    })(),
+  });
+
+  const handleOpenPayModal = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    payForm.setData('financial_account_id', '');
+    setIsPayOpen(true);
+  };
+
+  const handlePaySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInvoice) return;
+
+    payForm.post(`/finance/producer-stocks/${selectedInvoice.id}/pay`, {
+      onSuccess: () => {
+        setIsPayOpen(false);
+        setSelectedInvoice(null);
+      },
+    });
+  };
+
+  return (
+    <>
+      <Head title="Pemasukan Stok Produsen" />
+      <div className="flex flex-col gap-4 p-4">
+
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <Heading
+            title="Pemasukan Stok Produsen"
+            description="Catat nota kedatangan barang konveksi/produsen dengan sistem tagihan mingguan."
+          />
+
+          <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <SheetTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs gap-1.5 self-start sm:self-auto shadow-sm">
+                <Plus className="h-4 w-4" /> Catat Nota Masuk
+              </Button>
+            </SheetTrigger>
+
+            {/* SHEET FORM INPUT NOTA BARU */}
+            <SheetContent className="flex flex-col h-full sm:max-w-xl p-0 gap-0">
+              <SheetHeader className="p-6 border-b bg-background">
+                <SheetTitle>Pencatatan Nota Produsen</SheetTitle>
+                <SheetDescription>Masukkan detail data pengiriman barang dari produsen dan nilai hutang temponya.</SheetDescription>
+              </SheetHeader>
+
+              <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="producer_name">Nama Produsen / Konveksi</Label>
+                    <div className="relative">
+                      <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="producer_name"
+                        placeholder="Contoh: Konveksi Abadi"
+                        className="pl-9"
+                        value={createForm.data.producer_name}
+                        onChange={(e) => createForm.setData('producer_name', e.target.value)}
+                      />
+                    </div>
+                    <InputError message={createForm.errors.producer_name} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invoice_number">Nomor Nota / Faktur</Label>
+                    <div className="relative">
+                      <Receipt className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="invoice_number"
+                        placeholder="Contoh: INV-1024"
+                        className="pl-9"
+                        value={createForm.data.invoice_number}
+                        onChange={(e) => createForm.setData('invoice_number', e.target.value)}
+                      />
+                    </div>
+                    <InputError message={createForm.errors.invoice_number} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="received_date">Tanggal Barang Diterima</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      id="received_date"
+                      className="pl-9"
+                      value={createForm.data.received_date}
+                      onChange={(e) => createForm.setData('received_date', e.target.value)}
+                    />
+                  </div>
+                  <InputError message={createForm.errors.received_date} />
+                </div>
+
+                {/* AREA DINAMIS TAMBAH BARANG */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between border-b pb-1.5">
+                    <Label className="font-bold text-xs text-blue-600">Daftar Rincian Barang Masuk</Label>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-[11px] gap-1 px-2 border-dashed" onClick={handleAddItemRow}>
+                      <Plus className="h-3 w-3" /> Tambah Baris
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                    {createForm.data.items.map((item, idx) => (
+                      <div key={idx} className="flex items-end gap-2 border bg-muted/20 p-2.5 rounded-md relative group">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Nama Barang / Varian</Label>
+                          <Input
+                            placeholder="Gamis Polos L, Kemeja X..."
+                            className="h-8 text-xs"
+                            value={item.item_name}
+                            onChange={(e) => handleItemChange(idx, 'item_name', e.target.value)}
+                          />
+                        </div>
+                        <div className="w-[70px] space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Qty (Pcs)</Label>
+                          <Input
+                            type="number"
+                            className="h-8 text-xs"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                          />
+                        </div>
+                        <div className="w-[140px] space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Harga Modal (Rp)</Label>
+                          <Input
+                            type="text"
+                            className="h-8 text-xs"
+                            placeholder="50.000"
+                            value={formatDisplayRupiah(item.cost_per_item)}
+                            onChange={(e) => handleItemChange(idx, 'cost_per_item', cleanRupiahValue(e.target.value))}
+                          />
+                        </div>
+                        {createForm.data.items.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-md shrink-0"
+                            onClick={() => handleRemoveItemRow(idx)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <InputError message={createForm.errors.items} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="description">Keterangan / Catatan Tambahan (Opsional)</Label>
+                  <div className="relative">
+                    <Text className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <textarea
+                      id="description"
+                      rows={2}
+                      placeholder="Catatan tambahan mengenai kondisi kiriman barang..."
+                      className="flex min-h-[60px] w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={createForm.data.description}
+                      onChange={(e) => createForm.setData('description', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <SheetFooter className="pt-4 border-t flex-row gap-2 justify-end">
+                  <Button type="submit" disabled={createForm.processing} className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                    {createForm.processing ? 'Menyimpan...' : 'Simpan Nota Masuk'}
+                  </Button>
+                  <SheetClose asChild><Button variant="outline" type="button" className="text-xs">Batal</Button></SheetClose>
+                </SheetFooter>
+              </form>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        {/* WIDGET TOTAL HUTANG JATUH TEMPO */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="border-l-4 border-l-red-500 shadow-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Hutang Produsen Belum Lunas</p>
+                <h3 className="text-xl font-black text-red-600 tracking-tight">{formatIDR(totalUnpaid)}</h3>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                <DollarSign className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* DATA UTAMA TABEL NOTA */}
+        <Card className="shadow-sm overflow-hidden">
+          <CardContent className="p-3">
+            <Table>
+              <TableHeader className="bg-muted/40">
+                <TableRow>
+                  <TableHead className="w-[120px]">Tgl Datang</TableHead>
+                  <TableHead className="w-[180px]">Produsen</TableHead>
+                  <TableHead className="w-[140px]">No. Nota</TableHead>
+                  <TableHead>Rincian Barang</TableHead>
+                  <TableHead className="w-[130px] text-right">Total Tagihan</TableHead>
+                  <TableHead className="w-[120px] text-center">Status</TableHead>
+                  <TableHead className="w-[110px] text-center">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-40 text-center text-muted-foreground text-sm">
+                      Belum ada rincian catatan pemasukan stok produsen.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  invoices.map((inv) => (
+                    <TableRow key={inv.id} className="hover:bg-muted/10 transition-colors">
+                      <TableCell className="text-xs text-muted-foreground">{formatDate(inv.received_date)}</TableCell>
+                      <TableCell className="text-xs font-bold text-foreground">{inv.producer_name}</TableCell>
+                      <TableCell className="text-xs font-mono font-medium text-muted-foreground">{inv.invoice_number}</TableCell>
+
+                      {/* RINCIAN LIST BARANG DI DALAM CELL TABEL */}
+                      <TableCell className="py-2">
+                        <div className="flex flex-col gap-1 max-w-[320px]">
+                          {inv.items?.map((item) => (
+                            <div key={item.id} className="text-[11px] bg-muted/40 px-1.5 py-0.5 rounded flex justify-between items-center border border-muted/20">
+                              <span className="font-medium truncate mr-2">{item.item_name}</span>
+                              <span className="text-muted-foreground shrink-0">{item.quantity} pcs × {formatIDR(item.cost_per_item)}</span>
+                            </div>
+                          ))}
+                          {inv.description && (
+                            <span className="text-[10px] text-amber-600 italic mt-0.5">Note: {inv.description}</span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-right text-xs font-extrabold text-foreground">{formatIDR(inv.total_amount)}</TableCell>
+
+                      {/* STATUS BADGE */}
+                      <TableCell className="text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shadow-2xs ${inv.status === 'paid'
+                          ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                          : 'bg-red-500/10 text-red-600 border border-red-500/20'
+                          }`}>
+                          {inv.status === 'paid' ? 'LUNAS' : 'BELUM BAYAR'}
+                        </span>
+                        {inv.paid_date && (
+                          <p className="text-[9px] text-muted-foreground mt-0.5">Lunas: {formatDate(inv.paid_date)}</p>
+                        )}
+                      </TableCell>
+
+                      {/* TOMBOL PELUNASAN */}
+                      <TableCell className="text-center py-2">
+                        {inv.status === 'unpaid' ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-[11px] font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10"
+                            onClick={() => handleOpenPayModal(inv)}
+                          >
+                            💰 Lunasi
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-medium flex items-center justify-center gap-1 text-emerald-600">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Beres
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* SHEET MODAL UNTUK KLIK PELUNASAN MINGGUAN */}
+        <Sheet open={isPayOpen} onOpenChange={setIsPayOpen}>
+          <SheetContent className="flex flex-col h-full sm:max-w-md p-0 gap-0">
+            <SheetHeader className="p-6 border-b bg-background">
+              <SheetTitle>Konfirmasi Pelunasan Mingguan</SheetTitle>
+              <SheetDescription>Pilih akun kas keuangan yang digunakan untuk membayar tagihan produsen ini.</SheetDescription>
+            </SheetHeader>
+
+            {selectedInvoice && (
+              <form onSubmit={handlePaySubmit} className="flex-1 p-6 space-y-4">
+                <div className="bg-muted/40 p-3 rounded-md space-y-1.5 border">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Nama Produsen:</span>
+                    <span className="font-bold text-foreground">{selectedInvoice.producer_name}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>No. Nota / Faktur:</span>
+                    <span className="font-mono text-foreground">{selectedInvoice.invoice_number}</span>
+                  </div>
+                  <div className="flex justify-between text-xs pt-1.5 border-t border-dashed">
+                    <span className="font-semibold text-foreground">Total Tagihan:</span>
+                    <span className="font-black text-red-600 text-sm">{formatIDR(selectedInvoice.total_amount)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="financial_account_id">Pilih Kas Sumber Dana Pembayaran</Label>
+                  <Select
+                    value={payForm.data.financial_account_id}
+                    onValueChange={(val) => payForm.setData('financial_account_id', val)}
+                  >
+                    <SelectTrigger className="w-full h-9 text-xs">
+                      <SelectValue placeholder="Pilih rekening bank / dompet utama..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts?.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id.toString()} className="text-xs">
+                          {acc.name} ({acc.type.toUpperCase()}) - Saldo: {formatIDR(acc.current_balance)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <InputError message={payForm.errors.financial_account_id} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="paid_date">Tanggal Melakukan Pembayaran</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      id="paid_date"
+                      className="pl-9 h-9 text-xs"
+                      value={payForm.data.paid_date}
+                      onChange={(e) => payForm.setData('paid_date', e.target.value)}
+                    />
+                  </div>
+                  <InputError message={payForm.errors.paid_date} />
+                </div>
+
+                <SheetFooter className="pt-4 border-t flex-row gap-2 justify-end">
+                  <Button type="submit" disabled={payForm.processing} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                    {payForm.processing ? 'Memproses...' : 'Konfirmasi & Potong Kas'}
+                  </Button>
+                  <SheetClose asChild><Button variant="outline" type="button" className="text-xs">Batal</Button></SheetClose>
+                </SheetFooter>
+              </form>
+            )}
+          </SheetContent>
+        </Sheet>
+
+      </div>
+    </>
+  );
+}
+
+ProducerStocks.layout = {
+  breadcrumbs: [
+    { title: 'Keuangan & Analisa', href: '#' },
+    { title: 'Stok & Nota Produsen', href: '/finance/producer-stocks' },
+  ],
+};
