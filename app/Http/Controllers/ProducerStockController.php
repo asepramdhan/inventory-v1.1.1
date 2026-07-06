@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FinancialAccount;
+use App\Models\FinancialMutation;
 use App\Models\ProducerInvoice;
 use App\Models\ProducerInvoiceItem;
 use Illuminate\Http\Request;
@@ -19,15 +20,17 @@ class ProducerStockController extends Controller
         // Ambil semua nota kiriman produsen
         $invoices = ProducerInvoice::with('items')
             ->where('user_id', $userId)
-            ->orderBy('status', 'asc') // Tampilkan yang belum lunas di atas
+            ->orderBy('status', 'asc')
             ->orderBy('received_date', 'desc')
             ->get();
 
-        // Ambil list kas untuk pilihan pembayaran nanti
         $accounts = FinancialAccount::where('user_id', $userId)->where('is_active', true)->get();
 
-        // Hitung total hutang yang belum dibayar ke produsen
-        $totalUnpaid = ProducerInvoice::where('user_id', $userId)->where('status', 'unpaid')->sum('total_amount');
+        // HITUNGAN BARU: Hitung total sisa hutang (Total Tagihan dikurangi Yang Sudah Dibayar)
+        $totalUnpaid = ProducerInvoice::where('user_id', $userId)
+            ->where('status', 'unpaid')
+            ->selectRaw('SUM(total_amount - paid_amount) as total_sisa')
+            ->value('total_sisa') ?? 0;
 
         $masterProducers = \App\Models\Producer::where('user_id', $userId)->get();
 
@@ -56,21 +59,21 @@ class ProducerStockController extends Controller
 
         DB::transaction(function () use ($request, $userId) {
             $producerMaster = \App\Models\Producer::find($request->producer_id);
-            // 1. Buat Header Faktur
+
             $invoice = ProducerInvoice::create([
                 'user_id' => $userId,
                 'producer_id' => $request->producer_id,
                 'producer_name' => $producerMaster->name,
                 'invoice_number' => $request->invoice_number,
                 'received_date' => $request->received_date,
-                'status' => 'unpaid', // Default belum dibayar
+                'status' => 'unpaid',
                 'description' => $request->description,
-                'total_amount' => 0 // Akan dihitung dari item
+                'total_amount' => 0,
+                'paid_amount' => 0 // Set default cicilan ke 0
             ]);
 
             $totalAmount = 0;
 
-            // 2. Masukkan list barang
             foreach ($request->items as $item) {
                 $subtotal = $item['quantity'] * $item['cost_per_item'];
                 $totalAmount += $subtotal;
@@ -84,7 +87,6 @@ class ProducerStockController extends Controller
                 ]);
             }
 
-            // 3. Update total tagihan asli nota ini
             $invoice->update(['total_amount' => $totalAmount]);
         });
 
@@ -92,36 +94,84 @@ class ProducerStockController extends Controller
         return back();
     }
 
+    // FUNGSI BARU: Generate Nomor Nota Otomatis
+    public function generateInvoiceNumber()
+    {
+        $today = \Carbon\Carbon::now('Asia/Jakarta')->format('Ymd'); // Contoh: 20260706
+
+        // Hitung ada berapa nota produsen yang dibuat HARI INI
+        $countToday = \App\Models\ProducerInvoice::whereDate('created_at', \Carbon\Carbon::today('Asia/Jakarta'))
+            ->count();
+
+        // Nomor urut berikutnya (misal nota ke-1 hari ini -> 0001)
+        $nextNumber = str_pad($countToday + 1, 4, '0', STR_PAD_LEFT);
+
+        return response()->json([
+            'invoice_number' => "INV/{$today}/{$nextNumber}"
+        ]);
+    }
+
     // FUNGSI UNTUK BAYAR MINGGUAN
+    // FUNGSI PEMBAYARAN SEBAGIAN (CICILAN)
     public function payInvoice(Request $request, $id)
     {
         $request->validate([
             'financial_account_id' => 'required|exists:financial_accounts,id',
-            'paid_date' => 'required|date'
+            'paid_date' => 'required|date',
+            'amount_to_pay' => 'required|numeric|min:1'
         ]);
 
         $userId = Auth::user()->id;
         $invoice = ProducerInvoice::where('user_id', $userId)->findOrFail($id);
 
         if ($invoice->status === 'paid') {
-            return back()->withErrors(['message' => 'Faktur ini sudah lunas!']);
+            return back()->withErrors(['message' => 'Faktur ini sudah lunas sepenuhnya!']);
         }
 
-        // Cek kecukupan saldo kas pilihan
+        // Validasi Sisa Tagihan
+        $sisaTagihan = $invoice->total_amount - $invoice->paid_amount;
+        if ($request->amount_to_pay > $sisaTagihan) {
+            return back()->withErrors(['amount_to_pay' => 'Nominal bayar tidak boleh melebihi sisa tagihan!']);
+        }
+
         $account = FinancialAccount::where('user_id', $userId)->findOrFail($request->financial_account_id);
-        if ($account->current_balance < $invoice->total_amount) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => 'Saldo di ' . $account->name . ' tidak cukup untuk melunasi nota ini!']);
+        if ($account->current_balance < $request->amount_to_pay) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Saldo di ' . $account->name . ' tidak cukup!']);
             return back();
         }
 
-        // Trigger update untuk jalankan otomatisasi booted() di model
-        $invoice->update([
-            'status' => 'paid',
-            'paid_date' => $request->paid_date,
-            'financial_account_id' => $request->financial_account_id
-        ]);
+        DB::transaction(function () use ($invoice, $account, $request, $userId, $sisaTagihan) {
+            // 1. Potong Saldo Rekening
+            $account->current_balance -= $request->amount_to_pay;
+            $account->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Nota produsen berhasil dilunasi dan mutasi kas terpotong!']);
+            // 2. Buat Catatan Mutasi Kas Keluar
+            $keteranganCicilan = ($request->amount_to_pay < $sisaTagihan) ? ' (Pembayaran Sebagian)' : ' (Pelunasan Akhir)';
+            FinancialMutation::create([
+                'user_id' => $userId,
+                'financial_account_id' => $account->id,
+                'date' => $request->paid_date,
+                'type' => 'expense',
+                'category' => 'Pelunasan Produsen',
+                'amount' => $request->amount_to_pay,
+                'balance_snapshot' => $account->current_balance,
+                'reference_number' => $invoice->invoice_number,
+                'description' => 'Pembayaran tagihan stok kepada ' . $invoice->producer_name . $keteranganCicilan
+            ]);
+
+            // 3. Update Nota (Tambah angka terbayar, lalu cek apakah sudah lunas)
+            $totalTerbayarBaru = $invoice->paid_amount + $request->amount_to_pay;
+            $statusBaru = ($totalTerbayarBaru >= $invoice->total_amount) ? 'paid' : 'unpaid';
+
+            $invoice->update([
+                'paid_amount' => $totalTerbayarBaru,
+                'status' => $statusBaru,
+                'paid_date' => $request->paid_date,
+                'financial_account_id' => $request->financial_account_id
+            ]);
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Pembayaran berhasil diproses dan kas telah dipotong!']);
         return back();
     }
 }

@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/operational/producer-stocks', [ProducerStockController::class, 'index'])->name('producer-stocks.index');
     Route::post('/operational/producer-stocks', [ProducerStockController::class, 'store'])->name('producer-stocks.store');
     Route::post('/operational/producer-stocks/{id}/pay', [ProducerStockController::class, 'payInvoice'])->name('producer-stocks.pay');
+    Route::get('/operational/producer-stocks/generate-number', [ProducerStockController::class, 'generateInvoiceNumber']);
 
     Route::resource('products', ProductController::class);
     Route::put('/master-data/product/{product}/update-stock', [ProductController::class, 'updateStock']);

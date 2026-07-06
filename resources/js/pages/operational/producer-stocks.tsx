@@ -27,6 +27,7 @@ interface Invoice {
   invoice_number: string;
   received_date: string;
   total_amount: number;
+  paid_amount: number;
   status: 'unpaid' | 'paid';
   paid_date: string | null;
   description: string | null;
@@ -128,6 +129,9 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
     });
   };
 
+  const [rawPayAmount, setRawPayAmount] = useState('');
+  const [displayPayAmount, setDisplayPayAmount] = useState('');
+
   // --- FORM 2: PELUNASAN MINGGUAN ---
   const payForm = useForm({
     financial_account_id: '',
@@ -135,22 +139,49 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
       const d = new Date();
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     })(),
+    amount_to_pay: '',
   });
 
   const handleOpenPayModal = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     payForm.setData('financial_account_id', '');
+
+    // Set default nilai input ke sisa tagihan
+    const sisa = invoice.total_amount - (invoice.paid_amount || 0);
+    setRawPayAmount(sisa.toString());
+    setDisplayPayAmount(formatDisplayRupiah(sisa));
+
     setIsPayOpen(true);
+  };
+
+  const handleOpenCreateModal = async () => {
+    try {
+      // Ambil nomor nota otomatis dari backend
+      const response = await fetch('/operational/producer-stocks/generate-number');
+      const data = await response.json();
+
+      // Set nomor otomatis tersebut ke form data
+      createForm.setData('invoice_number', data.invoice_number);
+    } catch (error) {
+      console.error("Gagal mengambil nomor nota otomatis", error);
+    }
   };
 
   const handlePaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInvoice) return;
 
+    // SUNTIKKAN LANGSUNG NOMINALNYA KE FORM DATA SEBELUM DI-POST
+    payForm.setData('amount_to_pay', rawPayAmount);
+
+    // Gunakan gaya lama Anda yang aman tanpa kurung transform yang bikin error
     payForm.post(`/operational/producer-stocks/${selectedInvoice.id}/pay`, {
       onSuccess: () => {
         setIsPayOpen(false);
         setSelectedInvoice(null);
+        setRawPayAmount('');
+        setDisplayPayAmount('');
+        payForm.reset();
       },
     });
   };
@@ -169,7 +200,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
 
           <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <SheetTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs gap-1.5 self-start sm:self-auto shadow-sm">
+              <Button onClick={handleOpenCreateModal} className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs gap-1.5 self-start sm:self-auto shadow-sm">
                 <Plus className="h-4 w-4" /> Catat Nota Masuk
               </Button>
             </SheetTrigger>
@@ -203,13 +234,22 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
                     <InputError message={createForm.errors.producer_id} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="invoice_number">Nomor Nota / Faktur</Label>
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="invoice_number">Nomor Nota / Faktur</Label>
+                      <button
+                        type="button"
+                        onClick={handleOpenCreateModal}
+                        className="text-[10px] text-emerald-600 hover:underline font-bold"
+                      >
+                        🔄 Generate Otomatis
+                      </button>
+                    </div>
                     <div className="relative">
                       <Receipt className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="invoice_number"
                         placeholder="Contoh: INV-1024"
-                        className="pl-9"
+                        className="pl-9 bg-muted/30 font-mono text-xs" // Dibuat bergaya kode/mono agar rapi
                         value={createForm.data.invoice_number}
                         onChange={(e) => createForm.setData('invoice_number', e.target.value)}
                       />
@@ -375,19 +415,26 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-right text-xs font-extrabold text-foreground">{formatIDR(inv.total_amount)}</TableCell>
+                      {/* TAMPILAN SISA TAGIHAN */}
+                      <TableCell className="text-right">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-extrabold text-foreground">{formatIDR(inv.total_amount)}</span>
+                          {(inv.paid_amount > 0 && inv.status === 'unpaid') && (
+                            <span className="text-[10px] text-amber-600 font-bold mt-0.5">
+                              Sisa: {formatIDR(inv.total_amount - inv.paid_amount)}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
 
                       {/* STATUS BADGE */}
                       <TableCell className="text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shadow-2xs ${inv.status === 'paid'
-                          ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                          : 'bg-red-500/10 text-red-600 border border-red-500/20'
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shadow-2xs ${inv.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                          : inv.paid_amount > 0 ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' // Status Cicilan
+                            : 'bg-red-500/10 text-red-600 border border-red-500/20'
                           }`}>
-                          {inv.status === 'paid' ? 'LUNAS' : 'BELUM BAYAR'}
+                          {inv.status === 'paid' ? 'LUNAS' : inv.paid_amount > 0 ? 'DICICIL' : 'BELUM BAYAR'}
                         </span>
-                        {inv.paid_date && (
-                          <p className="text-[9px] text-muted-foreground mt-0.5">Lunas: {formatDate(inv.paid_date)}</p>
-                        )}
                       </TableCell>
 
                       {/* TOMBOL PELUNASAN */}
@@ -431,13 +478,34 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
                     <span className="font-bold text-foreground">{selectedInvoice.producer_name}</span>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>No. Nota / Faktur:</span>
-                    <span className="font-mono text-foreground">{selectedInvoice.invoice_number}</span>
+                    <span>Total Tagihan:</span>
+                    <span className="font-medium">{formatIDR(selectedInvoice.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Telah Dibayar (Cicilan):</span>
+                    <span className="font-medium text-emerald-600">{formatIDR(selectedInvoice.paid_amount || 0)}</span>
                   </div>
                   <div className="flex justify-between text-xs pt-1.5 border-t border-dashed">
-                    <span className="font-semibold text-foreground">Total Tagihan:</span>
-                    <span className="font-black text-red-600 text-sm">{formatIDR(selectedInvoice.total_amount)}</span>
+                    <span className="font-semibold text-foreground">SISA TAGIHAN:</span>
+                    <span className="font-black text-red-600 text-sm">{formatIDR(selectedInvoice.total_amount - (selectedInvoice.paid_amount || 0))}</span>
                   </div>
+                </div>
+
+                {/* Input Baru untuk Cicilan */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="pay_amount">Nominal Pembayaran Saat Ini (Rp)</Label>
+                  <Input
+                    id="pay_amount"
+                    type="text"
+                    className="h-9 text-xs font-bold"
+                    value={displayPayAmount}
+                    onChange={(e) => {
+                      const numericValue = cleanRupiahValue(e.target.value);
+                      setRawPayAmount(numericValue);
+                      setDisplayPayAmount(formatDisplayRupiah(numericValue));
+                    }}
+                  />
+                  <InputError message={payForm.errors.amount_to_pay as string} />
                 </div>
 
                 <div className="space-y-1.5">
