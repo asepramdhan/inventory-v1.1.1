@@ -1,8 +1,8 @@
 /* eslint-disable curly */
 /* eslint-disable @stylistic/padding-line-between-statements */
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { Calendar, CheckCircle2, DollarSign, Plus, Receipt, Text, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface InvoiceItem {
@@ -53,10 +54,98 @@ interface Props {
   masterProducers: MasterProducer[];
 }
 
+// --- KOMPONEN SKELETON KHUSUS TABEL (DISAMAKAN PRESISI 100% DENGAN TABEL ASLI) ---
+function ProducerStocksTableSkeleton() {
+  return (
+    <Card className="shadow-sm overflow-hidden animate-pulse">
+      <CardContent className="p-3">
+        <Table>
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="w-[120px]">Tgl Datang</TableHead>
+              <TableHead className="w-[180px]">Produsen</TableHead>
+              <TableHead className="w-[140px]">No. Nota</TableHead>
+              <TableHead>Rincian Barang</TableHead>
+              <TableHead className="w-[130px] text-right">Total Tagihan</TableHead>
+              <TableHead className="w-[120px] text-center">Status</TableHead>
+              <TableHead className="w-[110px] text-center">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Membuat 3 baris loading palsu */}
+            {[1, 2, 3].map((i) => (
+              <TableRow key={i} className="border-b border-muted/20">
+                {/* Tgl Datang */}
+                <TableCell>
+                  <div className="h-3.5 bg-muted rounded w-16" />
+                </TableCell>
+
+                {/* Produsen */}
+                <TableCell>
+                  <div className="h-3.5 bg-muted rounded w-28 font-bold" />
+                </TableCell>
+
+                {/* No. Nota */}
+                <TableCell>
+                  <div className="h-3.5 bg-muted/70 rounded w-24 font-mono" />
+                </TableCell>
+
+                {/* Rincian Barang (Meniru box barang bawaan Anda) */}
+                <TableCell className="py-2">
+                  <div className="flex flex-col gap-1 max-w-[320px]">
+                    <div className="h-6 bg-muted/40 rounded w-full border border-muted/10" />
+                    <div className="h-6 bg-muted/40 rounded w-4/5 border border-muted/10" />
+                    <div className="h-3 bg-muted/30 rounded w-1/2 mt-0.5 italic" />
+                  </div>
+                </TableCell>
+
+                {/* Total Tagihan */}
+                <TableCell className="text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="h-4 bg-muted rounded w-20 font-extrabold" />
+                    {i === 1 && <div className="h-2.5 bg-muted/60 rounded w-16" />} {/* Simulasi teks sisa cicilan */}
+                  </div>
+                </TableCell>
+
+                {/* Status Badges */}
+                <TableCell className="text-center">
+                  <div className="h-5 bg-muted/60 rounded-full w-16 mx-auto" />
+                </TableCell>
+
+                {/* Aksi Button */}
+                <TableCell className="text-center py-2">
+                  <div className="h-7 bg-muted/80 rounded w-16 mx-auto" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ProducerStocks({ invoices, accounts, totalUnpaid, masterProducers }: Props) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
+  // State untuk inline edit catatan nota langsung di tabel
+  const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+  const [editingNoteValue, setEditingNoteValue] = useState<string>('');
+
+  // --- TAMBAHKAN STATE & EFFECT SKELETON DI SINI ---
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Beri jeda waktu mini (misal 350 milidetik) agar animasinya kelihatan mulus
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, []);
+  // -------------------------------------------------
 
   // Helper Formatter Rupiah untuk Tampilan Tabel & Widget
   const formatIDR = (num: number) => {
@@ -183,6 +272,18 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
         setDisplayPayAmount('');
         payForm.reset();
       },
+    });
+  };
+
+  const handleSaveInlineNote = (invoiceId: number) => {
+    // Kirim data menggunakan router Inertia ke endpoint baru
+    router.put(`/operational/producer-stocks/${invoiceId}/update-note`, {
+      description: editingNoteValue,
+    }, {
+      preserveScroll: true, // Agar halaman tidak nge-scroll kembali ke atas setelah simpan
+      onSuccess: () => {
+        setEditingInvoiceId(null); // Tutup mode input kembali ke teks biasa
+      }
     });
   };
 
@@ -362,7 +463,9 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
             <CardContent className="p-4 flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Hutang Produsen Belum Lunas</p>
-                <h3 className="text-xl font-black text-red-600 tracking-tight">{formatIDR(totalUnpaid)}</h3>
+                <h3 className="text-xl font-black text-red-600 tracking-tight">
+                  {isLoading ? <Skeleton className="h-7 w-[200px]" /> : formatIDR(totalUnpaid)}
+                </h3>
               </div>
               <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600">
                 <DollarSign className="h-5 w-5" />
@@ -371,96 +474,138 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
           </Card>
         </div>
 
-        {/* DATA UTAMA TABEL NOTA */}
-        <Card className="shadow-sm overflow-hidden">
-          <CardContent className="p-3">
-            <Table>
-              <TableHeader className="bg-muted/40">
-                <TableRow>
-                  <TableHead className="w-[120px]">Tgl Datang</TableHead>
-                  <TableHead className="w-[180px]">Produsen</TableHead>
-                  <TableHead className="w-[140px]">No. Nota</TableHead>
-                  <TableHead>Rincian Barang</TableHead>
-                  <TableHead className="w-[130px] text-right">Total Tagihan</TableHead>
-                  <TableHead className="w-[120px] text-center">Status</TableHead>
-                  <TableHead className="w-[110px] text-center">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoices.length === 0 ? (
+
+        {/* LOGIKA SINKRONISASI LOADING SKELETON */}
+        {isLoading ? (
+          <ProducerStocksTableSkeleton />
+        ) : (
+          /* DATA UTAMA TABEL NOTA */
+          <Card className="shadow-sm overflow-hidden">
+            <CardContent className="p-3">
+              <Table>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
-                    <TableCell colSpan={7} className="h-40 text-center text-muted-foreground text-sm">
-                      Belum ada rincian catatan pemasukan stok produsen.
-                    </TableCell>
+                    <TableHead className="w-[120px]">Tgl Datang</TableHead>
+                    <TableHead className="w-[180px]">Produsen</TableHead>
+                    <TableHead className="w-[140px]">No. Nota</TableHead>
+                    <TableHead>Rincian Barang</TableHead>
+                    <TableHead className="w-[130px] text-right">Total Tagihan</TableHead>
+                    <TableHead className="w-[120px] text-center">Status</TableHead>
+                    <TableHead className="w-[110px] text-center">Aksi</TableHead>
                   </TableRow>
-                ) : (
-                  invoices.map((inv) => (
-                    <TableRow key={inv.id} className="hover:bg-muted/10 transition-colors">
-                      <TableCell className="text-xs text-muted-foreground">{formatDate(inv.received_date)}</TableCell>
-                      <TableCell className="text-xs font-bold text-foreground">{inv.producer_name}</TableCell>
-                      <TableCell className="text-xs font-mono font-medium text-muted-foreground">{inv.invoice_number}</TableCell>
-
-                      {/* RINCIAN LIST BARANG DI DALAM CELL TABEL */}
-                      <TableCell className="py-2">
-                        <div className="flex flex-col gap-1 max-w-[320px]">
-                          {inv.items?.map((item) => (
-                            <div key={item.id} className="text-[11px] bg-muted/40 px-1.5 py-0.5 rounded flex justify-between items-center border border-muted/20">
-                              <span className="font-medium truncate mr-2">{item.item_name}</span>
-                              <span className="text-muted-foreground shrink-0">{item.quantity} pcs × {formatIDR(item.cost_per_item)}</span>
-                            </div>
-                          ))}
-                          {inv.description && (
-                            <span className="text-[10px] text-amber-600 italic mt-0.5">Note: {inv.description}</span>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      {/* TAMPILAN SISA TAGIHAN */}
-                      <TableCell className="text-right">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-extrabold text-foreground">{formatIDR(inv.total_amount)}</span>
-                          {(inv.paid_amount > 0 && inv.status === 'unpaid') && (
-                            <span className="text-[10px] text-amber-600 font-bold mt-0.5">
-                              Sisa: {formatIDR(inv.total_amount - inv.paid_amount)}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      {/* STATUS BADGE */}
-                      <TableCell className="text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shadow-2xs ${inv.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                          : inv.paid_amount > 0 ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' // Status Cicilan
-                            : 'bg-red-500/10 text-red-600 border border-red-500/20'
-                          }`}>
-                          {inv.status === 'paid' ? 'LUNAS' : inv.paid_amount > 0 ? 'DICICIL' : 'BELUM BAYAR'}
-                        </span>
-                      </TableCell>
-
-                      {/* TOMBOL PELUNASAN */}
-                      <TableCell className="text-center py-2">
-                        {inv.status === 'unpaid' ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-[11px] font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10"
-                            onClick={() => handleOpenPayModal(inv)}
-                          >
-                            💰 Lunasi
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground font-medium flex items-center justify-center gap-1 text-emerald-600">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Beres
-                          </span>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {invoices.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-40 text-center text-muted-foreground text-sm">
+                        Belum ada rincian catatan pemasukan stok produsen.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  ) : (
+                    invoices.map((inv) => (
+                      <TableRow key={inv.id} className="hover:bg-muted/10 transition-colors">
+                        <TableCell className="text-xs text-muted-foreground">{formatDate(inv.received_date)}</TableCell>
+                        <TableCell className="text-xs font-bold text-foreground">{inv.producer_name}</TableCell>
+                        <TableCell className="text-xs font-mono font-medium text-muted-foreground">{inv.invoice_number}</TableCell>
+
+                        {/* RINCIAN LIST BARANG DI DALAM CELL TABEL (BISA EDIT NOTE LANGSUNG) */}
+                        <TableCell className="py-2">
+                          <div className="flex flex-col gap-1 max-w-[320px]">
+                            {inv.items?.map((item) => (
+                              <div key={item.id} className="text-[11px] bg-muted/40 px-1.5 py-0.5 rounded flex justify-between items-center border border-muted/20">
+                                <span className="font-medium truncate mr-2">{item.item_name}</span>
+                                <span className="text-muted-foreground shrink-0">{item.quantity} pcs × {formatIDR(item.cost_per_item)}</span>
+                              </div>
+                            ))}
+
+                            {/* LOGIKA INTERAKTIF EDIT NOTE */}
+                            {editingInvoiceId === inv.id ? (
+                              <div className="flex items-center gap-1 mt-1">
+                                <input
+                                  type="text"
+                                  className="text-[11px] px-1.5 py-0.5 border rounded w-full bg-background font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                  value={editingNoteValue}
+                                  onChange={(e) => setEditingNoteValue(e.target.value)}
+                                  placeholder="Tulis catatan... (Kosongkan untuk hapus)"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveInlineNote(inv.id);
+                                    if (e.key === 'Escape') setEditingInvoiceId(null);
+                                  }}
+                                  onBlur={() => handleSaveInlineNote(inv.id)} // Otomatis simpan kalau user klik area luar
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                onClick={() => {
+                                  setEditingInvoiceId(inv.id);
+                                  setEditingNoteValue(inv.description || '');
+                                }}
+                                className="group flex items-center gap-1 mt-0.5 cursor-pointer rounded hover:bg-amber-500/5 p-0.5 transition-colors"
+                                title="Klik untuk ubah catatan"
+                              >
+                                {inv.description ? (
+                                  <span className="text-[10px] text-amber-600 italic">
+                                    Note: {inv.description}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground/50 italic opacity-0 group-hover:opacity-100 transition-opacity">
+                                    + Tambah catatan kecil...
+                                  </span>
+                                )}
+                                <span className="text-[9px] text-muted-foreground/40 hidden group-hover:inline ml-1">✏️</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* TAMPILAN SISA TAGIHAN */}
+                        <TableCell className="text-right">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-extrabold text-foreground">{formatIDR(inv.total_amount)}</span>
+                            {(inv.paid_amount > 0 && inv.status === 'unpaid') && (
+                              <span className="text-[10px] text-amber-600 font-bold mt-0.5">
+                                Sisa: {formatIDR(inv.total_amount - inv.paid_amount)}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* STATUS BADGE */}
+                        <TableCell className="text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shadow-2xs ${inv.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                            : inv.paid_amount > 0 ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' // Status Cicilan
+                              : 'bg-red-500/10 text-red-600 border border-red-500/20'
+                            }`}>
+                            {inv.status === 'paid' ? 'LUNAS' : inv.paid_amount > 0 ? 'DICICIL' : 'BELUM BAYAR'}
+                          </span>
+                        </TableCell>
+
+                        {/* TOMBOL PELUNASAN */}
+                        <TableCell className="text-center py-2">
+                          {inv.status === 'unpaid' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-[11px] font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10"
+                              onClick={() => handleOpenPayModal(inv)}
+                            >
+                              💰 Lunasi
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground font-medium flex items-center justify-center gap-1 text-emerald-600">
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Beres
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* SHEET MODAL UNTUK KLIK PELUNASAN MINGGUAN */}
         <Sheet open={isPayOpen} onOpenChange={setIsPayOpen}>

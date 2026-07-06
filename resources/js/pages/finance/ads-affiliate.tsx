@@ -19,13 +19,105 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+// --- KOMPONEN SKELETON LOADER KHUSUS DATA LOG IKLAN (PRESISI 100%) ---
+function AdsExpensesTableSkeleton() {
+  return (
+    <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border animate-pulse">
+      <div className="p-6">
+        <Table>
+          <TableCaption className='py-6'>Daftar log rincian biaya marketing operasional iklan toko.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead><div className="h-4 w-4 bg-muted rounded" /></TableHead>
+              <TableHead>Icon Lapak</TableHead>
+              <TableHead>Waktu Log</TableHead>
+              <TableHead>Nama Toko</TableHead>
+              <TableHead>Platform</TableHead>
+              <TableHead className="text-right">Biaya Iklan</TableHead>
+              <TableHead className="text-right">Komisi Affiliate</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Membuat 4 baris loading belang-belang palsu agar serasi dengan tabel asli */}
+            {[1, 2, 3, 4].map((i) => (
+              <TableRow key={i} className={i % 2 === 0 ? 'bg-muted/25' : 'bg-background'}>
+                {/* Checkbox */}
+                <TableCell><div className="h-4 w-4 bg-muted rounded" /></TableCell>
+
+                {/* Icon Lapak */}
+                <TableCell>
+                  <div className="w-10 h-10 rounded-md bg-muted border flex items-center justify-center text-muted-foreground/40" />
+                </TableCell>
+
+                {/* Waktu Log */}
+                <TableCell>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="h-4 bg-muted rounded w-24" />
+                    <div className="h-3 bg-muted/60 rounded w-28" />
+                  </div>
+                </TableCell>
+
+                {/* Nama Toko */}
+                <TableCell><div className="h-4 bg-muted rounded w-36 font-bold" /></TableCell>
+
+                {/* Platform Badge */}
+                <TableCell><div className="h-5 bg-muted rounded-md w-16" /></TableCell>
+
+                {/* Biaya Iklan */}
+                <TableCell className="text-right">
+                  <div className="h-4 bg-muted rounded w-24 ml-auto font-semibold" />
+                </TableCell>
+
+                {/* Komisi Affiliate */}
+                <TableCell className="text-right">
+                  <div className="h-4 bg-muted rounded w-20 ml-auto font-medium" />
+                </TableCell>
+
+                {/* Aksi Trigger */}
+                <TableCell className="text-right">
+                  <div className="h-8 w-8 bg-muted rounded-md ml-auto" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        {/* Panel Navigasi Halaman Palsu */}
+        <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border mt-4">
+          <div className="h-4 bg-muted rounded w-48" />
+          <div className="flex items-center space-x-2">
+            <div className="h-8 bg-muted rounded w-20" />
+            <div className="h-4 bg-muted rounded w-16" />
+            <div className="h-8 bg-muted rounded w-20" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdsAffiliate({ adsExpenses, storesList, filters, summary }: any) {
   // State Kontrol Sheet (Tambah, Edit, Detail) sesuai standard product.tsx
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSheetOpenEdit, setIsSheetOpenEdit] = useState(false);
   const [isSheetOpenDetail, setIsSheetOpenDetail] = useState(false);
+
+  // --- TAMBAHKAN STATE & EFFECT SKELETON DI SINI ---
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Beri jeda waktu mini (misal 350 milidetik) agar animasinya kelihatan mulus
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, []);
+  // -------------------------------------------------
 
   // State Aksi Form Sekaligus & Bulk Selection
   const [submitAction, setSubmitAction] = useState<'save' | 'save_and_add'>('save');
@@ -349,7 +441,8 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
             </div>
             <div className="px-4 pb-4">
               <div className="text-xl font-extrabold tracking-tight">
-                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_ads || 0)}
+                {isLoading ? <Skeleton className="h-7 w-[150px]" /> : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_ads || 0)}
+                {/* {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_ads || 0)} */}
               </div>
               <p className="text-[10px] text-muted-foreground mt-0.5">Akumulasi bakar saldo iklan harian</p>
             </div>
@@ -363,7 +456,8 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
             </div>
             <div className="px-4 pb-4">
               <div className="text-xl font-extrabold tracking-tight">
-                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_affiliate || 0)}
+                {isLoading ? <Skeleton className="h-7 w-[150px]" /> : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_affiliate || 0)}
+                {/* {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_affiliate || 0)} */}
               </div>
               <p className="text-[10px] text-muted-foreground mt-0.5">Akumulasi biaya affiliate toko</p>
             </div>
@@ -377,7 +471,8 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
             </div>
             <div className="px-4 pb-4">
               <div className="text-xl font-extrabold tracking-tight">
-                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_affiliate_transactions || 0)}
+                {isLoading ? <Skeleton className="h-7 w-[150px]" /> : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_affiliate_transactions || 0)}
+                {/* {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_affiliate_transactions || 0)} */}
               </div>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {/* Potongan otomatis invoice pesanan */}
@@ -394,7 +489,7 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
             </div>
             <div className="px-4 pb-4">
               <div className="text-xl font-extrabold tracking-tight">
-                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_marketing_cost || 0)}
+                {isLoading ? <Skeleton className="h-7 w-[150px]" /> : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(summary?.total_marketing_cost || 0)}
               </div>
               <p className="text-[10px] text-muted-foreground mt-0.5">Gabungan Iklan + Affiliate</p>
             </div>
@@ -408,7 +503,10 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
             </div>
             <div className="px-4 pb-4">
               <div className="flex items-center gap-2">
-                <span className="text-xl font-black tracking-tight">{summary?.marketing_ratio_percentage || 0}%</span>
+                <span className="text-xl font-black tracking-tight">
+                  {isLoading ? <Skeleton className="h-7 w-[53px]" /> : `${summary?.marketing_ratio_percentage || 0}%`}
+                  {/* {summary?.marketing_ratio_percentage || 0}% */}
+                </span>
                 <Badge variant={getRatioBadgeVariant(summary?.marketing_ratio_percentage || 0)}>
                   {(summary?.marketing_ratio_percentage || 0) > 15 ? '⚠️ Boros' : '✅ Sehat'}
                 </Badge>
@@ -468,178 +566,183 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
           </div>
         </div>
 
-        {/* DATA TABLE */}
-        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-          <div className="p-6">
-            <Table>
-              <TableCaption className='py-6'>Daftar log rincian biaya marketing operasional iklan toko.</TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <Checkbox
-                      checked={adsExpenses.data.length > 0 && selectedIds.length === adsExpenses.data.length}
-                      onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead>Icon Lapak</TableHead>
-                  <TableHead>Waktu Log</TableHead>
-                  <TableHead>Nama Toko</TableHead>
-                  <TableHead>Platform</TableHead>
-                  <TableHead className="text-right">Biaya Iklan</TableHead>
-                  <TableHead className="text-right">Komisi Affiliate</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {adsExpenses.data.length === 0 ? (
+        {/* LOGIKA PINTAR: SKELETON LOADER UNTUK HALAMAN MARKETING IKLAN */}
+        {isLoading ? (
+          <AdsExpensesTableSkeleton />
+        ) : (
+          /* DATA TABLE ASLI */
+          <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
+            <div className="p-6">
+              <Table>
+                <TableCaption className='py-6'>Daftar log rincian biaya marketing operasional iklan toko.</TableCaption>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                      <Empty>
-                        <EmptyHeader>
-                          <EmptyMedia variant="icon">
-                            <Box />
-                          </EmptyMedia>
-                          <EmptyTitle>Belum ada data</EmptyTitle>
-                          <EmptyDescription>Tidak ada rekaman data biaya marketing yang ditemukan.</EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    </TableCell>
+                    <TableHead>
+                      <Checkbox
+                        checked={adsExpenses.data.length > 0 && selectedIds.length === adsExpenses.data.length}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                    <TableHead>Icon Lapak</TableHead>
+                    <TableHead>Waktu Log</TableHead>
+                    <TableHead>Nama Toko</TableHead>
+                    <TableHead>Platform</TableHead>
+                    <TableHead className="text-right">Biaya Iklan</TableHead>
+                    <TableHead className="text-right">Komisi Affiliate</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
-                ) : (
-                  adsExpenses.data.map((item: any, index: any) => {
-                    const isSelected = selectedIds.includes(item.id);
-                    return (
-                      <TableRow
-                        key={item.id}
-                        className={`
+                </TableHeader>
+                <TableBody>
+                  {adsExpenses.data.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <Empty>
+                          <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                              <Box />
+                            </EmptyMedia>
+                            <EmptyTitle>Belum ada data</EmptyTitle>
+                            <EmptyDescription>Tidak ada rekaman data biaya marketing yang ditemukan.</EmptyDescription>
+                          </EmptyHeader>
+                        </Empty>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    adsExpenses.data.map((item: any, index: any) => {
+                      const isSelected = selectedIds.includes(item.id);
+                      return (
+                        <TableRow
+                          key={item.id}
+                          className={`
                           cursor-pointer transition-colors hover:bg-muted/70
                           ${isSelected ? 'bg-muted/60 hover:bg-muted/60' : index % 2 === 1 ? 'bg-muted/25' : 'bg-background'}
                         `}
-                        onClick={() => {
-                          setSelectedExpense(item);
-                          setIsSheetOpenDetail(true);
-                        }}
-                      >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectRow(item.id, !!checked)}
-                            aria-label={`Select item-${item.id}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center border text-muted-foreground/60">
-                            <Store className="h-4 w-4" />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium text-sm text-foreground">
-                              {formatDateTime(item.date).dateStr}
-                            </span>
-                            <span className="text-xs text-muted-foreground italic">
-                              Pukul {formatDateTime(item.created_at).timeStr} WIB
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-bold">{item.store?.name || 'Toko Terhapus'}</TableCell>
-                        <TableCell>
-                          <Badge className="bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 capitalize">
-                            {item.store?.platform || '-'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-blue-600">
-                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.amount_spent)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-purple-600">
-                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.affiliate_fee || 0)}
-                        </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <AlertDialog>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="size-8">
-                                  <MoreHorizontalIcon />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedExpense(item);
-                                    setStoreId(item.store_id);
-                                    setRawAmount(item.amount_spent.toString());
-                                    setDisplayAmount(new Intl.NumberFormat('id-ID').format(item.amount_spent));
-                                    setIsSheetOpenEdit(true);
-                                  }}
-                                >
-                                  <PencilIcon className="h-4 w-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem variant="destructive">
-                                    <Trash2Icon className="h-4 w-4" />
-                                    Delete
+                          onClick={() => {
+                            setSelectedExpense(item);
+                            setIsSheetOpenDetail(true);
+                          }}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleSelectRow(item.id, !!checked)}
+                              aria-label={`Select item-${item.id}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center border text-muted-foreground/60">
+                              <Store className="h-4 w-4" />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium text-sm text-foreground">
+                                {formatDateTime(item.date).dateStr}
+                              </span>
+                              <span className="text-xs text-muted-foreground italic">
+                                Pukul {formatDateTime(item.created_at).timeStr} WIB
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-bold">{item.store?.name || 'Toko Terhapus'}</TableCell>
+                          <TableCell>
+                            <Badge className="bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 capitalize">
+                              {item.store?.platform || '-'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-blue-600">
+                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.amount_spent)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-purple-600">
+                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.affiliate_fee || 0)}
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <AlertDialog>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="size-8">
+                                    <MoreHorizontalIcon />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedExpense(item);
+                                      setStoreId(item.store_id);
+                                      setRawAmount(item.amount_spent.toString());
+                                      setDisplayAmount(new Intl.NumberFormat('id-ID').format(item.amount_spent));
+                                      setIsSheetOpenEdit(true);
+                                    }}
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                    Edit
                                   </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                  <DropdownMenuSeparator />
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem variant="destructive">
+                                      <Trash2Icon className="h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
 
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tindakan ini tidak dapat dibatalkan. Data log pengeluaran saldo marketing akan dihapus permanen.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <Link href={AdsAffiliateController.destroy(item.id)}>
-                                  <AlertDialogAction variant="destructive">Hapus</AlertDialogAction>
-                                </Link>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tindakan ini tidak dapat dibatalkan. Data log pengeluaran saldo marketing akan dihapus permanen.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                                  <Link href={AdsAffiliateController.destroy(item.id)}>
+                                    <AlertDialogAction variant="destructive">Hapus</AlertDialogAction>
+                                  </Link>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
 
-            {/* PAGINATION PANEL */}
-            {adsExpenses.last_page > 1 && (
-              <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border">
-                <div className="text-xs md:text-sm text-muted-foreground">
-                  Menampilkan {adsExpenses.from ?? 0} sampai {adsExpenses.to ?? 0} dari {adsExpenses.total ?? 0} log
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!adsExpenses.prev_page_url}
-                    onClick={() => adsExpenses.prev_page_url && router.get(adsExpenses.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
-                  >
-                    Sebelumnya
-                  </Button>
-                  <div className="text-xs md:text-sm font-medium px-2">
-                    Hal {adsExpenses.current_page} dari {adsExpenses.last_page}
+              {/* PAGINATION PANEL */}
+              {adsExpenses.last_page > 1 && (
+                <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border">
+                  <div className="text-xs md:text-sm text-muted-foreground">
+                    Menampilkan {adsExpenses.from ?? 0} sampai {adsExpenses.to ?? 0} dari {adsExpenses.total ?? 0} log
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!adsExpenses.next_page_url}
-                    onClick={() => adsExpenses.next_page_url && router.get(adsExpenses.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
-                  >
-                    Selanjutnya
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!adsExpenses.prev_page_url}
+                      onClick={() => adsExpenses.prev_page_url && router.get(adsExpenses.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                    >
+                      Sebelumnya
+                    </Button>
+                    <div className="text-xs md:text-sm font-medium px-2">
+                      Hal {adsExpenses.current_page} dari {adsExpenses.last_page}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!adsExpenses.next_page_url}
+                      onClick={() => adsExpenses.next_page_url && router.get(adsExpenses.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                    >
+                      Selanjutnya
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ================= KOTAK MELAYANG (FLOATING ACTION BAR) ================= */}

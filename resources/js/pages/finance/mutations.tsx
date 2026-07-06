@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -52,6 +53,73 @@ interface Props {
   filters: { financial_account_id: string; type: string; start_date: string; end_date: string; search: string };
 }
 
+// --- KOMPONEN SKELETON LOADER KHUSUS TABEL MUTASI (PRESISI 100%) ---
+function MutationsTableSkeleton() {
+  return (
+    <Card className="border-sidebar-border/70 shadow-sm overflow-hidden animate-pulse">
+      <CardContent className="p-3">
+        <Table>
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="w-[110px] text-xs font-bold">Tanggal</TableHead>
+              <TableHead className="w-[150px] text-xs font-bold">Akun Kas</TableHead>
+              <TableHead className="text-xs font-bold">Kategori / Keterangan</TableHead>
+              <TableHead className="w-[150px] text-xs font-bold">No. Ref</TableHead>
+              <TableHead className="text-right w-[150px] text-xs font-bold">Nominal</TableHead>
+              <TableHead className="text-right w-[160px] text-xs font-bold">Saldo Berjalan</TableHead>
+              <TableHead className="w-[50px] text-xs font-bold text-center">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Membuat 4 baris riwayat mutasi palsu */}
+            {[1, 2, 3, 4].map((i) => (
+              <TableRow key={i} className="border-b border-muted/10">
+                {/* Tanggal */}
+                <TableCell>
+                  <div className="h-3.5 bg-muted rounded w-16" />
+                </TableCell>
+
+                {/* Akun Kas */}
+                <TableCell>
+                  <div className="h-3.5 bg-muted rounded w-24 font-semibold" />
+                </TableCell>
+
+                {/* Kategori / Keterangan */}
+                <TableCell className="py-2.5">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="h-3.5 bg-muted rounded w-28 font-bold" />
+                    <div className="h-3 bg-muted/50 rounded w-44" /> {/* Simulasi description */}
+                  </div>
+                </TableCell>
+
+                {/* No. Ref */}
+                <TableCell>
+                  <div className="h-3.5 bg-muted/60 rounded w-20 font-mono" />
+                </TableCell>
+
+                {/* Nominal */}
+                <TableCell className="text-right">
+                  <div className="h-3.5 bg-muted rounded w-20 ml-auto font-extrabold" />
+                </TableCell>
+
+                {/* Saldo Berjalan */}
+                <TableCell className="text-right">
+                  <div className="h-3.5 bg-muted/70 rounded w-24 ml-auto" />
+                </TableCell>
+
+                {/* Aksi Button / Lock Tag */}
+                <TableCell className="text-center py-2">
+                  <div className="h-6 bg-muted/80 rounded w-8 mx-auto" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Mutations({ accounts, mutations, summary, filters }: Props) {
   // States Filter bawaan sinkronisasi URL
   const [search, setSearch] = useState(filters.search || '');
@@ -64,6 +132,19 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
   const [page, setPage] = useState(mutations.current_page || 1);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // --- TAMBAHKAN STATE & EFFECT SKELETON DI SINI ---
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Beri jeda waktu mini (misal 350 milidetik) agar animasinya kelihatan mulus
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, []);
+  // -------------------------------------------------
 
   // Inertia Form Handling untuk input mutasi manual
   const { data, setData, post, processing, errors, reset } = useForm({
@@ -550,7 +631,8 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
 
                   <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-2">
                     <div className="text-lg font-bold tracking-tight text-foreground">
-                      {formatIDR(acc.current_balance)}
+                      {isLoading ? <Skeleton className="h-7 w-[150px]" /> : formatIDR(acc.current_balance)}
+                      {/* {formatIDR(acc.current_balance)} */}
                     </div>
 
                     {/* DERETAN TOMBOL AKSI KELOLA AKUN */}
@@ -612,7 +694,10 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
               <ArrowUpRight className="h-4 w-4 text-emerald-500" />
             </div>
             <div className="px-4 pb-4">
-              <div className="text-xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">{formatIDR(summary.total_income)}</div>
+              <div className="text-xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
+                {isLoading ? <Skeleton className="h-7 w-[200px]" /> : formatIDR(summary.total_income)}
+                {/* {formatIDR(summary.total_income)} */}
+              </div>
             </div>
           </Card>
 
@@ -622,7 +707,10 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
               <ArrowDownLeft className="h-4 w-4 text-red-500" />
             </div>
             <div className="px-4 pb-4">
-              <div className="text-xl font-extrabold tracking-tight text-red-600 dark:text-red-400">{formatIDR(summary.total_expense)}</div>
+              <div className="text-xl font-extrabold tracking-tight text-red-600 dark:text-red-400">
+                {isLoading ? <Skeleton className="h-7 w-[200px]" /> : formatIDR(summary.total_expense)}
+                {/* {formatIDR(summary.total_expense)} */}
+              </div>
             </div>
           </Card>
 
@@ -633,7 +721,8 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
             </div>
             <div className="px-4 pb-4">
               <div className={`text-xl font-black tracking-tight ${summary.net_cash_flow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600'}`}>
-                {formatIDR(summary.net_cash_flow)}
+                {isLoading ? <Skeleton className="h-7 w-[200px]" /> : formatIDR(summary.net_cash_flow)}
+                {/* {formatIDR(summary.net_cash_flow)} */}
               </div>
             </div>
           </Card>
@@ -681,90 +770,104 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
           )}
         </div>
 
-        {/* SECTION 4: DATA TABLE HISTORY MUTASI */}
-        <Card className="border-sidebar-border/70 shadow-sm overflow-hidden">
-          <CardContent className="p-3">
-            <Table>
-              <TableHeader className="bg-muted/40">
-                <TableRow>
-                  <TableHead className="w-[110px] text-xs font-bold">Tanggal</TableHead>
-                  <TableHead className="w-[150px] text-xs font-bold">Akun Kas</TableHead>
-                  <TableHead className="text-xs font-bold">Kategori / Keterangan</TableHead>
-                  <TableHead className="w-[150px] text-xs font-bold">No. Ref</TableHead>
-                  <TableHead className="text-right w-[150px] text-xs font-bold">Nominal</TableHead>
-                  <TableHead className="text-right w-[160px] text-xs font-bold">Saldo Berjalan</TableHead>
-                  <TableHead className="w-[50px] text-xs font-bold text-center">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mutations?.data?.length === 0 ? (
+        {/* LOGIKA SINKRONISASI SKELETON LOADER MUTASI */}
+        {isLoading ? (
+          <MutationsTableSkeleton />
+        ) : (
+          /* SECTION 4: DATA TABLE HISTORY MUTASI */
+          <Card className="border-sidebar-border/70 shadow-sm overflow-hidden">
+            <CardContent className="p-3">
+              <Table>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
-                    <TableCell colSpan={7} className="h-72 text-center p-0">
-                      <Empty className="py-8">
-                        <EmptyMedia><Search className="h-10 w-10 text-muted-foreground/60 stroke-[1.5]" /></EmptyMedia>
-                        <EmptyHeader>
-                          <EmptyTitle className="text-sm font-semibold">Tidak Ada Mutasi Ditemukan</EmptyTitle>
-                          <EmptyDescription className="text-xs max-w-sm mx-auto">
-                            Ganti setelan filter tanggal atau kategori Anda, atau tambahkan catatan transaksi kas baru.
-                          </EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    </TableCell>
+                    <TableHead className="w-[110px] text-xs font-bold">Tanggal</TableHead>
+                    <TableHead className="w-[150px] text-xs font-bold">Akun Kas</TableHead>
+                    <TableHead className="text-xs font-bold">Kategori / Keterangan</TableHead>
+                    <TableHead className="w-[150px] text-xs font-bold">No. Ref</TableHead>
+                    <TableHead className="text-right w-[150px] text-xs font-bold">Nominal</TableHead>
+                    <TableHead className="text-right w-[160px] text-xs font-bold">Saldo Berjalan</TableHead>
+                    <TableHead className="w-[50px] text-xs font-bold text-center">Aksi</TableHead>
                   </TableRow>
-                ) : (
-                  mutations?.data?.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="text-xs text-muted-foreground font-medium">
-                        {item.date}
-                      </TableCell>
-                      <TableCell className="text-xs font-semibold text-foreground">
-                        {item.account?.name || 'Kas Terhapus'}
-                      </TableCell>
-                      <TableCell className="py-2.5 max-w-[200px] md:max-w-[300px]">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-bold text-foreground">{item.category}</span>
-                          {item.description && (
-                            <TooltipProvider>
-                              <Tooltip delayDuration={300}>
-                                <TooltipTrigger asChild>
-                                  <span className="text-[11px] text-muted-foreground truncate block cursor-help">
-                                    {item.description}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs text-xs p-2">
-                                  <p>{item.description}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground">
-                        {item.reference_number || '-'}
-                      </TableCell>
-                      <TableCell className={`text-right text-xs font-extrabold ${item.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {item.type === 'income' ? '+' : '-'}{formatIDR(item.amount)}
-                      </TableCell>
-                      <TableCell className="text-right text-xs font-medium text-muted-foreground">
-                        {formatIDR(item.balance_snapshot)}
-                      </TableCell>
-                      <TableCell className="text-center py-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteMutation(item.id)}
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {mutations?.data?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-72 text-center p-0">
+                        <Empty className="py-8">
+                          <EmptyMedia><Search className="h-10 w-10 text-muted-foreground/60 stroke-[1.5]" /></EmptyMedia>
+                          <EmptyHeader>
+                            <EmptyTitle className="text-sm font-semibold">Tidak Ada Mutasi Ditemukan</EmptyTitle>
+                            <EmptyDescription className="text-xs max-w-sm mx-auto">
+                              Ganti setelan filter tanggal atau kategori Anda, atau tambahkan catatan transaksi kas baru.
+                            </EmptyDescription>
+                          </EmptyHeader>
+                        </Empty>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  ) : (
+                    mutations?.data?.map((item) => (
+                      <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell className="text-xs text-muted-foreground font-medium">
+                          {item.date}
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold text-foreground">
+                          {item.account?.name || 'Kas Terhapus'}
+                        </TableCell>
+                        <TableCell className="py-2.5 max-w-[200px] md:max-w-[300px]">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-bold text-foreground">{item.category}</span>
+                            {item.description && (
+                              <TooltipProvider>
+                                <Tooltip delayDuration={300}>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-[11px] text-muted-foreground truncate block cursor-help">
+                                      {item.description}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs text-xs p-2">
+                                    <p>{item.description}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-mono text-muted-foreground">
+                          {item.reference_number || '-'}
+                        </TableCell>
+                        <TableCell className={`text-right text-xs font-extrabold ${item.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {item.type === 'income' ? '+' : '-'}{formatIDR(item.amount)}
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-medium text-muted-foreground">
+                          {formatIDR(item.balance_snapshot)}
+                        </TableCell>
+                        {/* KODE BARU: Mengunci Berdasarkan Ada/Tidaknya Nomor Referensi */}
+                        <TableCell className="text-center py-2">
+                          {item.reference_number ? (
+                            // Jika mutasi memiliki nomor nota/referensi, kunci otomatis! (Apapun nama kategorinya)
+                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-md font-bold tracking-wide">
+                              🔒 Sistem
+                            </span>
+                          ) : (
+                            // Jika reference_number kosong (berarti input manual), tombol hapus tetap muncul bebas
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteMutation(item.id)}
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
         {/* ================= BARIS TOMBOL PAGINATION BARU ================= */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 pb-6 px-1">
           <p className="text-xs text-muted-foreground text-center sm:text-left">

@@ -174,4 +174,26 @@ class ProducerStockController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Pembayaran berhasil diproses dan kas telah dipotong!']);
         return back();
     }
+
+    // FUNGSI BARU: Update Catatan/Note Saja Langsung dari Tabel
+    public function updateNote(Request $request, $id)
+    {
+        $request->validate([
+            'description' => 'nullable|string|max:500'
+        ]);
+
+        $userId = Auth::user()->id;
+        $invoice = ProducerInvoice::where('user_id', $userId)->findOrFail($id);
+
+        $invoice->update([
+            'description' => $request->description
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Catatan nota ' . $invoice->invoice_number . ' berhasil diperbarui!'
+        ]);
+
+        return back();
+    }
 }

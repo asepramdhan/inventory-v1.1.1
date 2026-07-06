@@ -307,6 +307,16 @@ class FinancialMutationController extends Controller
             ->where('user_id', $userId)
             ->firstOrFail();
 
+        // --- PROTEKSI PINTAR BACKEND: Cek kolom reference_number ---
+        if (!empty($mutation->reference_number)) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Gagal! Mutasi otomatis yang terikat dengan nomor referensi/nota (' . $mutation->reference_number . ') tidak boleh dihapus dari sini.'
+            ]);
+            return back();
+        }
+        // ----------------------------------------------------------
+
         // 2. Cari akun kas yang terkait dengan mutasi tersebut
         $account = FinancialAccount::where('id', $mutation->financial_account_id)
             ->where('user_id', $userId)

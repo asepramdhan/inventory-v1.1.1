@@ -77,7 +77,108 @@ const getLocalDatetimeString = () => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
+// --- KOMKOMPEN SKELETON LOADER KHUSUS DATA TRANSAKSI (PRESISI 100%) ---
+function TransactionsTableSkeleton() {
+  return (
+    <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border animate-pulse">
+      <div className="p-6">
+        <Table>
+          <TableCaption className='py-6'>Arsip rekaman penjualan masuk produk omnichannel Anda.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px]"><div className="h-4 w-4 bg-muted rounded" /></TableHead>
+              <TableHead>Gambar</TableHead>
+              <TableHead>Tanggal Transaksi</TableHead>
+              <TableHead>No. Pesanan</TableHead>
+              <TableHead>Toko / Platform</TableHead>
+              <TableHead>Total Bayar</TableHead>
+              <TableHead>Biaya Admin</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Membuat 4 baris loading belang-belang palsu */}
+            {[1, 2, 3, 4].map((i) => (
+              <TableRow key={i} className={i % 2 === 0 ? 'bg-muted/25' : 'bg-background'}>
+                {/* Checkbox */}
+                <TableCell><div className="h-4 w-4 bg-muted rounded" /></TableCell>
+
+                {/* Gambar Produk */}
+                <TableCell>
+                  <div className="w-12 h-12 rounded-sm bg-muted border" />
+                </TableCell>
+
+                {/* Tanggal Transaksi */}
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <div className="h-3.5 bg-muted rounded w-20" />
+                    <div className="h-2.5 bg-muted/60 rounded w-24" />
+                  </div>
+                </TableCell>
+
+                {/* No. Pesanan */}
+                <TableCell>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3.5 bg-muted rounded w-28 font-mono" />
+                    <div className="h-5 w-5 bg-muted/50 rounded" /> {/* Simulasi CopyButton */}
+                  </div>
+                </TableCell>
+
+                {/* Toko / Platform */}
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <div className="h-3.5 bg-muted rounded w-24" />
+                    <div className="h-2.5 bg-muted/60 rounded w-14" />
+                  </div>
+                </TableCell>
+
+                {/* Total Bayar */}
+                <TableCell><div className="h-3.5 bg-muted rounded w-20 font-bold" /></TableCell>
+
+                {/* Biaya Admin */}
+                <TableCell><div className="h-3.5 bg-muted/70 rounded w-16 font-medium" /></TableCell>
+
+                {/* Status Badge */}
+                <TableCell><div className="h-5 bg-muted rounded-full w-16" /></TableCell>
+
+                {/* Aksi Button */}
+                <TableCell className="text-right">
+                  <div className="h-8 w-8 bg-muted rounded-md ml-auto" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        {/* Panel Navigasi Halaman Palsu */}
+        <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border mt-4">
+          <div className="h-4 bg-muted rounded w-52" />
+          <div className="flex items-center space-x-2">
+            <div className="h-8 bg-muted rounded w-20" />
+            <div className="h-4 bg-muted rounded w-16" />
+            <div className="h-8 bg-muted rounded w-20" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Transactions({ transactions, storesList, productsList, filters }: any) {
+  // --- TAMBAHKAN STATE & EFFECT SKELETON DI SINI ---
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Beri jeda waktu mini (misal 350 milidetik) agar animasinya kelihatan mulus
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, []);
+  // -------------------------------------------------
+
   const [search, setSearch] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('tx_filter_search') || filters.search || '';
@@ -758,161 +859,166 @@ export default function Transactions({ transactions, storesList, productsList, f
           )}
         </div>
 
-        {/* TABEL DATA UTAMA */}
-        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-          <div className="p-6">
-            <Table>
-              <TableCaption className='py-6'>Arsip rekaman penjualan masuk produk omnichannel Anda.</TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">
-                    <Checkbox
-                      checked={transactions.data.length > 0 && selectedIds.length === transactions.data.length}
-                      onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead>Gambar</TableHead>
-                  <TableHead>Tanggal Transaksi</TableHead>
-                  <TableHead>No. Pesanan</TableHead>
-                  <TableHead>Toko / Platform</TableHead>
-                  <TableHead>Total Bayar</TableHead>
-                  <TableHead>Biaya Admin</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.data.length === 0 ? (
+        {/* LOGIKA SINKRONISASI SKELETON LOADER HALAMAN TRANSAKSI */}
+        {isLoading ? (
+          <TransactionsTableSkeleton />
+        ) : (
+          /* TABEL DATA UTAMA ASLI */
+          <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
+            <div className="p-6">
+              <Table>
+                <TableCaption className='py-6'>Arsip rekaman penjualan masuk produk omnichannel Anda.</TableCaption>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
-                      <Empty>
-                        <EmptyHeader>
-                          <EmptyMedia variant="icon"><ShoppingBag /></EmptyMedia>
-                          <EmptyTitle>Tidak Ada Transaksi</EmptyTitle>
-                          <EmptyDescription>Belum ada rekaman transaksi terdata.</EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    </TableCell>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={transactions.data.length > 0 && selectedIds.length === transactions.data.length}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                    <TableHead>Gambar</TableHead>
+                    <TableHead>Tanggal Transaksi</TableHead>
+                    <TableHead>No. Pesanan</TableHead>
+                    <TableHead>Toko / Platform</TableHead>
+                    <TableHead>Total Bayar</TableHead>
+                    <TableHead>Biaya Admin</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
-                ) : (
-                  transactions.data.map((tx: any, index: number) => {
-                    const isSelected = selectedIds.includes(tx.id);
-                    const firstProductImage = tx.items?.[0]?.product?.image;
+                </TableHeader>
+                <TableBody>
+                  {transactions.data.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-8">
+                        <Empty>
+                          <EmptyHeader>
+                            <EmptyMedia variant="icon"><ShoppingBag /></EmptyMedia>
+                            <EmptyTitle>Tidak Ada Transaksi</EmptyTitle>
+                            <EmptyDescription>Belum ada rekaman transaksi terdata.</EmptyDescription>
+                          </EmptyHeader>
+                        </Empty>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    transactions.data.map((tx: any, index: number) => {
+                      const isSelected = selectedIds.includes(tx.id);
+                      const firstProductImage = tx.items?.[0]?.product?.image;
 
-                    return (
-                      <TableRow
-                        key={tx.id}
-                        className={`cursor-pointer transition-colors hover:bg-muted/70 ${isSelected ? 'bg-muted/60 hover:bg-muted/60' : index % 2 === 1 ? 'bg-muted/25' : 'bg-background'}`}
-                        onClick={() => {
-                          setSelectedTransaction(tx);
-                          setIsSheetOpen(true);
-                        }}
-                      >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
-                            aria-label={`Select row ${tx.invoice_number}`}
-                          />
-                        </TableCell>
-
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          {firstProductImage ? (
-                            <HoverCard openDelay={0} closeDelay={0}>
-                              <HoverCardTrigger asChild>
-                                <div className="w-12 h-12 rounded-sm overflow-hidden border bg-muted flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
-                                  <img src={firstProductImage} alt="Product Preview" className="w-full h-full object-cover" />
-                                </div>
-                              </HoverCardTrigger>
-                              <HoverCardContent side="right" align="center" sideOffset={12} className="w-48 p-1.5 bg-background border shadow-xl rounded-lg pointer-events-none">
-                                <div className="w-full aspect-square overflow-hidden rounded-sm">
-                                  <img src={firstProductImage} alt="Preview Besar" className="w-full h-full object-cover" />
-                                </div>
-                              </HoverCardContent>
-                            </HoverCard>
-                          ) : (
-                            <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border text-muted-foreground/60">
-                              <Box className="h-4 w-4" />
-                            </div>
-                          )}
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium text-xs text-foreground">
-                              {formatDateTime(tx.transaction_date).dateStr}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground italic">
-                              Pukul {formatDateTime(tx.transaction_date).timeStr} WIB
-                            </span>
-                          </div>
-                        </TableCell>
-
-                        <TableCell className="font-mono text-xs font-semibold text-foreground">
-                          <div className="flex items-center">
-                            <span>{tx.invoice_number}</span>
-                            <CopyButton value={tx.invoice_number} />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-xs">{tx.store?.name}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase">{tx.store?.platform}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-bold text-xs">
-                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(tx.grand_total)}
-                        </TableCell>
-                        <TableCell className="text-xs text-destructive font-medium">
-                          -{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(tx.marketplace_admin_fee)}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(tx.status)}</TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => {
+                      return (
+                        <TableRow
+                          key={tx.id}
+                          className={`cursor-pointer transition-colors hover:bg-muted/70 ${isSelected ? 'bg-muted/60 hover:bg-muted/60' : index % 2 === 1 ? 'bg-muted/25' : 'bg-background'}`}
+                          onClick={() => {
                             setSelectedTransaction(tx);
                             setIsSheetOpen(true);
-                          }}>
-                            <EyeIcon className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                          }}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
+                              aria-label={`Select row ${tx.invoice_number}`}
+                            />
+                          </TableCell>
 
-            {transactions.last_page > 1 && (
-              <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border">
-                <div className="text-xs md:text-sm text-muted-foreground">
-                  Menampilkan {transactions.from ?? 0} sampai {transactions.to ?? 0} dari {transactions.total ?? 0} transaksi
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!transactions.prev_page_url}
-                    onClick={() => transactions.prev_page_url && router.get(transactions.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
-                  >
-                    Sebelumnya
-                  </Button>
-                  <div className="text-xs md:text-sm font-medium px-2">
-                    Hal {transactions.current_page} dari {transactions.last_page}
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {firstProductImage ? (
+                              <HoverCard openDelay={0} closeDelay={0}>
+                                <HoverCardTrigger asChild>
+                                  <div className="w-12 h-12 rounded-sm overflow-hidden border bg-muted flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                                    <img src={firstProductImage} alt="Product Preview" className="w-full h-full object-cover" />
+                                  </div>
+                                </HoverCardTrigger>
+                                <HoverCardContent side="right" align="center" sideOffset={12} className="w-48 p-1.5 bg-background border shadow-xl rounded-lg pointer-events-none">
+                                  <div className="w-full aspect-square overflow-hidden rounded-sm">
+                                    <img src={firstProductImage} alt="Preview Besar" className="w-full h-full object-cover" />
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
+                            ) : (
+                              <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border text-muted-foreground/60">
+                                <Box className="h-4 w-4" />
+                              </div>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium text-xs text-foreground">
+                                {formatDateTime(tx.transaction_date).dateStr}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground italic">
+                                Pukul {formatDateTime(tx.transaction_date).timeStr} WIB
+                              </span>
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="font-mono text-xs font-semibold text-foreground">
+                            <div className="flex items-center">
+                              <span>{tx.invoice_number}</span>
+                              <CopyButton value={tx.invoice_number} />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-xs">{tx.store?.name}</span>
+                              <span className="text-[10px] text-muted-foreground uppercase">{tx.store?.platform}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-bold text-xs">
+                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(tx.grand_total)}
+                          </TableCell>
+                          <TableCell className="text-xs text-destructive font-medium">
+                            -{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(tx.marketplace_admin_fee)}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(tx.status)}</TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="size-8" onClick={() => {
+                              setSelectedTransaction(tx);
+                              setIsSheetOpen(true);
+                            }}>
+                              <EyeIcon className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+
+              {transactions.last_page > 1 && (
+                <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border">
+                  <div className="text-xs md:text-sm text-muted-foreground">
+                    Menampilkan {transactions.from ?? 0} sampai {transactions.to ?? 0} dari {transactions.total ?? 0} transaksi
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!transactions.next_page_url}
-                    onClick={() => transactions.next_page_url && router.get(transactions.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
-                  >
-                    Selanjutnya
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!transactions.prev_page_url}
+                      onClick={() => transactions.prev_page_url && router.get(transactions.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                    >
+                      Sebelumnya
+                    </Button>
+                    <div className="text-xs md:text-sm font-medium px-2">
+                      Hal {transactions.current_page} dari {transactions.last_page}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!transactions.next_page_url}
+                      onClick={() => transactions.next_page_url && router.get(transactions.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                    >
+                      Selanjutnya
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* FLOATING ACTION BAR */}
