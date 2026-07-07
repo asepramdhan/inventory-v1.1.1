@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { dashboard, login, register } from '@/routes';
 
 export default function Welcome() {
@@ -27,9 +28,7 @@ export default function Welcome() {
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center justify-between h-16">
                             <div className="flex items-center gap-2.5">
-                                <div className="h-9 w-9 rounded-xl bg-amber-500 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-amber-500/20">
-                                    I
-                                </div>
+                                <AppLogoIcon className="size-8 fill-current text-white dark:text-black" />
                                 <div className="flex items-baseline gap-2">
                                     <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">
                                         Inventory
@@ -54,13 +53,13 @@ export default function Welcome() {
                                             href={login()}
                                             className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors"
                                         >
-                                            Log in
+                                            Masuk
                                         </Link>
                                         <Link
                                             href={register()}
                                             className="inline-flex items-center justify-center px-5 py-2 text-sm font-semibold text-black bg-amber-500 hover:bg-amber-400 rounded-xl transition-all duration-200 shadow-md shadow-amber-500/10 active:scale-95"
                                         >
-                                            Register
+                                            Daftar
                                         </Link>
                                     </>
                                 )}

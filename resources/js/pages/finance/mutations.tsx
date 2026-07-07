@@ -1,7 +1,7 @@
 /* eslint-disable curly */
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowDownLeft, ArrowUpRight, Calendar, DollarSign, Landmark, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Calendar, DollarSign, Eye, EyeOff, Landmark, Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -127,6 +127,7 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
   const [typeFilter, setTypeFilter] = useState(filters.type || 'all');
   const [startDate, setStartDate] = useState(filters.start_date || '');
   const [endDate, setEndDate] = useState(filters.end_date || '');
+  const [showBalance, setShowBalance] = useState<boolean>(true);
 
   // 1. TAMBAHKAN STATE PAGE DI SINI:
   const [page, setPage] = useState(mutations.current_page || 1);
@@ -592,32 +593,37 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
 
         {/* SECTION 1: RINGKASAN SALDO SELURUH AKUN (KAS UTAMA) */}
         <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Posisi Saldo Kas & Rekening Aktif</h3>
+          {/* Baris Judul + Tombol Eye Toggle Global */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Posisi Saldo Kas & Rekening Aktif
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowBalance(!showBalance)}
+            >
+              {showBalance ? <EyeOff className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
+              <span className="text-xs">{showBalance ? 'Sembunyikan' : 'Tampilkan'}</span>
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {accounts && accounts.map((acc: any) => {
-
-              // SOLUSI UTAMA HOSTING: Normalisasi paksa nilai dari database menjadi Boolean murni
-              // Ini akan membaca dengan benar baik true, 1, "1", false, 0, maupun "0"
               const isActive = acc.is_active == true || acc.is_active == 1 || acc.is_active == '1';
               const isDefault = acc.is_default == true || acc.is_default == 1 || acc.is_default == '1';
 
               return (
-                <div
-                  key={acc.id}
-                  className={`relative p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col justify-between ${!isActive ? 'opacity-50 bg-muted/30' : ''
-                    } ${isDefault ? 'border-primary ring-1 ring-primary/30' : ''}`}
-                >
+                <div key={acc.id} className={`relative p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col justify-between ${!isActive ? 'opacity-50 bg-muted/30' : ''} ${isDefault ? 'border-primary ring-1 ring-primary/30' : ''}`} >
+
                   {/* Label Indikator Status */}
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
                     {isDefault ? (
-                      <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full border border-primary/20">
-                        🟢 Default Utama
-                      </span>
+                      <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full border border-primary/20"> 🟢 Default Utama </span>
                     ) : null}
                     {!isActive ? (
-                      <span className="text-[10px] bg-destructive/10 text-destructive font-semibold px-2 py-0.5 rounded-full">
-                        📁 Diarsipkan
-                      </span>
+                      <span className="text-[10px] bg-destructive/10 text-destructive font-semibold px-2 py-0.5 rounded-full"> 📁 Diarsipkan </span>
                     ) : null}
                   </div>
 
@@ -630,54 +636,28 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-2">
-                    <div className="text-lg font-bold tracking-tight text-foreground">
-                      {isLoading ? <Skeleton className="h-7 w-[150px]" /> : formatIDR(acc.current_balance)}
-                      {/* {formatIDR(acc.current_balance)} */}
+                    {/* LOGIKA SENSOR NOMINAL SALDO */}
+                    <div className="text-lg font-bold tracking-tight text-foreground min-h-[28px] flex items-center">
+                      {isLoading ? (
+                        <Skeleton className="h-7 w-[150px]" />
+                      ) : showBalance ? (
+                        formatIDR(acc.current_balance)
+                      ) : (
+                        <span className="tracking-widest font-black text-muted-foreground/80">••••••</span>
+                      )}
                     </div>
 
                     {/* DERETAN TOMBOL AKSI KELOLA AKUN */}
                     <div className="flex items-center gap-1.5 mt-1.5">
-                      {/* JIKA DEFAULT UTAMA, TAMPILKAN TOMBOL TARIK SALDO */}
                       {isDefault && isActive ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-[11px] text-emerald-600 font-bold hover:bg-emerald-500/10 border border-emerald-500/20"
-                          onClick={() => {
-                            transferForm.setData({
-                              ...transferForm.data,
-                              from_account_id: acc.id.toString(),
-                              to_account_id: '',
-                              amount: '',
-                              description: ''
-                            });
-                            setIsTransferOpen(true);
-                          }}
-                        >
-                          💸 Tarik Saldo
-                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-emerald-600 font-bold hover:bg-emerald-500/10 border border-emerald-500/20" onClick={() => {
+                          transferForm.setData({ ...transferForm.data, from_account_id: acc.id.toString(), to_account_id: '', amount: '', description: '' }); setIsTransferOpen(true);
+                        }} > 💸 Tarik Saldo </Button>
                       ) : null}
-
                       {!isDefault && isActive ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-[11px] text-blue-500 font-medium hover:text-blue-600 hover:bg-blue-500/10"
-                          onClick={() => handleSetDefaultAccount(acc.id)}
-                        >
-                          Set Default
-                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-blue-500 font-medium hover:text-blue-600 hover:bg-blue-500/10" onClick={() => handleSetDefaultAccount(acc.id)} > Set Default </Button>
                       ) : null}
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`h-7 px-2 text-[11px] font-medium ${isActive ? 'text-destructive hover:bg-destructive/10' : 'text-emerald-600 hover:bg-emerald-500/10'
-                          }`}
-                        onClick={() => handleToggleAccount(acc.id, acc.is_active)}
-                      >
-                        {isActive ? 'Arsipkan' : 'Aktifkan'}
-                      </Button>
+                      <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] font-medium ${isActive ? 'text-destructive hover:bg-destructive/10' : 'text-emerald-600 hover:bg-emerald-500/10'}`} onClick={() => handleToggleAccount(acc.id, acc.is_active)} > {isActive ? 'Arsipkan' : 'Aktifkan'} </Button>
                     </div>
                   </div>
                 </div>
