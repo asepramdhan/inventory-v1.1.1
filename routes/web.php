@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdsAffiliateController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancialMutationController;
 use App\Http\Controllers\MarginAnalysisController;
 use App\Http\Controllers\ProducerController;
@@ -16,7 +17,8 @@ Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Keuangan & Analisa - Daftar Transaksi
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    // Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Menu Keuangan & Analisa - Daftar Transaksi
     Route::get('/finance/margin-analysis', [MarginAnalysisController::class, 'index'])->name('margin-analysis.index');
