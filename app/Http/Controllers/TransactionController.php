@@ -358,17 +358,17 @@ class TransactionController extends Controller
                 // Pemetaan status Shopee ke status sistem database Anda
                 $mappedStatus = null;
                 switch (strtolower($shopeeStatus)) {
-                    case 'selesai':
+                    case 'Selesai':
                         $mappedStatus = 'completed';
                         break;
-                    case 'perlu dikirim':
-                    case 'dikirim':
+                    case 'Sedang Dikirim':
+                        // case 'Dikirim':
                         $mappedStatus = 'processing';
                         break;
-                    case 'dibatalkan':
+                    case 'Batal':
                         $mappedStatus = 'cancelled';
                         break;
-                    case 'menunggu':
+                    case 'Perlu Dikirim':
                         $mappedStatus = 'pending';
                         break;
                 }
