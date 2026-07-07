@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -445,6 +446,16 @@ export default function Transactions({ transactions, storesList, productsList, f
     };
   };
 
+  // Ambil array datanya dengan aman, pastikan fallback ke array kosong [] jika null
+  const transactionList = Array.isArray(transactions) ? transactions : (transactions?.data || []);
+
+  // Gunakan transactionList untuk menghitung counter
+  const countAll = transactionList.length;
+  const countPending = transactionList.filter((t: any) => t.status === 'pending').length;
+  const countProcessing = transactionList.filter((t: any) => t.status === 'processing').length;
+  const countCompleted = transactionList.filter((t: any) => t.status === 'completed').length;
+  const countCancelled = transactionList.filter((t: any) => t.status === 'cancelled').length;
+
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'completed':
@@ -814,6 +825,64 @@ export default function Transactions({ transactions, storesList, productsList, f
               </SheetContent>
             </Sheet>
           </div>
+        </div>
+
+        {/* ================= TABS FILTER BARU ================= */}
+        <div className="flex w-full justify-center my-2">
+          <Tabs
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            className="w-auto"
+          >
+            <TabsList className="flex w-auto items-center justify-center gap-1 p-1 bg-muted rounded-lg">
+
+              <TabsTrigger value="all" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+                Semua
+                {countAll > 0 && (
+                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    {countAll}
+                  </Badge>
+                )}
+              </TabsTrigger>
+
+              <TabsTrigger value="pending" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+                Perlu Dikirim
+                {countPending > 0 && (
+                  <Badge className="px-1.5 py-0 text-[10px] font-medium bg-amber-500 hover:bg-amber-500 text-white dark:bg-amber-600">
+                    {countPending}
+                  </Badge>
+                )}
+              </TabsTrigger>
+
+              <TabsTrigger value="processing" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+                Dikirim
+                {countProcessing > 0 && (
+                  <Badge className="px-1.5 py-0 text-[10px] font-medium bg-blue-500 hover:bg-blue-500 text-white dark:bg-blue-600">
+                    {countProcessing}
+                  </Badge>
+                )}
+              </TabsTrigger>
+
+              <TabsTrigger value="completed" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+                Selesai
+                {countCompleted > 0 && (
+                  <Badge className="px-1.5 py-0 text-[10px] font-medium bg-emerald-500 hover:bg-emerald-500 text-white dark:bg-emerald-600">
+                    {countCompleted}
+                  </Badge>
+                )}
+              </TabsTrigger>
+
+              <TabsTrigger value="cancelled" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+                Gagal / Batal
+                {countCancelled > 0 && (
+                  <Badge variant="destructive" className="px-1.5 py-0 text-[10px] font-medium">
+                    {countCancelled}
+                  </Badge>
+                )}
+              </TabsTrigger>
+
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* BARIS SEKSI FILTER */}
