@@ -347,6 +347,8 @@ export default function Transactions({ transactions, storesList, productsList, f
 
   // State untuk memantau loading status saat upload excel
   const [uploadProcessing, setUploadProcessing] = useState(false);
+  const [shopeeUploadProcessing, setShopeeUploadProcessing] = useState(false);
+  const [shopeeStoreId, setShopeeStoreId] = useState<string>('');
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -373,6 +375,39 @@ export default function Transactions({ transactions, storesList, productsList, f
         },
         onFinish: () => {
           setUploadProcessing(false);
+        }
+      });
+    }
+  };
+
+  const handleShopeeImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      if (!shopeeStoreId) {
+        alert('Pilih toko terlebih dahulu untuk impor pesanan.');
+        return;
+      }
+
+      const selectedFile = e.target.files[0];
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('store_id', shopeeStoreId);
+
+      setShopeeUploadProcessing(true);
+
+      router.post('/finance/transactions/import-shopee', formData, {
+        forceFormData: true,
+        onSuccess: () => {
+          setShopeeUploadProcessing(false);
+          if (e.target) e.target.value = '';
+        },
+        onError: (err: any) => {
+          setShopeeUploadProcessing(false);
+          alert(err.file || 'Gagal mengimpor pesanan.');
+          if (e.target) e.target.value = '';
+        },
+        onFinish: () => {
+          setShopeeUploadProcessing(false);
         }
       });
     }
@@ -490,9 +525,40 @@ export default function Transactions({ transactions, storesList, productsList, f
         <div className="flex items-center justify-between">
           <Heading
             title="Riwayat Transaksi"
-            description="Manajemen data penjualan dari seluruh platform marketplace terintegrasi."
+            description="Manajemen data penjualan semua marketplace."
           />
           <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Select value={shopeeStoreId} onValueChange={setShopeeStoreId}>
+                <SelectTrigger className="w-[180px] h-9 text-xs">
+                  <SelectValue placeholder="Pilih Toko" />
+                </SelectTrigger>
+                <SelectContent>
+                  {storesList?.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id.toString()}>{s.name} ({s.platform})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="relative">
+                <input
+                  type="file"
+                  id="shopee-import-upload"
+                  accept=".xlsx, .xls"
+                  className="hidden"
+                  onChange={handleShopeeImport}
+                  disabled={shopeeUploadProcessing}
+                />
+                <Label
+                  htmlFor="shopee-import-upload"
+                  className={`inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border border-emerald-600/20 bg-emerald-50/40 text-emerald-600 hover:bg-emerald-600 hover:text-white shadow-sm dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white h-9 px-3 cursor-pointer ${shopeeUploadProcessing ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                  <FileSpreadsheet className={`h-4 w-4 ${shopeeUploadProcessing ? 'animate-spin' : ''}`} />
+                  {shopeeUploadProcessing ? 'Mengimpor...' : 'Pesanan (.xlsx)'}
+                </Label>
+              </div>
+            </div>
+
             <div className="relative">
               <input
                 type="file"
@@ -507,7 +573,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 className={`inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border border-blue-600/20 bg-blue-50/40 text-blue-600 hover:bg-blue-600 hover:text-white shadow-sm dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white h-9 px-3 cursor-pointer ${uploadProcessing ? 'opacity-50 pointer-events-none' : ''}`}
               >
                 <RefreshCw className={`h-4 w-4 ${uploadProcessing ? 'animate-spin' : ''}`} />
-                {uploadProcessing ? 'Mengompilasi...' : 'Update Status (Excel)'}
+                {uploadProcessing ? 'Mengompilasi...' : 'Status (.xlsx)'}
               </Label>
             </div>
 
@@ -516,7 +582,7 @@ export default function Transactions({ transactions, storesList, productsList, f
               if (!open) resetForm();
             }}>
               <Button onClick={() => setIsCreateSheetOpen(true)} className="gap-1.5 capitalize">
-                <Plus className="h-4 w-4" /> Tambah Transaksi
+                <Plus className="h-4 w-4" /> Transaksi
               </Button>
 
               <SheetContent className="w-full sm:max-w-xl flex flex-col h-full p-0">

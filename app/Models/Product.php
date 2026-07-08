@@ -10,6 +10,14 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Guarded(['id'])]
 class Product extends Model
 {
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+            'active' => 'boolean',
+        ];
+    }
+
     // relasi ke category
     public function category(): BelongsTo
     {

@@ -480,4 +480,221 @@ class TransactionController extends Controller
 
         return $response;
     }
+
+    public function importShopeeOrders(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls|max:10240',
+            'store_id' => 'required|exists:stores,id',
+        ]);
+
+        $file = $request->file('file');
+        $storeId = $request->store_id;
+
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray();
+
+            if (count($rows) <= 1) {
+                throw ValidationException::withMessages(['file' => 'File Excel kosong atau tidak memiliki baris data.']);
+            }
+
+            $headerRow = $rows[0];
+            $invoiceIndex = null;
+            $statusIndex = null;
+            $skuIndex = null;
+            $priceIndex = null;
+            $quantityIndex = null;
+            $subtotalIndex = null;
+
+            foreach ($headerRow as $index => $headerValue) {
+                $cleanHeader = trim($headerValue);
+                if ($cleanHeader === 'No. Pesanan') {
+                    $invoiceIndex = $index;
+                } elseif ($cleanHeader === 'Status Pesanan') {
+                    $statusIndex = $index;
+                } elseif ($cleanHeader === 'SKU Induk') {
+                    $skuIndex = $index;
+                } elseif ($cleanHeader === 'Harga Setelah Diskon') {
+                    $priceIndex = $index;
+                } elseif ($cleanHeader === 'Jumlah') {
+                    $quantityIndex = $index;
+                } elseif ($cleanHeader === 'Subtotal Pesanan') {
+                    $subtotalIndex = $index;
+                }
+            }
+
+            if ($invoiceIndex === null || $statusIndex === null || $skuIndex === null || 
+                $priceIndex === null || $quantityIndex === null || $subtotalIndex === null) {
+                throw ValidationException::withMessages([
+                    'file' => 'Format kolom Excel Shopee tidak dikenali. Pastikan terdapat kolom: No. Pesanan, Status Pesanan, SKU Induk, Harga Setelah Diskon, Jumlah, Subtotal Pesanan.'
+                ]);
+            }
+
+            $userId = Auth::user()->id;
+            $store = Store::findOrFail($storeId);
+            $importedCount = 0;
+            $skippedCount = 0;
+            $errorMessages = [];
+
+            DB::transaction(function () use ($rows, $invoiceIndex, $statusIndex, $skuIndex, $priceIndex, 
+                $quantityIndex, $subtotalIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
+                
+                $ordersByInvoice = [];
+
+                for ($i = 1; $i < count($rows); $i++) {
+                    $invoiceNumber = trim($rows[$i][$invoiceIndex] ?? '');
+                    $shopeeStatus = trim($rows[$i][$statusIndex] ?? '');
+                    $shopeeSku = trim($rows[$i][$skuIndex] ?? '');
+                    $price = floatval(str_replace(['Rp', '.', ','], '', $rows[$i][$priceIndex] ?? 0));
+                    $quantity = intval($rows[$i][$quantityIndex] ?? 0);
+                    $subtotal = floatval(str_replace(['Rp', '.', ','], '', $rows[$i][$subtotalIndex] ?? 0));
+
+                    if (empty($invoiceNumber) || empty($shopeeSku)) {
+                        continue;
+                    }
+
+                    if (!isset($ordersByInvoice[$invoiceNumber])) {
+                        $ordersByInvoice[$invoiceNumber] = [
+                            'status' => $shopeeStatus,
+                            'items' => []
+                        ];
+                    }
+
+                    $ordersByInvoice[$invoiceNumber]['items'][] = [
+                        'shopee_sku' => $shopeeSku,
+                        'price' => $price,
+                        'quantity' => $quantity,
+                        'subtotal' => $subtotal
+                    ];
+                }
+
+                foreach ($ordersByInvoice as $invoiceNumber => $orderData) {
+                    $existingTransaction = Transaction::where('user_id', $userId)
+                        ->where('invoice_number', $invoiceNumber)
+                        ->first();
+
+                    if ($existingTransaction) {
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    $mappedStatus = null;
+                    switch (strtolower($orderData['status'])) {
+                        case 'selesai':
+                            $mappedStatus = 'completed';
+                            break;
+                        case 'sedang dikirim':
+                            $mappedStatus = 'processing';
+                            break;
+                        case 'batal':
+                            $mappedStatus = 'cancelled';
+                            break;
+                        case 'perlu dikirim':
+                            $mappedStatus = 'pending';
+                            break;
+                    }
+
+                    if (!$mappedStatus) {
+                        $errorMessages[] = "Status '{$orderData['status']}' tidak dikenali untuk pesanan {$invoiceNumber}";
+                        continue;
+                    }
+
+                    $subtotal = 0;
+                    $validItems = [];
+
+                    foreach ($orderData['items'] as $item) {
+                        $product = Product::where('user_id', $userId)
+                            ->where('sku', $item['shopee_sku'])
+                            ->with('hpp')
+                            ->first();
+
+                        if (!$product) {
+                            $errorMessages[] = "Produk dengan SKU '{$item['shopee_sku']}' tidak ditemukan untuk pesanan {$invoiceNumber}";
+                            continue;
+                        }
+
+                        if ($mappedStatus !== 'cancelled' && $product->stock < $item['quantity']) {
+                            $errorMessages[] = "Stok tidak mencukupi untuk produk {$product->name} (SKU: {$item['shopee_sku']}) dalam pesanan {$invoiceNumber}";
+                            continue;
+                        }
+
+                        $validItems[] = [
+                            'product' => $product,
+                            'quantity' => $item['quantity'],
+                            'selling_price' => $item['price']
+                        ];
+
+                        $subtotal += $item['subtotal'];
+                    }
+
+                    if (empty($validItems)) {
+                        continue;
+                    }
+
+                    $transaction = Transaction::create([
+                        'user_id' => $userId,
+                        'store_id' => $storeId,
+                        'invoice_number' => $invoiceNumber,
+                        'status' => $mappedStatus,
+                        'subtotal' => $subtotal,
+                        'discount' => 0,
+                        'affiliate_fee' => 0,
+                        'grand_total' => $subtotal,
+                        'marketplace_admin_fee' => 0,
+                        'transaction_date' => now(),
+                    ]);
+
+                    foreach ($validItems as $item) {
+                        $product = $item['product'];
+                        
+                        TransactionItem::create([
+                            'transaction_id' => $transaction->id,
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'product_sku' => $product->sku,
+                            'quantity' => $item['quantity'],
+                            'selling_price' => $item['selling_price'],
+                            'hpp_purchase_snapshot' => $product->hpp->purchase_price ?? 0,
+                            'hpp_packaging_snapshot' => $product->hpp->packaging_cost ?? 0,
+                            'hpp_operational_snapshot' => $product->hpp->operational_cost ?? 0,
+                            'total_hpp_snapshot' => $product->hpp->total_hpp ?? 0,
+                        ]);
+
+                        if ($mappedStatus !== 'cancelled') {
+                            $product->decrement('stock', $item['quantity']);
+                        }
+                    }
+
+                    $adminFee = ($subtotal * floatval($store->admin_fee) / 100) + floatval($store->processing_fee);
+                    $transaction->update([
+                        'marketplace_admin_fee' => $adminFee
+                    ]);
+
+                    $importedCount++;
+                }
+            });
+
+            $message = "Berhasil mengimpor {$importedCount} pesanan Shopee.";
+            if ($skippedCount > 0) {
+                $message .= " {$skippedCount} pesanan dilewati karena sudah ada.";
+            }
+            if (!empty($errorMessages)) {
+                $message .= " " . implode(' ', array_slice($errorMessages, 0, 3));
+                if (count($errorMessages) > 3) {
+                    $message .= " ...";
+                }
+            }
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+
+            return back();
+        } catch (\Exception $e) {
+            if ($e instanceof ValidationException) {
+                throw $e;
+            }
+            throw ValidationException::withMessages(['file' => 'Gagal membaca file Excel: ' . $e->getMessage()]);
+        }
+    }
 }

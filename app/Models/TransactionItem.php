@@ -9,6 +9,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Guarded(['id'])]
 class TransactionItem extends Model
 {
+    protected function casts(): array
+    {
+        return [
+            'selling_price' => 'decimal:2',
+            'hpp_purchase_snapshot' => 'decimal:2',
+            'hpp_packaging_snapshot' => 'decimal:2',
+            'hpp_operational_snapshot' => 'decimal:2',
+            'total_hpp_snapshot' => 'decimal:2',
+        ];
+    }
+
     // Relasi balik ke Transaksi Induk
     public function transaction(): BelongsTo
     {

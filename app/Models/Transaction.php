@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,9 +12,17 @@ use Illuminate\Support\Facades\DB;
 #[Guarded(['id'])]
 class Transaction extends Model
 {
-    protected $casts = [
-        'transaction_date' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'transaction_date' => 'datetime',
+            'subtotal' => 'decimal:2',
+            'discount' => 'decimal:2',
+            'grand_total' => 'decimal:2',
+            'marketplace_admin_fee' => 'decimal:2',
+            'affiliate_fee' => 'decimal:2',
+        ];
+    }
 
     /**
      * Booted function untuk menangani otomatisasi event model
