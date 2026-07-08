@@ -1,7 +1,7 @@
 /* eslint-disable curly */
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowDownLeft, ArrowUpRight, Calendar, DollarSign, Eye, EyeOff, Landmark, Plus, Search, Trash2, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Calendar, Check, DollarSign, Eye, EyeOff, Landmark, Pencil, Plus, Search, Trash2, TrendingUp, TrendingDown, Wallet, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -29,6 +29,26 @@ interface Account {
   is_default: boolean | number;  // Menerima format boolean maupun integer (0/1) dari MySQL
 }
 
+const STORAGE_KEY_SHOW_BALANCE = 'mutations_show_balance';
+const STORAGE_KEY_HIDDEN_ACCOUNTS = 'mutations_hidden_account_balances';
+
+const loadShowBalance = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  const stored = localStorage.getItem(STORAGE_KEY_SHOW_BALANCE);
+  return stored === null ? true : stored === 'true';
+};
+
+const loadHiddenAccountBalances = (): Set<number> => {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_HIDDEN_ACCOUNTS);
+    if (!stored) return new Set();
+    return new Set(JSON.parse(stored) as number[]);
+  } catch {
+    return new Set();
+  }
+};
+
 interface Props {
   accounts: Account[];
   mutations: {
@@ -36,6 +56,7 @@ interface Props {
       id: number;
       financial_account_id: number;
       date: string;
+      created_at: string;
       type: 'income' | 'expense';
       category: string;
       amount: number;
@@ -64,7 +85,7 @@ function MutationsTableSkeleton() {
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow>
-              <TableHead className="w-[110px] text-xs font-bold">Tanggal</TableHead>
+              <TableHead className="w-[130px] text-xs font-bold">Tanggal</TableHead>
               <TableHead className="w-[150px] text-xs font-bold">Akun Kas</TableHead>
               <TableHead className="text-xs font-bold">Kategori / Keterangan</TableHead>
               <TableHead className="w-[150px] text-xs font-bold">No. Ref</TableHead>
@@ -130,7 +151,29 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
   const [typeFilter, setTypeFilter] = useState(filters.type || 'all');
   const [startDate, setStartDate] = useState(filters.start_date || '');
   const [endDate, setEndDate] = useState(filters.end_date || '');
-  const [showBalance, setShowBalance] = useState<boolean>(true);
+  const [showBalance, setShowBalance] = useState<boolean>(() => loadShowBalance());
+  const [hiddenAccountBalances, setHiddenAccountBalances] = useState<Set<number>>(() => loadHiddenAccountBalances());
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_SHOW_BALANCE, String(showBalance));
+  }, [showBalance]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_HIDDEN_ACCOUNTS, JSON.stringify([...hiddenAccountBalances]));
+  }, [hiddenAccountBalances]);
+
+  const toggleAccountBalanceVisibility = (accountId: number) => {
+    setHiddenAccountBalances((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountId)) next.delete(accountId);
+      else next.add(accountId);
+      return next;
+    });
+  };
+
+  const isAccountBalanceVisible = (accountId: number) => {
+    return showBalance && !hiddenAccountBalances.has(accountId);
+  };
 
   // Gunakan typeCounts dari backend untuk badge tabs (total data, bukan filtered)
   const countAll = typeCounts?.all ?? 0;
@@ -173,6 +216,9 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
   });
 
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState({ name: '', description: '' });
+  const [savingAccountId, setSavingAccountId] = useState<number | null>(null);
 
   // Form handling untuk daftarkan Akun Kas Baru
   const accountForm = useForm({
@@ -181,6 +227,32 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
     current_balance: '',
     description: '',
   });
+
+  const startEditAccount = (acc: Account) => {
+    setEditingAccountId(acc.id);
+    setEditDraft({
+      name: acc.name,
+      description: acc.description || '',
+    });
+  };
+
+  const cancelEditAccount = () => {
+    setEditingAccountId(null);
+    setEditDraft({ name: '', description: '' });
+  };
+
+  const saveEditAccount = (id: number) => {
+    if (!editDraft.name.trim()) return;
+    setSavingAccountId(id);
+    router.patch(`/finance/mutations/accounts/${id}`, {
+      name: editDraft.name.trim(),
+      description: editDraft.description,
+    }, {
+      preserveScroll: true,
+      onSuccess: () => cancelEditAccount(),
+      onFinish: () => setSavingAccountId(null),
+    });
+  };
 
   const handleAccountSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,6 +375,21 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
 
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return { dateStr: '-', timeStr: '-' };
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeStr = date.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).replace('.', ':');
+    return { dateStr, timeStr };
+  };
+
   // Fungsi untuk mengubah angka murni menjadi string berformat titik (Contoh: 1000000 -> "1.000.000")
   const formatDisplayRupiah = (value: string | number) => {
     if (!value) return '';
@@ -329,7 +416,7 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
 
       <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
         {/* HEADER SECTION */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-sidebar-border/60 pb-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <Heading
             title="Mutasi Keuangan"
             description="Jurnal pencatatan riwayat arus uang masuk dan keluar pada kas/rekening Anda."
@@ -338,9 +425,9 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <Sheet open={isAccountOpen} onOpenChange={setIsAccountOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" className="text-xs h-9 border-sidebar-border/70">
+                <Button variant="outline" className="gap-1.5">
                   <Landmark className="h-4 w-4 text-blue-500" />
-                  Tambah Akun Kas
+                  Tambah Akun
                 </Button>
               </SheetTrigger>
               <SheetContent className="flex flex-col h-full sm:max-w-md p-0 gap-0">
@@ -655,12 +742,13 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {accounts && accounts.map((acc: any) => {
-              const isActive = acc.is_active == true || acc.is_active == 1 || acc.is_active == '1';
-              const isDefault = acc.is_default == true || acc.is_default == 1 || acc.is_default == '1';
+            {accounts && accounts.map((acc: Account) => {
+              const isActive = acc.is_active == true || acc.is_active == 1;
+              const isDefault = acc.is_default == true || acc.is_default == 1;
+              const isEditing = editingAccountId === acc.id;
 
               return (
-                <div key={acc.id} className={`relative p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col justify-between ${!isActive ? 'opacity-50 bg-muted/30' : ''} ${isDefault ? 'border-primary ring-1 ring-primary/30' : ''}`} >
+                <div key={acc.id} className={`group/card relative p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:border-border/80 ${!isActive ? 'opacity-50 bg-muted/30' : ''} ${isDefault ? 'border-primary ring-1 ring-primary/30' : ''} ${isEditing ? 'ring-2 ring-primary/40 border-primary/50' : ''}`} >
 
                   {/* Label Indikator Status */}
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
@@ -672,28 +760,103 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                     ) : null}
                   </div>
 
-                  <div>
+                  <div className="pr-16">
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                       {acc.type === 'bank' ? '🏦 Bank' : acc.type === 'e-wallet' ? '📱 E-Wallet' : '💵 Tunai'}
                     </p>
-                    <h3 className="text-sm font-bold mt-1 text-foreground">{acc.name}</h3>
-                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{acc.description || '-'}</p>
+
+                    {isEditing ? (
+                      <div className="mt-1.5 space-y-2">
+                        <Input
+                          value={editDraft.name}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, name: e.target.value }))}
+                          placeholder="Nama akun / bank"
+                          className="h-8 text-sm font-bold"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveEditAccount(acc.id);
+                            if (e.key === 'Escape') cancelEditAccount();
+                          }}
+                        />
+                        <Input
+                          value={editDraft.description}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, description: e.target.value }))}
+                          placeholder="Keterangan / nomor rekening"
+                          className="h-7 text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveEditAccount(acc.id);
+                            if (e.key === 'Escape') cancelEditAccount();
+                          }}
+                        />
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-2 text-[11px]"
+                            disabled={!editDraft.name.trim() || savingAccountId === acc.id}
+                            onClick={() => saveEditAccount(acc.id)}
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            {savingAccountId === acc.id ? 'Menyimpan...' : 'Simpan'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[11px]"
+                            disabled={savingAccountId === acc.id}
+                            onClick={cancelEditAccount}
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Batal
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="mt-1 cursor-pointer rounded-md -mx-1 px-1 py-0.5 hover:bg-muted/60 transition-colors"
+                        onClick={() => startEditAccount(acc)}
+                        title="Klik untuk edit nama & keterangan"
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <h3 className="text-sm font-bold text-foreground leading-snug">{acc.name}</h3>
+                          <Pencil className="h-3 w-3 text-muted-foreground/40 shrink-0 mt-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{acc.description || 'Klik untuk tambah keterangan...'}</p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-2">
                     {/* LOGIKA SENSOR NOMINAL SALDO */}
-                    <div className="text-lg font-bold tracking-tight text-foreground min-h-[28px] flex items-center">
-                      {isLoading ? (
-                        <Skeleton className="h-7 w-[150px]" />
-                      ) : showBalance ? (
-                        formatIDR(acc.current_balance)
-                      ) : (
-                        <span className="tracking-widest font-black text-muted-foreground/80">••••••</span>
-                      )}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-lg font-bold tracking-tight text-foreground min-h-[28px] flex items-center">
+                        {isLoading ? (
+                          <Skeleton className="h-7 w-[150px]" />
+                        ) : isAccountBalanceVisible(acc.id) ? (
+                          formatIDR(acc.current_balance)
+                        ) : (
+                          <span className="tracking-widest font-black text-muted-foreground/80">••••••</span>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => toggleAccountBalanceVisibility(acc.id)}
+                        title={hiddenAccountBalances.has(acc.id) ? 'Tampilkan saldo akun ini' : 'Sembunyikan saldo akun ini'}
+                      >
+                        {hiddenAccountBalances.has(acc.id) ? (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
                     </div>
 
                     {/* DERETAN TOMBOL AKSI KELOLA AKUN */}
-                    <div className="flex items-center gap-1.5 mt-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {isDefault && isActive ? (
                         <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-emerald-600 font-bold hover:bg-emerald-500/10 border border-emerald-500/20" onClick={() => {
                           transferForm.setData({ ...transferForm.data, from_account_id: acc.id.toString(), to_account_id: '', amount: '', description: '' }); setIsTransferOpen(true);
@@ -713,42 +876,48 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
 
         {/* SECTION 2: METRICS CASH FLOW ANALYSIS */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="border-sidebar-border/70 bg-emerald-50/20 dark:bg-emerald-950/10">
-            <div className="p-4 flex flex-row items-center justify-between pb-1">
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Total Arus Masuk (Income)</span>
-              <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+          <Card className="border-sidebar-border/70 bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-950/20 dark:to-emerald-900/10 hover:shadow-md transition-shadow">
+            <div className="p-4 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Total Arus Masuk</span>
+              <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
             </div>
             <div className="px-4 pb-4">
-              <div className="text-xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
-                {isLoading ? <Skeleton className="h-7 w-[200px]" /> : formatIDR(summary.total_income)}
-                {/* {formatIDR(summary.total_income)} */}
+              <div className="text-2xl font-extrabold tracking-tight text-emerald-700 dark:text-emerald-400">
+                {isLoading ? <Skeleton className="h-8 w-[180px]" /> : formatIDR(summary.total_income)}
               </div>
+              <p className="text-[10px] text-emerald-600/70 dark:text-emerald-500/70 mt-1">Income</p>
             </div>
           </Card>
 
-          <Card className="border-sidebar-border/70 bg-red-50/20 dark:bg-red-950/10">
-            <div className="p-4 flex flex-row items-center justify-between pb-1">
-              <span className="text-xs font-bold text-red-600 dark:text-red-400">Total Arus Keluar (Expense)</span>
-              <ArrowDownLeft className="h-4 w-4 text-red-500" />
+          <Card className="border-sidebar-border/70 bg-gradient-to-br from-red-50/50 to-red-100/30 dark:from-red-950/20 dark:to-red-900/10 hover:shadow-md transition-shadow">
+            <div className="p-4 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-red-700 dark:text-red-400">Total Arus Keluar</span>
+              <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+              </div>
             </div>
             <div className="px-4 pb-4">
-              <div className="text-xl font-extrabold tracking-tight text-red-600 dark:text-red-400">
-                {isLoading ? <Skeleton className="h-7 w-[200px]" /> : formatIDR(summary.total_expense)}
-                {/* {formatIDR(summary.total_expense)} */}
+              <div className="text-2xl font-extrabold tracking-tight text-red-700 dark:text-red-400">
+                {isLoading ? <Skeleton className="h-8 w-[180px]" /> : formatIDR(summary.total_expense)}
               </div>
+              <p className="text-[10px] text-red-600/70 dark:text-red-500/70 mt-1">Expense</p>
             </div>
           </Card>
 
-          <Card className={`border-sidebar-border/70 ${summary.net_cash_flow >= 0 ? 'bg-blue-50/20 dark:bg-blue-950/10' : 'bg-amber-50/20 dark:bg-amber-950/10'}`}>
-            <div className="p-4 flex flex-row items-center justify-between pb-1">
-              <span className="text-xs font-bold text-muted-foreground">Net Cash Flow (Arus Bersih)</span>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Card className={`border-sidebar-border/70 bg-gradient-to-br ${summary.net_cash_flow >= 0 ? 'from-blue-50/50 to-blue-100/30 dark:from-blue-950/20 dark:to-blue-900/10' : 'from-amber-50/50 to-amber-100/30 dark:from-amber-950/20 dark:to-amber-900/10'} hover:shadow-md transition-shadow`}>
+            <div className="p-4 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-muted-foreground">Net Cash Flow</span>
+              <div className={`h-8 w-8 rounded-full ${summary.net_cash_flow >= 0 ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-amber-100 dark:bg-amber-900/30'} flex items-center justify-center`}>
+                <DollarSign className={`h-4 w-4 ${summary.net_cash_flow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'}`} />
+              </div>
             </div>
             <div className="px-4 pb-4">
-              <div className={`text-xl font-black tracking-tight ${summary.net_cash_flow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600'}`}>
-                {isLoading ? <Skeleton className="h-7 w-[200px]" /> : formatIDR(summary.net_cash_flow)}
-                {/* {formatIDR(summary.net_cash_flow)} */}
+              <div className={`text-2xl font-black tracking-tight ${summary.net_cash_flow >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                {isLoading ? <Skeleton className="h-8 w-[180px]" /> : formatIDR(summary.net_cash_flow)}
               </div>
+              <p className={`text-[10px] mt-1 ${summary.net_cash_flow >= 0 ? 'text-blue-600/70 dark:text-blue-500/70' : 'text-amber-600/70 dark:text-amber-500/70'}`}>Arus Bersih</p>
             </div>
           </Card>
         </div>
@@ -797,17 +966,17 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
         ) : (
           /* SECTION 4: DATA TABLE HISTORY MUTASI */
           <Card className="border-sidebar-border/70 shadow-sm overflow-hidden">
-            <CardContent className="p-3">
+            <CardContent className="p-0">
               <Table>
-                <TableHeader className="bg-muted/40">
+                <TableHeader className="bg-muted/50 border-b border-border/50">
                   <TableRow>
-                    <TableHead className="w-[110px] text-xs font-bold">Tanggal</TableHead>
-                    <TableHead className="w-[150px] text-xs font-bold">Akun Kas</TableHead>
-                    <TableHead className="text-xs font-bold">Kategori / Keterangan</TableHead>
-                    <TableHead className="w-[150px] text-xs font-bold">No. Ref</TableHead>
-                    <TableHead className="text-right w-[150px] text-xs font-bold">Nominal</TableHead>
-                    <TableHead className="text-right w-[160px] text-xs font-bold">Saldo Berjalan</TableHead>
-                    <TableHead className="w-[50px] text-xs font-bold text-center">Aksi</TableHead>
+                    <TableHead className="w-[130px] text-xs font-bold text-muted-foreground">Tanggal</TableHead>
+                    <TableHead className="w-[150px] text-xs font-bold text-muted-foreground">Akun Kas</TableHead>
+                    <TableHead className="text-xs font-bold text-muted-foreground">Kategori / Keterangan</TableHead>
+                    <TableHead className="w-[150px] text-xs font-bold text-muted-foreground">No. Ref</TableHead>
+                    <TableHead className="text-right w-[150px] text-xs font-bold text-muted-foreground">Nominal</TableHead>
+                    <TableHead className="text-right w-[160px] text-xs font-bold text-muted-foreground">Saldo Berjalan</TableHead>
+                    <TableHead className="w-[50px] text-xs font-bold text-muted-foreground text-center">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -826,15 +995,22 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                       </TableCell>
                     </TableRow>
                   ) : (
-                    mutations?.data?.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell className="text-xs text-muted-foreground font-medium">
-                          {item.date}
+                    mutations?.data?.map((item, index) => (
+                      <TableRow key={item.id} className={`hover:bg-muted/50 transition-colors border-b border-border/30 ${index === 0 ? 'border-t-0' : ''}`}>
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-medium text-foreground">
+                              {formatDateTime(item.date).dateStr}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground italic">
+                              Pukul {formatDateTime(item.created_at).timeStr} WIB
+                            </span>
+                          </div>
                         </TableCell>
-                        <TableCell className="text-xs font-semibold text-foreground">
+                        <TableCell className="text-xs font-semibold text-foreground py-3">
                           {item.account?.name || 'Kas Terhapus'}
                         </TableCell>
-                        <TableCell className="py-2.5 max-w-[200px] md:max-w-[300px]">
+                        <TableCell className="py-3 max-w-[200px] md:max-w-[300px]">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs font-bold text-foreground">{item.category}</span>
                             {item.description && (
@@ -853,20 +1029,24 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs font-mono text-muted-foreground">
-                          {item.reference_number || '-'}
+                        <TableCell className="text-xs font-mono text-muted-foreground py-3">
+                          {item.reference_number ? (
+                            <span className="bg-muted/50 px-2 py-0.5 rounded text-[10px] font-mono">{item.reference_number}</span>
+                          ) : (
+                            <span className="text-muted-foreground/50">-</span>
+                          )}
                         </TableCell>
-                        <TableCell className={`text-right text-xs font-extrabold ${item.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <TableCell className={`text-right text-xs font-extrabold py-3 ${item.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                           {item.type === 'income' ? '+' : '-'}{formatIDR(item.amount)}
                         </TableCell>
-                        <TableCell className="text-right text-xs font-medium text-muted-foreground">
+                        <TableCell className="text-right text-xs font-medium text-muted-foreground py-3">
                           {formatIDR(item.balance_snapshot)}
                         </TableCell>
                         {/* KODE BARU: Mengunci Berdasarkan Ada/Tidaknya Nomor Referensi */}
-                        <TableCell className="text-center py-2">
+                        <TableCell className="text-center py-3">
                           {item.reference_number ? (
                             // Jika mutasi memiliki nomor nota/referensi, kunci otomatis! (Apapun nama kategorinya)
-                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-md font-bold tracking-wide">
+                            <span className="text-[10px] text-muted-foreground bg-muted/80 px-2 py-0.5 rounded-md font-bold tracking-wide border border-border/50">
                               🔒 Sistem
                             </span>
                           ) : (
@@ -890,7 +1070,7 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
           </Card>
         )}
         {/* ================= BARIS TOMBOL PAGINATION BARU ================= */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 pb-6 px-1">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 pb-6 px-1">
           <p className="text-xs text-muted-foreground text-center sm:text-left">
             Menampilkan <span className="font-semibold text-foreground">{mutations.from || 0}</span> sampai{" "}
             <span className="font-semibold text-foreground">{mutations.to || 0}</span> dari{" "}
@@ -903,7 +1083,7 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                 key={idx}
                 variant={link.active ? "default" : "outline"}
                 size="sm"
-                className={`h-8 text-xs px-3 ${link.active ? 'pointer-events-none' : ''}`}
+                className={`h-8 text-xs px-3 rounded-md transition-all duration-200 ${link.active ? 'pointer-events-none shadow-sm' : 'hover:bg-muted/80'} ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
                 disabled={!link.url}
                 onClick={() => {
                   if (link.url) {

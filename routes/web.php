@@ -35,7 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/finance/mutations', [FinancialMutationController::class, 'store'])->name('mutations.store');
     Route::post('/finance/mutations/accounts', [FinancialMutationController::class, 'storeAccount'])->name('mutations.accounts.store');
     Route::post('/finance/mutations/transfer', [FinancialMutationController::class, 'transfer'])->name('mutations.transfer');
-    // Route::patch('/finance/mutations/accounts/{id}', [FinancialMutationController::class, 'updateAccount'])->name('mutations.accounts.update');
+    Route::patch('/finance/mutations/accounts/{id}', [FinancialMutationController::class, 'updateAccount'])->name('mutations.accounts.update');
     Route::patch('/finance/mutations/accounts/{id}/toggle', [FinancialMutationController::class, 'toggleAccountStatus'])->name('mutations.accounts.toggle');
     Route::patch('/finance/mutations/accounts/{id}/default', [FinancialMutationController::class, 'setDefaultAccount'])->name('mutations.accounts.default');
     Route::delete('/finance/mutations/{id}', [FinancialMutationController::class, 'destroy'])->name('mutations.destroy');
