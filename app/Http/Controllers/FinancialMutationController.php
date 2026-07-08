@@ -50,7 +50,15 @@ class FinancialMutationController extends Controller
         $totalIncome = (clone $query)->where('type', 'income')->sum('amount');
         $totalExpense = (clone $query)->where('type', 'expense')->sum('amount');
 
-        // 4. Eksekusi data mutasi dengan Pagination (50 data per halaman)
+        // 4. Hitung jumlah mutasi per type untuk badge tabs
+        $typeCounts = FinancialMutation::where('user_id', $userId)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->selectRaw('type, COUNT(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'type')
+            ->toArray();
+
+        // 5. Eksekusi data mutasi dengan Pagination (50 data per halaman)
         $mutations = $query->orderBy('date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(50)
@@ -63,6 +71,11 @@ class FinancialMutationController extends Controller
                 'total_income' => (float)$totalIncome,
                 'total_expense' => (float)$totalExpense,
                 'net_cash_flow' => (float)($totalIncome - $totalExpense)
+            ],
+            'typeCounts' => [
+                'all' => FinancialMutation::where('user_id', $userId)->whereBetween('date', [$startDate, $endDate])->count(),
+                'income' => $typeCounts['income'] ?? 0,
+                'expense' => $typeCounts['expense'] ?? 0,
             ],
             'filters' => [
                 'financial_account_id' => $accountId,

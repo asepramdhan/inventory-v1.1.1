@@ -62,10 +62,24 @@ class TransactionController extends Controller
             ->has('hpp') // Hanya produk yang sudah diset HPP-nya yang bisa dijual
             ->get(['id', 'name', 'sku', 'price', 'stock']);
 
+        // Hitung jumlah transaksi per status untuk badge tabs
+        $statusCounts = Transaction::where('user_id', Auth::user()->id)
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
         return Inertia::render('finance/transactions', [
             'transactions' => $transactions,
             'storesList' => $storesList,
             'productsList' => $productsList,
+            'statusCounts' => [
+                'all' => Transaction::where('user_id', Auth::user()->id)->count(),
+                'pending' => $statusCounts['pending'] ?? 0,
+                'processing' => $statusCounts['processing'] ?? 0,
+                'completed' => $statusCounts['completed'] ?? 0,
+                'cancelled' => $statusCounts['cancelled'] ?? 0,
+            ],
             'filters' => [
                 'search' => $search ?? '',
                 'store_id' => $storeId ?? 'all',
@@ -507,6 +521,7 @@ class TransactionController extends Controller
             $priceIndex = null;
             $quantityIndex = null;
             $subtotalIndex = null;
+            $orderDateIndex = null;
 
             foreach ($headerRow as $index => $headerValue) {
                 $cleanHeader = trim($headerValue);
@@ -522,6 +537,8 @@ class TransactionController extends Controller
                     $quantityIndex = $index;
                 } elseif ($cleanHeader === 'Subtotal Pesanan') {
                     $subtotalIndex = $index;
+                } elseif ($cleanHeader === 'Waktu Pesanan Dibuat') {
+                    $orderDateIndex = $index;
                 }
             }
 
@@ -539,7 +556,7 @@ class TransactionController extends Controller
             $errorMessages = [];
 
             DB::transaction(function () use ($rows, $invoiceIndex, $statusIndex, $skuIndex, $priceIndex, 
-                $quantityIndex, $subtotalIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
+                $quantityIndex, $subtotalIndex, $orderDateIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
                 
                 $ordersByInvoice = [];
 
@@ -550,6 +567,7 @@ class TransactionController extends Controller
                     $price = floatval(str_replace(['Rp', '.', ','], '', $rows[$i][$priceIndex] ?? 0));
                     $quantity = intval($rows[$i][$quantityIndex] ?? 0);
                     $subtotal = floatval(str_replace(['Rp', '.', ','], '', $rows[$i][$subtotalIndex] ?? 0));
+                    $orderDateStr = $orderDateIndex !== null ? trim($rows[$i][$orderDateIndex] ?? '') : '';
 
                     if (empty($invoiceNumber) || empty($shopeeSku)) {
                         continue;
@@ -558,6 +576,7 @@ class TransactionController extends Controller
                     if (!isset($ordersByInvoice[$invoiceNumber])) {
                         $ordersByInvoice[$invoiceNumber] = [
                             'status' => $shopeeStatus,
+                            'order_date' => $orderDateStr,
                             'items' => []
                         ];
                     }
@@ -633,6 +652,17 @@ class TransactionController extends Controller
                         continue;
                     }
 
+                    // Parse order date from Excel (format: YYYY-MM-DD HH:MM)
+                    $transactionDate = now();
+                    if (!empty($orderData['order_date'])) {
+                        try {
+                            $transactionDate = \Carbon\Carbon::parse($orderData['order_date']);
+                        } catch (\Exception $e) {
+                            // If parsing fails, use current time
+                            $transactionDate = now();
+                        }
+                    }
+
                     $transaction = Transaction::create([
                         'user_id' => $userId,
                         'store_id' => $storeId,
@@ -643,7 +673,7 @@ class TransactionController extends Controller
                         'affiliate_fee' => 0,
                         'grand_total' => $subtotal,
                         'marketplace_admin_fee' => 0,
-                        'transaction_date' => now(),
+                        'transaction_date' => $transactionDate,
                     ]);
 
                     foreach ($validItems as $item) {

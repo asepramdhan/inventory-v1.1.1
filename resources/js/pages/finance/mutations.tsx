@@ -1,10 +1,11 @@
 /* eslint-disable curly */
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowDownLeft, ArrowUpRight, Calendar, DollarSign, Eye, EyeOff, Landmark, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Calendar, DollarSign, Eye, EyeOff, Landmark, Plus, Search, Trash2, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
@@ -15,6 +16,7 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHe
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // PERBAIKAN UTAMA: Definisi type-safety yang ketat untuk data akun dari database
 interface Account {
@@ -50,6 +52,7 @@ interface Props {
     total: number;
   };
   summary: { total_income: number; total_expense: number; net_cash_flow: number };
+  typeCounts: { all: number; income: number; expense: number };
   filters: { financial_account_id: string; type: string; start_date: string; end_date: string; search: string };
 }
 
@@ -120,7 +123,7 @@ function MutationsTableSkeleton() {
   );
 }
 
-export default function Mutations({ accounts, mutations, summary, filters }: Props) {
+export default function Mutations({ accounts, mutations, summary, typeCounts, filters }: Props) {
   // States Filter bawaan sinkronisasi URL
   const [search, setSearch] = useState(filters.search || '');
   const [accountFilter, setAccountFilter] = useState(filters.financial_account_id || 'all');
@@ -128,6 +131,11 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
   const [startDate, setStartDate] = useState(filters.start_date || '');
   const [endDate, setEndDate] = useState(filters.end_date || '');
   const [showBalance, setShowBalance] = useState<boolean>(true);
+
+  // Gunakan typeCounts dari backend untuk badge tabs (total data, bukan filtered)
+  const countAll = typeCounts?.all ?? 0;
+  const countIncome = typeCounts?.income ?? 0;
+  const countExpense = typeCounts?.expense ?? 0;
 
   // 1. TAMBAHKAN STATE PAGE DI SINI:
   const [page, setPage] = useState(mutations.current_page || 1);
@@ -591,6 +599,43 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
           </div>
         </div>
 
+        {/* ================= TABS FILTER TYPE ================= */}
+        <div className="flex w-full justify-center my-4">
+          <Tabs
+            value={typeFilter}
+            onValueChange={setTypeFilter}
+            className="w-auto"
+          >
+            <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted/50 p-1.5 gap-1.5 backdrop-blur-sm border border-border/50">
+
+              <TabsTrigger value="all" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
+                <Wallet className="h-4 w-4" />
+                Semua
+                <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-semibold bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 rounded-full">
+                  {countAll}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="income" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
+                <TrendingUp className="h-4 w-4" />
+                Uang Masuk
+                <Badge className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500 text-white rounded-full">
+                  {countIncome}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="expense" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
+                <TrendingDown className="h-4 w-4" />
+                Uang Keluar
+                <Badge variant="destructive" className="px-2 py-0.5 text-[10px] font-semibold rounded-full">
+                  {countExpense}
+                </Badge>
+              </TabsTrigger>
+
+            </TabsList>
+          </Tabs>
+        </div>
+
         {/* SECTION 1: RINGKASAN SALDO SELURUH AKUN (KAS UTAMA) */}
         <div className="space-y-2">
           {/* Baris Judul + Tombol Eye Toggle Global */}
@@ -709,24 +754,26 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
         </div>
 
         {/* SECTION 3: FILTER CONTROLLER BAR */}
-        <div className="flex flex-col lg:flex-row items-center gap-3 w-full bg-card p-3 rounded-xl border border-sidebar-border/60 shadow-sm">
-          <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full lg:w-auto">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-3 w-full">
+          <div className="flex items-center gap-2 w-full lg:w-auto">
             <Select value={accountFilter} onValueChange={setAccountFilter}>
-              <SelectTrigger className="w-full sm:w-[170px] text-xs h-9"><SelectValue placeholder="Semua Akun" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Semua Akun" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Rekening</SelectItem>
                 {accounts?.map((acc) => <SelectItem key={acc.id} value={acc.id.toString()}>{acc.name}</SelectItem>)}
               </SelectContent>
             </Select>
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[140px] text-xs h-9"><SelectValue placeholder="Semua Tipe" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Tipe Arus</SelectItem>
-                <SelectItem value="income">Masuk (+)</SelectItem>
-                <SelectItem value="expense">Keluar (-)</SelectItem>
-              </SelectContent>
-            </Select>
+            {(search !== '' || accountFilter !== 'all' || startDate !== '' || endDate !== '') && (
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={handleResetFilter}
+                className="h-9 px-3 text-xs text-muted-foreground hover:text-destructive"
+              >
+                Reset
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-2 w-full lg:w-auto">
@@ -736,18 +783,12 @@ export default function Mutations({ accounts, mutations, summary, filters }: Pro
               <span className="text-muted-foreground text-xs">s/d</span>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-xs border-none outline-none focus:ring-0 p-0 w-28" />
             </div>
-          </div>
 
-          <div className="relative w-full lg:max-w-xs lg:ml-auto">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input type="search" placeholder="Cari kategori, memo, atau ref..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 text-xs h-9 bg-background" />
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" placeholder="Cari kategori, memo, atau ref..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            </div>
           </div>
-
-          {(search !== '' || accountFilter !== 'all' || typeFilter !== 'all') && (
-            <Button variant="ghost" type="button" onClick={handleResetFilter} className="h-9 px-3 text-xs text-muted-foreground hover:text-destructive">
-              Reset
-            </Button>
-          )}
         </div>
 
         {/* LOGIKA SINKRONISASI SKELETON LOADER MUTASI */}

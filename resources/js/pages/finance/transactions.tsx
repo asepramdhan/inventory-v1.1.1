@@ -3,7 +3,7 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 /* eslint-disable curly */
 import { Form, Head, router } from '@inertiajs/react';
-import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Plus, RefreshCw, Search, ShoppingBag, Trash2 } from 'lucide-react';
+import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import Heading from '@/components/heading';
@@ -166,7 +166,7 @@ function TransactionsTableSkeleton() {
   );
 }
 
-export default function Transactions({ transactions, storesList, productsList, filters }: any) {
+export default function Transactions({ transactions, storesList, productsList, filters, statusCounts }: any) {
   // --- TAMBAHKAN STATE & EFFECT SKELETON DI SINI ---
   const [isLoading, setIsLoading] = useState(true);
 
@@ -349,6 +349,8 @@ export default function Transactions({ transactions, storesList, productsList, f
   const [uploadProcessing, setUploadProcessing] = useState(false);
   const [shopeeUploadProcessing, setShopeeUploadProcessing] = useState(false);
   const [shopeeStoreId, setShopeeStoreId] = useState<string>('');
+  const shopeeFileInputRef = useRef<HTMLInputElement>(null);
+  const statusFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -384,6 +386,7 @@ export default function Transactions({ transactions, storesList, productsList, f
     if (e.target.files && e.target.files[0]) {
       if (!shopeeStoreId) {
         alert('Pilih toko terlebih dahulu untuk impor pesanan.');
+        if (e.target) e.target.value = '';
         return;
       }
 
@@ -411,6 +414,18 @@ export default function Transactions({ transactions, storesList, productsList, f
         }
       });
     }
+  };
+
+  const triggerShopeeUpload = () => {
+    if (!shopeeStoreId) {
+      alert('Pilih toko terlebih dahulu untuk impor pesanan.');
+      return;
+    }
+    shopeeFileInputRef.current?.click();
+  };
+
+  const triggerStatusUpload = () => {
+    statusFileInputRef.current?.click();
   };
 
   const handleAddItem = () => {
@@ -484,12 +499,12 @@ export default function Transactions({ transactions, storesList, productsList, f
   // Ambil array datanya dengan aman, pastikan fallback ke array kosong [] jika null
   const transactionList = Array.isArray(transactions) ? transactions : (transactions?.data || []);
 
-  // Gunakan transactionList untuk menghitung counter
-  const countAll = transactionList.length;
-  const countPending = transactionList.filter((t: any) => t.status === 'pending').length;
-  const countProcessing = transactionList.filter((t: any) => t.status === 'processing').length;
-  const countCompleted = transactionList.filter((t: any) => t.status === 'completed').length;
-  const countCancelled = transactionList.filter((t: any) => t.status === 'cancelled').length;
+  // Gunakan statusCounts dari backend untuk badge tabs (total data, bukan filtered)
+  const countAll = statusCounts?.all ?? 0;
+  const countPending = statusCounts?.pending ?? 0;
+  const countProcessing = statusCounts?.processing ?? 0;
+  const countCompleted = statusCounts?.completed ?? 0;
+  const countCancelled = statusCounts?.cancelled ?? 0;
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
@@ -528,61 +543,65 @@ export default function Transactions({ transactions, storesList, productsList, f
             description="Manajemen data penjualan semua marketplace."
           />
           <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Select value={shopeeStoreId} onValueChange={setShopeeStoreId}>
-                <SelectTrigger className="w-[180px] h-9 text-xs">
-                  <SelectValue placeholder="Pilih Toko" />
-                </SelectTrigger>
-                <SelectContent>
-                  {storesList?.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id.toString()}>{s.name} ({s.platform})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-1.5">
+                  <Upload className="h-4 w-4" /> Import Excel
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Pilih Jenis Import</p>
+                </div>
+                <div className="px-2 py-2">
+                  <Select value={shopeeStoreId} onValueChange={setShopeeStoreId}>
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue placeholder="Pilih Toko" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {storesList?.map((s: any) => (
+                        <SelectItem key={s.id} value={s.id.toString()}>{s.name} ({s.platform})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <DropdownMenuItem onClick={triggerShopeeUpload} disabled={shopeeUploadProcessing} className="cursor-pointer">
+                  <FileSpreadsheet className={`h-4 w-4 ${shopeeUploadProcessing ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`} />
+                  <span>{shopeeUploadProcessing ? 'Mengimpor...' : 'Pesanan (.xlsx)'}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={triggerStatusUpload} disabled={uploadProcessing} className="cursor-pointer">
+                  <RefreshCw className={`h-4 w-4 ${uploadProcessing ? 'animate-spin text-blue-600' : 'text-blue-600'}`} />
+                  <span>{uploadProcessing ? 'Mengompilasi...' : 'Status (.xlsx)'}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              <div className="relative">
-                <input
-                  type="file"
-                  id="shopee-import-upload"
-                  accept=".xlsx, .xls"
-                  className="hidden"
-                  onChange={handleShopeeImport}
-                  disabled={shopeeUploadProcessing}
-                />
-                <Label
-                  htmlFor="shopee-import-upload"
-                  className={`inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border border-emerald-600/20 bg-emerald-50/40 text-emerald-600 hover:bg-emerald-600 hover:text-white shadow-sm dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white h-9 px-3 cursor-pointer ${shopeeUploadProcessing ? 'opacity-50 pointer-events-none' : ''}`}
-                >
-                  <FileSpreadsheet className={`h-4 w-4 ${shopeeUploadProcessing ? 'animate-spin' : ''}`} />
-                  {shopeeUploadProcessing ? 'Mengimpor...' : 'Pesanan (.xlsx)'}
-                </Label>
-              </div>
-            </div>
-
-            <div className="relative">
-              <input
-                type="file"
-                id="excel-status-upload"
-                accept=".xlsx, .xls"
-                className="hidden"
-                onChange={handleExcelUpload}
-                disabled={uploadProcessing}
-              />
-              <Label
-                htmlFor="excel-status-upload"
-                className={`inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border border-blue-600/20 bg-blue-50/40 text-blue-600 hover:bg-blue-600 hover:text-white shadow-sm dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white h-9 px-3 cursor-pointer ${uploadProcessing ? 'opacity-50 pointer-events-none' : ''}`}
-              >
-                <RefreshCw className={`h-4 w-4 ${uploadProcessing ? 'animate-spin' : ''}`} />
-                {uploadProcessing ? 'Mengompilasi...' : 'Status (.xlsx)'}
-              </Label>
-            </div>
+            {/* Hidden file inputs */}
+            <input
+              ref={shopeeFileInputRef}
+              type="file"
+              id="shopee-import-upload"
+              accept=".xlsx, .xls"
+              className="hidden"
+              onChange={handleShopeeImport}
+              disabled={shopeeUploadProcessing}
+            />
+            <input
+              ref={statusFileInputRef}
+              type="file"
+              id="excel-status-upload"
+              accept=".xlsx, .xls"
+              className="hidden"
+              onChange={handleExcelUpload}
+              disabled={uploadProcessing}
+            />
 
             <Sheet open={isCreateSheetOpen} onOpenChange={(open) => {
               setIsCreateSheetOpen(open);
               if (!open) resetForm();
             }}>
-              <Button onClick={() => setIsCreateSheetOpen(true)} className="gap-1.5 capitalize">
-                <Plus className="h-4 w-4" /> Transaksi
+              <Button onClick={() => setIsCreateSheetOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" /> Transaksi Manual
               </Button>
 
               <SheetContent className="w-full sm:max-w-xl flex flex-col h-full p-0">
@@ -894,57 +913,52 @@ export default function Transactions({ transactions, storesList, productsList, f
         </div>
 
         {/* ================= TABS FILTER BARU ================= */}
-        <div className="flex w-full justify-center my-2">
+        <div className="flex w-full justify-center my-4">
           <Tabs
             value={statusFilter}
             onValueChange={setStatusFilter}
             className="w-auto"
           >
-            <TabsList className="flex w-auto items-center justify-center gap-1 p-1 bg-muted rounded-lg">
+            <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted/50 p-1.5 gap-1.5 backdrop-blur-sm border border-border/50">
 
-              <TabsTrigger value="all" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+              <TabsTrigger value="all" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
+                <ShoppingBag className="h-4 w-4" />
                 Semua
-                {countAll > 0 && (
-                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                    {countAll}
-                  </Badge>
-                )}
+                <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-semibold bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 rounded-full">
+                  {countAll}
+                </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="pending" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+              <TabsTrigger value="pending" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
+                <Package className="h-4 w-4" />
                 Perlu Dikirim
-                {countPending > 0 && (
-                  <Badge className="px-1.5 py-0 text-[10px] font-medium bg-amber-500 hover:bg-amber-500 text-white dark:bg-amber-600">
-                    {countPending}
-                  </Badge>
-                )}
+                <Badge className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500 text-white rounded-full">
+                  {countPending}
+                </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="processing" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+              <TabsTrigger value="processing" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
+                <Truck className="h-4 w-4" />
                 Dikirim
-                {countProcessing > 0 && (
-                  <Badge className="px-1.5 py-0 text-[10px] font-medium bg-blue-500 hover:bg-blue-500 text-white dark:bg-blue-600">
-                    {countProcessing}
-                  </Badge>
-                )}
+                <Badge className="px-2 py-0.5 text-[10px] font-semibold bg-blue-500 text-white rounded-full">
+                  {countProcessing}
+                </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="completed" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+              <TabsTrigger value="completed" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
+                <CheckCircle className="h-4 w-4" />
                 Selesai
-                {countCompleted > 0 && (
-                  <Badge className="px-1.5 py-0 text-[10px] font-medium bg-emerald-500 hover:bg-emerald-500 text-white dark:bg-emerald-600">
-                    {countCompleted}
-                  </Badge>
-                )}
+                <Badge className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500 text-white rounded-full">
+                  {countCompleted}
+                </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="cancelled" className="gap-2 px-3 py-1.5 text-xs sm:text-sm">
+              <TabsTrigger value="cancelled" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
+                <XCircle className="h-4 w-4" />
                 Gagal / Batal
-                {countCancelled > 0 && (
-                  <Badge variant="destructive" className="px-1.5 py-0 text-[10px] font-medium">
-                    {countCancelled}
-                  </Badge>
-                )}
+                <Badge variant="destructive" className="px-2 py-0.5 text-[10px] font-semibold rounded-full">
+                  {countCancelled}
+                </Badge>
               </TabsTrigger>
 
             </TabsList>
@@ -952,46 +966,32 @@ export default function Transactions({ transactions, storesList, productsList, f
         </div>
 
         {/* BARIS SEKSI FILTER */}
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full bg-card p-3 rounded-lg border border-sidebar-border/60">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select value={storeFilter} onValueChange={setStoreFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Semua Toko" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Semua Toko" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Toko</SelectItem>
                 {storesList?.map((store: any) => <SelectItem key={store.id} value={store.id.toString()}>{store.name}</SelectItem>)}
               </SelectContent>
             </Select>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Semua Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="completed">Selesai</SelectItem>
-                <SelectItem value="processing">Diproses</SelectItem>
-                <SelectItem value="pending">Menunggu</SelectItem>
-                <SelectItem value="cancelled">Dibatalkan</SelectItem>
-              </SelectContent>
-            </Select>
+            {(search !== '' || storeFilter !== 'all') && (
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={handleResetFilter}
+                className="h-9 px-3 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              >
+                Reset
+              </Button>
+            )}
           </div>
 
-          <div className="relative w-full max-w-sm sm:ml-auto">
+          <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input type="search" placeholder="Cari No. Pesanan..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input type="search" placeholder="Cari No. Pesanan atau Produk..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
-
-          {/* ========================================================= */}
-          {/* TOMBOL RESET FILTER BARU DI PASANG DI SINI */}
-          {/* ========================================================= */}
-          {(search !== '' || storeFilter !== 'all' || statusFilter !== 'all') && (
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={handleResetFilter}
-              className="h-9 px-2 lg:px-3 text-xs text-muted-foreground hover:text-destructive transition-colors"
-            >
-              Reset
-            </Button>
-          )}
         </div>
 
         {/* LOGIKA SINKRONISASI SKELETON LOADER HALAMAN TRANSAKSI */}
