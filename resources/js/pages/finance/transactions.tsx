@@ -492,7 +492,7 @@ export default function Transactions({ transactions, storesList, productsList, f
     const date = new Date(cleanDateString);
     return {
       dateStr: date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
-      timeStr: date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace('.', ':')
+      timeStr: date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')
     };
   };
 

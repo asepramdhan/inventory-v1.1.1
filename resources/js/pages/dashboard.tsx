@@ -69,12 +69,23 @@ const formatChartDate = (dateStr: string) => {
 
 const formatDateTime = (dateString: string) => {
   if (!dateString) return { dateStr: '-', timeStr: '-' };
+  const cleanDateString = dateString.endsWith('Z') ? dateString.slice(0, -1) : dateString;
+  const date = new Date(cleanDateString);
+  return {
+    dateStr: date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+    timeStr: date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')
+  };
+};
+
+const formatDateTimes = (dateString: string) => {
+  if (!dateString) return { dateStr: '-', timeStr: '-' };
   const date = new Date(dateString);
   return {
     dateStr: date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
     timeStr: date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'),
   };
 };
+
 
 const formatAxisIDR = (value: number) => {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} jt`;
@@ -374,8 +385,8 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                           <TableRow key={mut.id} className="hover:bg-muted/10">
                             <TableCell className="py-2">
                               <div className="flex flex-col gap-0.5">
-                                <span className="text-xs font-medium">{formatDateTime(mut.date).dateStr}</span>
-                                <span className="text-[10px] text-muted-foreground italic">Pukul {formatDateTime(mut.created_at).timeStr}</span>
+                                <span className="text-xs font-medium">{formatDateTimes(mut.created_at).dateStr}</span>
+                                <span className="text-[10px] text-muted-foreground italic">Pukul {formatDateTimes(mut.created_at).timeStr}</span>
                               </div>
                             </TableCell>
                             <TableCell className="text-xs font-semibold">{mut.category}</TableCell>

@@ -1000,7 +1000,7 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                         <TableCell className="py-3">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs font-medium text-foreground">
-                              {formatDateTime(item.date).dateStr}
+                              {formatDateTime(item.created_at).dateStr}
                             </span>
                             <span className="text-[11px] text-muted-foreground italic">
                               Pukul {formatDateTime(item.created_at).timeStr} WIB
