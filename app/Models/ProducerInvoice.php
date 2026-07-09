@@ -62,4 +62,11 @@ class ProducerInvoice extends Model
     {
         return $this->belongsTo(Producer::class, 'producer_id');
     }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(FinancialMutation::class, 'reference_number', 'invoice_number')
+            ->where('category', 'Pelunasan Produsen')
+            ->orderBy('created_at', 'asc');
+    }
 }

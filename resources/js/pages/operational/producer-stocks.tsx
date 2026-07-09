@@ -1,7 +1,7 @@
 /* eslint-disable curly */
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, router, useForm } from '@inertiajs/react';
-import { Calendar, CheckCircle2, DollarSign, Plus, Receipt, Text, Trash2 } from 'lucide-react';
+import { Calendar, CheckCircle2, DollarSign, History, Plus, Receipt, Text, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -22,17 +22,32 @@ interface InvoiceItem {
   subtotal: number;
 }
 
+interface PaymentRecord {
+  id: number;
+  date: string;
+  created_at: string;
+  amount: number;
+  description: string | null;
+  account?: {
+    id: number;
+    name: string;
+    type: string;
+  };
+}
+
 interface Invoice {
   id: number;
   producer_name: string;
   invoice_number: string;
   received_date: string;
+  created_at: string;
   total_amount: number;
   paid_amount: number;
   status: 'unpaid' | 'paid';
   paid_date: string | null;
   description: string | null;
   items: InvoiceItem[];
+  payments: PaymentRecord[];
 }
 
 interface Account {
@@ -62,7 +77,7 @@ function ProducerStocksTableSkeleton() {
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow>
-              <TableHead className="w-[120px]">Tgl Datang</TableHead>
+              <TableHead className="w-[130px]">Tgl Datang</TableHead>
               <TableHead className="w-[180px]">Produsen</TableHead>
               <TableHead className="w-[140px]">No. Nota</TableHead>
               <TableHead>Rincian Barang</TableHead>
@@ -77,7 +92,10 @@ function ProducerStocksTableSkeleton() {
               <TableRow key={i} className="border-b border-muted/20">
                 {/* Tgl Datang */}
                 <TableCell>
-                  <div className="h-3.5 bg-muted rounded w-16" />
+                  <div className="flex flex-col gap-0.5">
+                    <div className="h-3.5 bg-muted rounded w-20" />
+                    <div className="h-3 bg-muted/60 rounded w-24" />
+                  </div>
                 </TableCell>
 
                 {/* Produsen */}
@@ -128,7 +146,9 @@ function ProducerStocksTableSkeleton() {
 export default function ProducerStocks({ invoices, accounts, totalUnpaid, masterProducers }: Props) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
 
   // State untuk inline edit catatan nota langsung di tabel
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
@@ -156,14 +176,30 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
     }).format(num);
   };
 
-  // Helper untuk merapikan format tanggal ISO-8601 menjadi YYYY-MM-DD
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-';
-    // Jika string mengandung huruf 'T', potong ambil bagian depannya saja
-    if (dateString.includes('T')) {
-      return dateString.split('T')[0];
-    }
-    return dateString;
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return { dateStr: '-', timeStr: '-' };
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeStr = date.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).replace('.', ':');
+    return { dateStr, timeStr };
+  };
+
+  const getPaymentTypeLabel = (description: string | null) => {
+    if (description?.includes('Pelunasan Akhir')) return 'Pelunasan Akhir';
+    if (description?.includes('Pembayaran Sebagian')) return 'Cicilan';
+    return 'Pembayaran';
+  };
+
+  const handleOpenDetailModal = (invoice: Invoice) => {
+    setDetailInvoice(invoice);
+    setIsDetailOpen(true);
   };
 
   // Helper Masking Rupiah saat Mengetik di Inputan Form
@@ -485,7 +521,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
               <Table>
                 <TableHeader className="bg-muted/40">
                   <TableRow>
-                    <TableHead className="w-[120px]">Tgl Datang</TableHead>
+                    <TableHead className="w-[130px]">Tgl Datang</TableHead>
                     <TableHead className="w-[180px]">Produsen</TableHead>
                     <TableHead className="w-[140px]">No. Nota</TableHead>
                     <TableHead>Rincian Barang</TableHead>
@@ -503,13 +539,26 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
                     </TableRow>
                   ) : (
                     invoices.map((inv) => (
-                      <TableRow key={inv.id} className="hover:bg-muted/10 transition-colors">
-                        <TableCell className="text-xs text-muted-foreground">{formatDate(inv.received_date)}</TableCell>
+                      <TableRow
+                        key={inv.id}
+                        className="hover:bg-muted/10 transition-colors cursor-pointer"
+                        onClick={() => handleOpenDetailModal(inv)}
+                      >
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-medium text-foreground">
+                              {formatDateTime(inv.received_date).dateStr}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground italic">
+                              Pukul {formatDateTime(inv.created_at).timeStr} WIB
+                            </span>
+                          </div>
+                        </TableCell>
                         <TableCell className="text-xs font-bold text-foreground">{inv.producer_name}</TableCell>
                         <TableCell className="text-xs font-mono font-medium text-muted-foreground">{inv.invoice_number}</TableCell>
 
                         {/* RINCIAN LIST BARANG DI DALAM CELL TABEL (BISA EDIT NOTE LANGSUNG) */}
-                        <TableCell className="py-2">
+                        <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-col gap-1 max-w-[320px]">
                             {inv.items?.map((item) => (
                               <div key={item.id} className="text-[11px] bg-muted/40 px-1.5 py-0.5 rounded flex justify-between items-center border border-muted/20">
@@ -582,7 +631,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
                         </TableCell>
 
                         {/* TOMBOL PELUNASAN */}
-                        <TableCell className="text-center py-2">
+                        <TableCell className="text-center py-2" onClick={(e) => e.stopPropagation()}>
                           {inv.status === 'unpaid' ? (
                             <Button
                               variant="outline"
@@ -606,6 +655,170 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
             </CardContent>
           </Card>
         )}
+
+        {/* SHEET DETAIL NOTA & RIWAYAT PEMBAYARAN */}
+        <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+          <SheetContent className="flex flex-col h-full sm:max-w-lg p-0 gap-0">
+            <SheetHeader className="p-6 border-b bg-background">
+              <SheetTitle className="flex items-center gap-2">
+                <History className="h-4 w-4 text-blue-600" />
+                Detail Nota & Riwayat Pembayaran
+              </SheetTitle>
+              <SheetDescription>
+                Klik baris tabel untuk melihat rincian nota dan histori cicilan maupun pelunasan.
+              </SheetDescription>
+            </SheetHeader>
+
+            {detailInvoice && (
+              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                <div className="bg-muted/40 p-4 rounded-lg border space-y-2">
+                  <div className="flex justify-between items-start gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Produsen</p>
+                      <p className="text-sm font-bold text-foreground">{detailInvoice.producer_name}</p>
+                    </div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${detailInvoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                      : detailInvoice.paid_amount > 0 ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                        : 'bg-red-500/10 text-red-600 border border-red-500/20'
+                      }`}>
+                      {detailInvoice.status === 'paid' ? 'LUNAS' : detailInvoice.paid_amount > 0 ? 'DICICIL' : 'BELUM BAYAR'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">No. Nota</p>
+                      <p className="text-xs font-mono font-semibold">{detailInvoice.invoice_number}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Tgl Barang Datang</p>
+                      <p className="text-xs font-medium">
+                        {formatDateTime(detailInvoice.received_date).dateStr}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-dashed">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Total Tagihan</p>
+                      <p className="text-xs font-bold">{formatIDR(detailInvoice.total_amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Sudah Dibayar</p>
+                      <p className="text-xs font-bold text-emerald-600">{formatIDR(detailInvoice.paid_amount || 0)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Sisa</p>
+                      <p className="text-xs font-bold text-red-600">{formatIDR(detailInvoice.total_amount - (detailInvoice.paid_amount || 0))}</p>
+                    </div>
+                  </div>
+                  {detailInvoice.description && (
+                    <p className="text-[11px] text-amber-600 italic pt-1 border-t border-dashed">
+                      Catatan: {detailInvoice.description}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-foreground">Rincian Barang ({detailInvoice.items?.length || 0})</p>
+                  <div className="border rounded-lg overflow-hidden">
+                    {detailInvoice.items?.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center text-[11px] px-3 py-2 border-b last:border-b-0 bg-muted/20">
+                        <span className="font-medium truncate mr-2">{item.item_name}</span>
+                        <span className="text-muted-foreground shrink-0">{item.quantity} pcs × {formatIDR(item.cost_per_item)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-foreground">Riwayat Pembayaran</p>
+                    <span className="text-[10px] text-muted-foreground">{detailInvoice.payments?.length || 0} transaksi</span>
+                  </div>
+
+                  {detailInvoice.payments?.length > 0 ? (
+                    <div className="space-y-0">
+                      {detailInvoice.payments.map((payment, index) => {
+                        const paymentType = getPaymentTypeLabel(payment.description);
+                        const isFinal = paymentType === 'Pelunasan Akhir';
+
+                        return (
+                          <div key={payment.id} className="flex gap-3">
+                            <div className="flex flex-col items-center">
+                              <div className={`h-3 w-3 rounded-full border-2 shrink-0 ${isFinal ? 'bg-emerald-500 border-emerald-500' : 'bg-amber-400 border-amber-400'}`} />
+                              {index < detailInvoice.payments.length - 1 && (
+                                <div className="w-px flex-1 bg-border my-1" />
+                              )}
+                            </div>
+                            <div className="flex-1 pb-4">
+                              <div className="flex justify-between items-start gap-2">
+                                <div>
+                                  <p className="text-xs font-semibold text-foreground">
+                                    {formatDateTime(payment.date).dateStr}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground italic">
+                                    Pukul {formatDateTime(payment.created_at).timeStr} WIB
+                                  </p>
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isFinal
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : 'bg-amber-500/10 text-amber-600'
+                                  }`}>
+                                  {paymentType}
+                                </span>
+                              </div>
+                              <p className="text-sm font-black text-emerald-600 mt-1">{formatIDR(payment.amount)}</p>
+                              {payment.account && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  via {payment.account.name} ({payment.account.type.toUpperCase()})
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="border border-dashed rounded-lg p-6 text-center">
+                      <History className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">Belum ada riwayat pembayaran untuk nota ini.</p>
+                      {detailInvoice.status === 'unpaid' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3 h-7 text-[11px] font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10"
+                          onClick={() => {
+                            setIsDetailOpen(false);
+                            handleOpenPayModal(detailInvoice);
+                          }}
+                        >
+                          💰 Lunasi Sekarang
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <SheetFooter className="p-4 border-t flex-row gap-2 justify-end">
+              {detailInvoice?.status === 'unpaid' && detailInvoice.payments?.length > 0 && (
+                <Button
+                  variant="outline"
+                  className="text-xs font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10"
+                  onClick={() => {
+                    setIsDetailOpen(false);
+                    handleOpenPayModal(detailInvoice);
+                  }}
+                >
+                  💰 Tambah Pembayaran
+                </Button>
+              )}
+              <SheetClose asChild>
+                <Button variant="outline" type="button" className="text-xs">Tutup</Button>
+              </SheetClose>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
 
         {/* SHEET MODAL UNTUK KLIK PELUNASAN MINGGUAN */}
         <Sheet open={isPayOpen} onOpenChange={setIsPayOpen}>

@@ -18,7 +18,9 @@ class ProducerStockController extends Controller
         $userId = Auth::user()->id;
 
         // Ambil semua nota kiriman produsen
-        $invoices = ProducerInvoice::with('items')
+        $invoices = ProducerInvoice::with(['items', 'payments' => function ($query) use ($userId) {
+                $query->where('user_id', $userId)->with('account');
+            }])
             ->where('user_id', $userId)
             ->orderBy('status', 'asc')
             ->orderBy('received_date', 'desc')
