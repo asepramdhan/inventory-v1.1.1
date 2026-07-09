@@ -166,11 +166,11 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-blue-500 shadow-sm">
+              <Card className="border-l-4 border-l-amber-500 shadow-sm">
                 <CardContent className="p-4 flex items-center justify-between gap-3">
                   <div className="space-y-0.5 min-w-0 flex-1">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-blue-600">Profit Bersih Bulan Ini</p>
-                    <p className="text-xl font-black text-blue-600 tracking-tight">{formatIDR(summary.profit)}</p>
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-amber-600">Profit Bersih Bulan Ini</p>
+                    <p className="text-xl font-black text-amber-600 tracking-tight">{formatIDR(summary.profit)}</p>
                     <div className="pt-1 flex flex-col gap-0.5 text-[10px] border-t border-dashed mt-1">
                       <div className="flex justify-between gap-2">
                         <span className="flex items-center gap-1 text-amber-600"><Clock className="h-3 w-3" /> Pending</span>
@@ -182,7 +182,7 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                       </div>
                     </div>
                   </div>
-                  <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                  <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
                     <DollarSign className="h-5 w-5" />
                   </div>
                 </CardContent>
@@ -235,8 +235,8 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                             <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                           </linearGradient>
                           <linearGradient id="dashColorProfit" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#d97706" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#d97706" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted/40" />
@@ -251,7 +251,7 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                         />
                         <Legend wrapperStyle={{ fontSize: '11px' }} />
                         <Area type="monotone" dataKey="omzet" name="Omzet" stroke="#10b981" strokeWidth={2} fill="url(#dashColorOmzet)" />
-                        <Area type="monotone" dataKey="profit" name="Profit" stroke="#2563eb" strokeWidth={2} fill="url(#dashColorProfit)" />
+                        <Area type="monotone" dataKey="profit" name="Profit" stroke="#d97706" strokeWidth={2} fill="url(#dashColorProfit)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   )}

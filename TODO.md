@@ -1,4 +1,4 @@
-- [ ] Periksa model Store (cast/fillable) dan validasi backend terkait field active/processing_fee
-- [ ] Perbaiki `StoreController@destroy()` agar mengembalikan redirect ke `stores.index`
-- [ ] (Opsional) Perbaiki pengiriman nilai `active` dari `store.tsx` agar kompatibel dengan validasi Laravel `boolean`
+- [x] Periksa model Store (cast/fillable) dan validasi backend terkait field active/processing_fee
+- [x] Perbaiki `StoreController@destroy()` agar mengembalikan redirect ke `stores.index`
+- [x] (Opsional) Perbaiki pengiriman nilai `active` dari `store.tsx` agar kompatibel dengan validasi Laravel `boolean`
 - [ ] Jalankan/cek build/dev server dan pastikan flow tambah/edit/delete berfungsi

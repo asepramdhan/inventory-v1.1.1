@@ -376,7 +376,7 @@ class TransactionController extends Controller
                         $mappedStatus = 'completed';
                         break;
                     case 'sedang dikirim':
-                        // case 'Dikirim':
+                    case 'dikirim':
                         $mappedStatus = 'processing';
                         break;
                     case 'batal':
@@ -395,12 +395,32 @@ class TransactionController extends Controller
 
                     // Pastikan transaksi ditemukan dan statusnya memang ada perubahan
                     if ($transaction && $transaction->status !== $mappedStatus) {
+                        $oldStatus = $transaction->status;
 
-                        // Set status baru
-                        $transaction->status = $mappedStatus;
+                        DB::transaction(function () use ($transaction, $mappedStatus, $oldStatus) {
+                            $transaction->load('items');
 
-                        // Menggunakan ->save() agar Event booted() di model Transaction terpicu
-                        $transaction->save();
+                            // Sesuaikan stok jika status berubah ke/dari cancelled
+                            if ($mappedStatus === 'cancelled' && $oldStatus !== 'cancelled') {
+                                foreach ($transaction->items as $item) {
+                                    DB::table('products')
+                                        ->where('id', $item->product_id)
+                                        ->increment('stock', $item->quantity);
+                                }
+                            } elseif ($oldStatus === 'cancelled' && $mappedStatus !== 'cancelled') {
+                                foreach ($transaction->items as $item) {
+                                    DB::table('products')
+                                        ->where('id', $item->product_id)
+                                        ->decrement('stock', $item->quantity);
+                                }
+                            }
+
+                            // Set status baru
+                            $transaction->status = $mappedStatus;
+
+                            // Menggunakan ->save() agar Event booted() di model Transaction terpicu
+                            $transaction->save();
+                        });
 
                         $updatedCount++;
                     }
@@ -605,6 +625,7 @@ class TransactionController extends Controller
                             $mappedStatus = 'completed';
                             break;
                         case 'sedang dikirim':
+                        case 'dikirim':
                             $mappedStatus = 'processing';
                             break;
                         case 'batal':
@@ -645,7 +666,7 @@ class TransactionController extends Controller
                             'selling_price' => $item['price']
                         ];
 
-                        $subtotal += $item['subtotal'];
+                        $subtotal += $item['price'] * $item['quantity'];
                     }
 
                     if (empty($validItems)) {

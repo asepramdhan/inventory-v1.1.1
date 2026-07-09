@@ -144,7 +144,7 @@ class StoreController extends Controller
             'message' => 'Toko / Marketplace berhasil dihapus.'
         ]);
 
-        return back();
+        return to_route('stores.index');
     }
 
     public function bulkDestroy(Request $request)

@@ -252,7 +252,7 @@ export default function Transactions({ transactions, storesList, productsList, f
 
   // Ganti 'openProductDropdown' dengan nama state dropdown produk Anda
   useEffect(() => {
-    if (openProductSearchIndex) {
+    if (openProductSearchIndex !== null) {
       // Beri sedikit timeout 50ms agar animasi popover selesai terbuka dulu baru di-focus
       const timer = setTimeout(() => {
         productInputRef.current?.focus();

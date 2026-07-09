@@ -2,7 +2,7 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, router, useForm } from '@inertiajs/react';
 import { ArrowDownLeft, ArrowUpRight, Calendar, Check, DollarSign, Eye, EyeOff, Landmark, Pencil, Plus, Search, Trash2, TrendingUp, TrendingDown, Wallet, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -285,6 +285,16 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
   };
 
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const transferAmountInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isTransferOpen) {
+      setTimeout(() => {
+        transferAmountInputRef.current?.focus();
+        transferAmountInputRef.current?.select();
+      }, 150);
+    }
+  }, [isTransferOpen]);
 
   // Inertia Form untuk Transfer / Penarikan Saldo
   const transferForm = useForm({
@@ -647,16 +657,30 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                       <Label htmlFor="ts_date">Tanggal Penarikan</Label>
                       <Input type="date" id="ts_date" value={transferForm.data.date} onChange={(e) => transferForm.setData('date', e.target.value)} />
                       <InputError message={transferForm.errors.date} />
-                    </div>
-                    <div className="space-y-1.5">
+                    </div>                     <div className="space-y-1.5">
                       <Label htmlFor="ts_amount">Nominal Penarikan (Rp)</Label>
                       <Input
+                        ref={transferAmountInputRef}
                         id="ts_amount"
                         type="text" // UBAH ke text
                         placeholder="Contoh: 250.000"
                         value={formatDisplayRupiah(transferForm.data.amount)} // Tampilkan format titik
                         onChange={(e) => transferForm.setData('amount', cleanRupiahValue(e.target.value))} // Simpan angka bersih
                       />
+                      {transferForm.data.from_account_id && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const fromAcc = accounts.find(a => a.id.toString() === transferForm.data.from_account_id);
+                            if (fromAcc) {
+                              transferForm.setData('amount', Math.round(fromAcc.current_balance).toString());
+                            }
+                          }}
+                          className="text-[10px] text-emerald-600 hover:underline font-semibold block text-right w-full mt-1"
+                        >
+                          Tarik Semua (Saldo: {formatIDR(accounts.find(a => a.id.toString() === transferForm.data.from_account_id)?.current_balance ?? 0)})
+                        </button>
+                      )}
                       <InputError message={transferForm.errors.amount} />
                     </div>
                   </div>
@@ -859,7 +883,14 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {isDefault && isActive ? (
                         <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-emerald-600 font-bold hover:bg-emerald-500/10 border border-emerald-500/20" onClick={() => {
-                          transferForm.setData({ ...transferForm.data, from_account_id: acc.id.toString(), to_account_id: '', amount: '', description: '' }); setIsTransferOpen(true);
+                          transferForm.setData({
+                            ...transferForm.data,
+                            from_account_id: acc.id.toString(),
+                            to_account_id: '',
+                            amount: Math.round(acc.current_balance).toString(),
+                            description: ''
+                          });
+                          setIsTransferOpen(true);
                         }} > 💸 Tarik Saldo </Button>
                       ) : null}
                       {!isDefault && isActive ? (
