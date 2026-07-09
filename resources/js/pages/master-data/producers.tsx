@@ -1,10 +1,12 @@
-import { Head, useForm } from '@inertiajs/react';
-import { BookOpen, MapPin, Phone, Plus, Text, User } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { BookOpen, MapPin, MoreHorizontalIcon, Pencil, Phone, Plus, Text, Trash2, User } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -16,17 +18,97 @@ interface Producer {
   phone: string | null;
   address: string | null;
   notes: string | null;
-  total_unpaid_debt: number; // Dihitung dinamis dari backend map()
+  total_unpaid_debt: number;
+  invoices_count: number;
 }
 
 interface Props {
   producers: Producer[];
 }
 
-export default function Producers({ producers }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
+function ProducerFormFields({
+  data,
+  setData,
+  errors,
+  idPrefix = '',
+}: {
+  data: { name: string; phone: string; address: string; notes: string };
+  setData: (key: 'name' | 'phone' | 'address' | 'notes', value: string) => void;
+  errors: Partial<Record<'name' | 'phone' | 'address' | 'notes', string>>;
+  idPrefix?: string;
+}) {
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}name`}>Nama Produsen / Konveksi</Label>
+        <div className="relative">
+          <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            id={`${idPrefix}name`}
+            placeholder="Contoh: Konveksi Hijab Bandung"
+            className="pl-9 h-9 text-xs"
+            value={data.name}
+            onChange={(e) => setData('name', e.target.value)}
+          />
+        </div>
+        <InputError message={errors.name} />
+      </div>
 
-  // Helper Formatter Rupiah
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}phone`}>No. Telepon / WhatsApp (Opsional)</Label>
+        <div className="relative">
+          <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            id={`${idPrefix}phone`}
+            placeholder="Contoh: 08123456789"
+            className="pl-9 h-9 text-xs"
+            value={data.phone}
+            onChange={(e) => setData('phone', e.target.value)}
+          />
+        </div>
+        <InputError message={errors.phone} />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}address`}>Alamat Workshop / Gudang (Opsional)</Label>
+        <div className="relative">
+          <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <textarea
+            id={`${idPrefix}address`}
+            rows={2}
+            placeholder="Masukkan alamat lengkap produsen..."
+            className="flex min-h-[60px] w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={data.address}
+            onChange={(e) => setData('address', e.target.value)}
+          />
+        </div>
+        <InputError message={errors.address} />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}notes`}>Catatan Kerja Sama (Opsional)</Label>
+        <div className="relative">
+          <Text className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <textarea
+            id={`${idPrefix}notes`}
+            rows={2}
+            placeholder="Contoh: Sistem pembayaran tempo tiap hari Sabtu sore..."
+            className="flex min-h-[60px] w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={data.notes}
+            onChange={(e) => setData('notes', e.target.value)}
+          />
+        </div>
+        <InputError message={errors.notes} />
+      </div>
+    </>
+  );
+}
+
+export default function Producers({ producers }: Props) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedProducer, setSelectedProducer] = useState<Producer | null>(null);
+
   const formatIDR = (num: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -35,25 +117,60 @@ export default function Producers({ producers }: Props) {
     }).format(num);
   };
 
-  // Inertia Form untuk menambahkan master produsen baru
-  const { data, setData, post, processing, errors, reset } = useForm({
+  const createForm = useForm({
     name: '',
     phone: '',
     address: '',
     notes: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const editForm = useForm({
+    name: '',
+    phone: '',
+    address: '',
+    notes: '',
+  });
+
+  const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    post('/master-data/producers', {
+    createForm.post('/master-data/producers', {
       onSuccess: () => {
-        setIsOpen(false);
-        reset();
+        setIsCreateOpen(false);
+        createForm.reset();
       },
     });
   };
 
-  // Hitung total hutang global ke seluruh produsen
+  const handleOpenEdit = (producer: Producer) => {
+    setSelectedProducer(producer);
+    editForm.setData({
+      name: producer.name,
+      phone: producer.phone || '',
+      address: producer.address || '',
+      notes: producer.notes || '',
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProducer) return;
+
+    editForm.put(`/master-data/producers/${selectedProducer.id}`, {
+      onSuccess: () => {
+        setIsEditOpen(false);
+        setSelectedProducer(null);
+        editForm.reset();
+      },
+    });
+  };
+
+  const handleDelete = (producerId: number) => {
+    router.delete(`/master-data/producers/${producerId}`, {
+      preserveScroll: true,
+    });
+  };
+
   const globalTotalDebt = producers.reduce((acc, curr) => acc + curr.total_unpaid_debt, 0);
 
   return (
@@ -61,94 +178,41 @@ export default function Producers({ producers }: Props) {
       <Head title="Master Data Produsen" />
       <div className="flex flex-col gap-4 p-4">
 
-        {/* HEADER & ACTION BUTTON */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <Heading
             title="Mitra & Produsen Konveksi"
             description="Kelola daftar master data produsen supplier beserta buku kartu hutang berjalannya."
           />
 
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <Sheet
+            open={isCreateOpen}
+            onOpenChange={(open) => {
+              setIsCreateOpen(open);
+              if (!open) createForm.reset();
+            }}
+          >
             <SheetTrigger asChild>
               <Button className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs gap-1.5 self-start sm:self-auto shadow-sm">
                 <Plus className="h-4 w-4" /> Tambah Produsen
               </Button>
             </SheetTrigger>
 
-            {/* SHEET POP-UP FORM TAMBAH MASTER PRODUSEN */}
             <SheetContent className="flex flex-col h-full sm:max-w-md p-0 gap-0">
               <SheetHeader className="p-6 border-b bg-background">
                 <SheetTitle>Tambah Master Produsen</SheetTitle>
                 <SheetDescription>Daftarkan produsen atau konveksi baru untuk mempermudah pencatatan nota berkala.</SheetDescription>
               </SheetHeader>
 
-              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Nama Produsen / Konveksi</Label>
-                  <div className="relative">
-                    <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="name"
-                      placeholder="Contoh: Konveksi Hijab Bandung"
-                      className="pl-9 h-9 text-xs"
-                      value={data.name}
-                      onChange={(e) => setData('name', e.target.value)}
-                    />
-                  </div>
-                  <InputError message={errors.name} />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone">No. Telepon / WhatsApp (Opsional)</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="phone"
-                      placeholder="Contoh: 08123456789"
-                      className="pl-9 h-9 text-xs"
-                      value={data.phone}
-                      onChange={(e) => setData('phone', e.target.value)}
-                    />
-                  </div>
-                  <InputError message={errors.phone} />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="address">Alamat Workshop / Gudang (Opsional)</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <textarea
-                      id="address"
-                      rows={2}
-                      placeholder="Masukkan alamat lengkap produsen..."
-                      className="flex min-h-[60px] w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={data.address}
-                      onChange={(e) => setData('address', e.target.value)}
-                    />
-                  </div>
-                  <InputError message={errors.address} />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="notes">Catatan Kerja Sama (Opsional)</Label>
-                  <div className="relative">
-                    <Text className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <textarea
-                      id="notes"
-                      rows={2}
-                      placeholder="Contoh: Sistem pembayaran tempo tiap hari Sabtu sore..."
-                      className="flex min-h-[60px] w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={data.notes}
-                      onChange={(e) => setData('notes', e.target.value)}
-                    />
-                  </div>
-                  <InputError message={errors.notes} />
-                </div>
+              <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+                <ProducerFormFields
+                  data={createForm.data}
+                  setData={createForm.setData}
+                  errors={createForm.errors}
+                />
 
                 <SheetFooter className="pt-4 border-t flex-row gap-2 justify-end">
-                  <Button type="submit" disabled={processing} className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
-                    {processing ? 'Menyimpan...' : 'Simpan Master Produsen'}
+                  <Button type="submit" disabled={createForm.processing} className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                    {createForm.processing ? 'Menyimpan...' : 'Simpan Master Produsen'}
                   </Button>
                   <SheetClose asChild><Button variant="outline" type="button" className="text-xs">Batal</Button></SheetClose>
                 </SheetFooter>
@@ -157,7 +221,6 @@ export default function Producers({ producers }: Props) {
           </Sheet>
         </div>
 
-        {/* WIDGET TOTAL HUTANG KESELURUHAN */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-l-4 border-l-amber-500 shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">
@@ -172,7 +235,6 @@ export default function Producers({ producers }: Props) {
           </Card>
         </div>
 
-        {/* TABEL DATA UTAMA MASTER PRODUSEN */}
         <Card className="shadow-sm overflow-hidden">
           <CardContent className="p-3">
             <Table>
@@ -183,13 +245,14 @@ export default function Producers({ producers }: Props) {
                   <TableHead>Alamat Gudang</TableHead>
                   <TableHead>Ket. Sistem Kerja Sama</TableHead>
                   <TableHead className="w-[180px] text-right">Sisa Hutang Tempo</TableHead>
+                  <TableHead className="w-[80px] text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {producers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-40 text-center text-muted-foreground text-sm">
-                      Belum ada master data produsen. Klik tombol "Tambah Produsen" untuk meregistrasikan.
+                    <TableCell colSpan={6} className="h-40 text-center text-muted-foreground text-sm">
+                      Belum ada master data produsen. Klik tombol &quot;Tambah Produsen&quot; untuk meregistrasikan.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -199,16 +262,72 @@ export default function Producers({ producers }: Props) {
                         🏢 {prod.name}
                       </TableCell>
                       <TableCell className="text-xs font-medium text-muted-foreground">
-                        {prod.phone || '-'}
+                        {prod.phone ? (
+                          <a
+                            href={`https://wa.me/${prod.phone.replace(/\D/g, '').replace(/^0/, '62')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-emerald-600 hover:underline"
+                          >
+                            {prod.phone}
+                          </a>
+                        ) : '-'}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={prod.address || undefined}>
                         {prod.address || '-'}
                       </TableCell>
-                      <TableCell className="text-xs italic text-muted-foreground max-w-[220px] truncate">
+                      <TableCell className="text-xs italic text-muted-foreground max-w-[220px] truncate" title={prod.notes || undefined}>
                         {prod.notes || '-'}
                       </TableCell>
                       <TableCell className={`text-right text-xs font-extrabold ${prod.total_unpaid_debt > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {prod.total_unpaid_debt > 0 ? formatIDR(prod.total_unpaid_debt) : 'Lunas ✅'}
+                        {prod.total_unpaid_debt > 0 ? formatIDR(prod.total_unpaid_debt) : 'Lunas'}
+                      </TableCell>
+                      <TableCell className="text-center py-2">
+                        <AlertDialog>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontalIcon className="h-4 w-4" />
+                                <span className="sr-only">Buka menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenEdit(prod)}>
+                                <Pencil className="h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {prod.invoices_count > 0 ? (
+                                <DropdownMenuItem disabled className="text-muted-foreground">
+                                  <Trash2 className="h-4 w-4" />
+                                  Hapus (ada nota)
+                                </DropdownMenuItem>
+                              ) : (
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem variant="destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                    Hapus
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Hapus produsen ini?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Produsen <strong className="text-foreground">{prod.name}</strong> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction variant="destructive" onClick={() => handleDelete(prod.id)}>
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))
@@ -217,6 +336,42 @@ export default function Producers({ producers }: Props) {
             </Table>
           </CardContent>
         </Card>
+
+        <Sheet
+          open={isEditOpen}
+          onOpenChange={(open) => {
+            setIsEditOpen(open);
+            if (!open) {
+              setSelectedProducer(null);
+              editForm.reset();
+            }
+          }}
+        >
+          <SheetContent className="flex flex-col h-full sm:max-w-md p-0 gap-0">
+            <SheetHeader className="p-6 border-b bg-background">
+              <SheetTitle>Edit Master Produsen</SheetTitle>
+              <SheetDescription>
+                Perbarui data produsen{selectedProducer ? `: ${selectedProducer.name}` : ''}.
+              </SheetDescription>
+            </SheetHeader>
+
+            <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <ProducerFormFields
+                idPrefix="edit-"
+                data={editForm.data}
+                setData={editForm.setData}
+                errors={editForm.errors}
+              />
+
+              <SheetFooter className="pt-4 border-t flex-row gap-2 justify-end">
+                <Button type="submit" disabled={editForm.processing} className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                  {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                </Button>
+                <SheetClose asChild><Button variant="outline" type="button" className="text-xs">Batal</Button></SheetClose>
+              </SheetFooter>
+            </form>
+          </SheetContent>
+        </Sheet>
 
       </div>
     </>

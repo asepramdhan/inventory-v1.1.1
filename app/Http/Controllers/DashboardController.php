@@ -81,6 +81,8 @@ class DashboardController extends Controller
 
         // G. Profit Bersih Riil (Sesuai Margin Analysis)
         $profitBulanIni = $totalNetProfitAbsolut - (float)$ongoingRaw->profit_pending - (float)$ongoingRaw->profit_processing;
+        $profitPending = (float) $ongoingRaw->profit_pending;
+        $profitProcessing = (float) $ongoingRaw->profit_processing;
         // =========================================================================
 
         // 2. AMBIL DATA PERINGATAN STOK TIPIS (Stok di bawah 5)
@@ -99,18 +101,57 @@ class DashboardController extends Controller
 
         $mutasiTerbaru = FinancialMutation::with('account')
             ->where('user_id', $userId)
-            ->latest('date')
+            ->latest('created_at')
             ->limit(5)
             ->get();
 
-        // 4. DATA GRAFIK (Mockup data 7 hari terakhir, bisa Anda kembangkan)
-        $chartData = [
-            ['date' => '10 Jul', 'omzet' => 1200000, 'profit' => 300000],
-            ['date' => '11 Jul', 'omzet' => 1500000, 'profit' => 450000],
-            ['date' => '12 Jul', 'omzet' => 800000, 'profit' => 200000],
-            ['date' => '13 Jul', 'omzet' => 2100000, 'profit' => 700000],
-            ['date' => '14 Jul', 'omzet' => 1800000, 'profit' => 500000],
-        ];
+        // 4. DATA GRAFIK 7 HARI TERAKHIR (RIIL)
+        $startChartDate = Carbon::now($timezone)->subDays(6)->format('Y-m-d');
+        $endChartDate = Carbon::now($timezone)->format('Y-m-d');
+        $startChartFull = $startChartDate . ' 00:00:00';
+        $endChartFull = $endChartDate . ' 23:59:59';
+
+        $chartRaw = Transaction::query()
+            ->leftJoinSub($subQueryHpp, 'items_hpp', function ($join) {
+                $join->on('transactions.id', '=', 'items_hpp.transaction_id');
+            })
+            ->whereBetween('transaction_date', [$startChartFull, $endChartFull])
+            ->where('status', '!=', 'cancelled')
+            ->whereIn('store_id', $userStoreIds)
+            ->selectRaw('
+                DATE_FORMAT(transaction_date, "%Y-%m-%d") as date,
+                COALESCE(SUM(grand_total), 0) as omzet,
+                COALESCE(SUM(marketplace_admin_fee), 0) as admin_fee,
+                COALESCE(SUM(items_hpp.total_transaction_hpp), 0) as hpp
+            ')
+            ->groupBy(DB::raw('DATE_FORMAT(transaction_date, "%Y-%m-%d")'))
+            ->orderBy(DB::raw('DATE_FORMAT(transaction_date, "%Y-%m-%d")'), 'ASC')
+            ->get()
+            ->keyBy('date');
+
+        $dailyAdsMap = DB::table('store_daily_ads')
+            ->whereIn('store_id', $userStoreIds)
+            ->whereBetween('date', [$startChartDate, $endChartDate])
+            ->groupBy('date')
+            ->selectRaw('date, SUM(amount_spent) as total_ads, SUM(affiliate_fee) as total_affiliate')
+            ->get()
+            ->keyBy('date');
+
+        $chartData = collect(range(6, 0))->map(function ($daysAgo) use ($timezone, $chartRaw, $dailyAdsMap) {
+            $date = Carbon::now($timezone)->subDays($daysAgo)->format('Y-m-d');
+            $row = $chartRaw->get($date);
+            $omzet = (float) ($row->omzet ?? 0);
+            $admin = (float) ($row->admin_fee ?? 0);
+            $hpp = (float) ($row->hpp ?? 0);
+            $ads = (float) ($dailyAdsMap[$date]->total_ads ?? 0);
+            $affiliate = (float) ($dailyAdsMap[$date]->total_affiliate ?? 0);
+
+            return [
+                'date' => $date,
+                'omzet' => $omzet,
+                'profit' => $omzet - $admin - $hpp - $ads - $affiliate,
+            ];
+        })->values()->all();
 
         return Inertia::render('dashboard', [
             'summary' => [
@@ -118,6 +159,8 @@ class DashboardController extends Controller
                 'hutang' => (float)$totalHutang,
                 'omzet' => (float)$omzetBulanIni,
                 'profit' => (float)$profitBulanIni,
+                'profit_pending' => $profitPending,
+                'profit_processing' => $profitProcessing,
             ],
             'stokTipis' => $stokTipis,
             'transaksiTerbaru' => $transaksiTerbaru,

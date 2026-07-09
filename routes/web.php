@@ -55,6 +55,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Master Data
     Route::get('/master-data/producers', [ProducerController::class, 'index'])->name('producers.index');
     Route::post('/master-data/producers', [ProducerController::class, 'store'])->name('producers.store');
+    Route::put('/master-data/producers/{id}', [ProducerController::class, 'update'])->name('producers.update');
+    Route::delete('/master-data/producers/{id}', [ProducerController::class, 'destroy'])->name('producers.destroy');
 
     Route::get('/master-data/product-hpp', [ProductHppController::class, 'index'])->name('product-hpp.index');
     Route::post('/master-data/product-hpp/save', [ProductHppController::class, 'save'])->name('product-hpp.save');

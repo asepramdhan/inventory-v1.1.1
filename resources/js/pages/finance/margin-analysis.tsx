@@ -1,10 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { Head, router } from '@inertiajs/react';
-import { ArrowDownRight, ArrowUpRight, Calendar, Clock, DollarSign, Percent, ShoppingBag, TrendingUp, Truck } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Calendar, Clock, DollarSign, Percent, ShoppingBag, TrendingUp, Truck } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
 import MarginAnalysisController from '@/actions/App/Http/Controllers/MarginAnalysisController';
 import Heading from '@/components/heading';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,101 +34,46 @@ interface Props {
   };
 }
 
-// --- KOMPONEN SKELETON LOADER UTUH UNTUK HALAMAN ANALISIS MARGIN ---
 function MarginAnalysisSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      {/* 1. SKELETON SUMMARY WIDGET CARDS (Grid Atas) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="border-sidebar-border/70 dark:border-sidebar-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className="h-4 bg-muted rounded w-28" /> {/* Title */}
-              <div className="h-8 w-8 bg-muted rounded-full" /> {/* Icon Circle */}
-            </CardHeader>
-            <CardContent>
-              <div className="h-7 bg-muted rounded w-36 mb-2" /> {/* Angka Utama */}
-              <div className="h-3 bg-muted/60 rounded w-48" /> {/* Subtitle Deskripsi */}
+          <Card key={i} className="border-l-4 border-l-muted shadow-sm">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex justify-between">
+                <div className="h-3 bg-muted rounded w-24" />
+                <div className="h-9 w-9 bg-muted rounded-full" />
+              </div>
+              <div className="h-7 bg-muted rounded w-32" />
+              <div className="h-3 bg-muted/60 rounded w-full" />
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* 2. SKELETON CHARTS BLOCK (Dua Grafik Kiri & Kanan) */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Grafik Area (Tren Pendapatan) */}
-        <Card className="border-sidebar-border/70 dark:border-sidebar-border">
-          <CardHeader>
-            <div className="h-5 bg-muted rounded w-44 mb-1" />
-            <div className="h-3 bg-muted/60 rounded w-64" />
-          </CardHeader>
-          <CardContent className="h-[300px] flex flex-col justify-between pt-4">
-            {/* Simulasi Garis-garis Grid Chart di Belakang */}
-            <div className="w-full flex-1 flex flex-col justify-between border-b border-l border-muted/50 pb-2 pl-2">
-              {[1, 2, 3, 4].map((grid) => (
-                <div key={grid} className="w-full h-[1px] bg-muted/30 border-dashed border-b" />
-              ))}
-            </div>
-            {/* Label sumbu bawah */}
-            <div className="flex justify-between mt-2 px-6">
-              {[1, 2, 3, 4, 5].map((lbl) => (
-                <div key={lbl} className="h-3 bg-muted/50 rounded w-8" />
-              ))}
-            </div>
-          </CardContent>
+      <div className="grid gap-4 lg:grid-cols-7">
+        <Card className="lg:col-span-4 shadow-sm">
+          <CardHeader><div className="h-5 bg-muted rounded w-44" /></CardHeader>
+          <CardContent className="h-[280px]"><div className="h-full bg-muted/30 rounded" /></CardContent>
         </Card>
-
-        {/* Grafik Bar (Performa Toko) */}
-        <Card className="border-sidebar-border/70 dark:border-sidebar-border">
-          <CardHeader>
-            <div className="h-5 bg-muted rounded w-44 mb-1" />
-            <div className="h-3 bg-muted/60 rounded w-64" />
-          </CardHeader>
-          <CardContent className="h-[300px] flex flex-col justify-between pt-4">
-            {/* Simulasi Batang Grafik */}
-            <div className="w-full flex-1 flex items-end justify-around border-b border-l border-muted/50 pb-2 pl-2 gap-4">
-              {[1, 2, 3, 4, 5].map((bar) => (
-                <div key={bar} className="flex gap-1 items-end h-full w-full justify-center">
-                  <div className="w-6 bg-muted rounded-t" style={{ height: `${20 * bar}%` }} />
-                  <div className="w-6 bg-muted/60 rounded-t" style={{ height: `${12 * bar}%` }} />
-                </div>
-              ))}
-            </div>
-            {/* Label sumbu bawah */}
-            <div className="flex justify-around mt-2">
-              {[1, 2, 3, 4, 5].map((lbl) => (
-                <div key={lbl} className="h-3 bg-muted/50 rounded w-12" />
-              ))}
-            </div>
-          </CardContent>
+        <Card className="lg:col-span-3 shadow-sm">
+          <CardHeader><div className="h-5 bg-muted rounded w-44" /></CardHeader>
+          <CardContent className="h-[280px]"><div className="h-full bg-muted/30 rounded" /></CardContent>
         </Card>
       </div>
 
-      {/* 3. SKELETON TABEL PERFORMA */}
-      <Card className="border-sidebar-border/70 dark:border-sidebar-border">
-        <CardHeader>
-          <div className="h-5 bg-muted rounded w-48 mb-1" />
-          <div className="h-3 bg-muted/60 rounded w-72" />
-        </CardHeader>
-        <CardContent>
+      <Card className="shadow-sm">
+        <CardContent className="p-3">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama Toko / Produk</TableHead>
-                <TableHead className="text-center">Kuantitas</TableHead>
-                <TableHead className="text-right">Omzet Kotor</TableHead>
-                <TableHead className="text-right">Profit Kotor</TableHead>
-                <TableHead className="text-center">Margin %</TableHead>
-              </TableRow>
-            </TableHeader>
             <TableBody>
               {[1, 2, 3].map((row) => (
                 <TableRow key={row}>
-                  <TableCell><div className="h-4 bg-muted rounded w-44" /></TableCell>
-                  <TableCell className="text-center"><div className="h-4 bg-muted rounded w-12 mx-auto" /></TableCell>
-                  <TableCell className="text-right"><div className="h-4 bg-muted rounded w-20 ml-auto" /></TableCell>
-                  <TableCell className="text-right"><div className="h-4 bg-muted rounded w-20 ml-auto" /></TableCell>
-                  <TableCell className="text-center"><div className="h-5 bg-muted rounded w-10 mx-auto" /></TableCell>
+                  <TableCell><div className="h-4 bg-muted rounded w-32" /></TableCell>
+                  <TableCell><div className="h-4 bg-muted rounded w-16" /></TableCell>
+                  <TableCell><div className="h-4 bg-muted rounded w-20 ml-auto" /></TableCell>
+                  <TableCell><div className="h-4 bg-muted rounded w-20 ml-auto" /></TableCell>
+                  <TableCell><div className="h-5 bg-muted rounded w-12 mx-auto" /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -139,42 +85,44 @@ function MarginAnalysisSkeleton() {
 }
 
 export default function MarginAnalysis({ summary, trendData, storePerformance, productPerformance, storesList, filters }: Props) {
-  // 1. Amankan inisialisasi state dengan memaksa store_id menjadi String
   const [startDate, setStartDate] = useState(filters.start_date);
   const [endDate, setEndDate] = useState(filters.end_date);
   const [storeId, setStoreId] = useState(String(filters.store_id ?? 'all'));
-
-  // --- TAMBAHKAN STATE & EFFECT SKELETON DI SINI ---
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Beri jeda waktu mini (misal 350 milidetik) agar animasinya kelihatan mulus
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 350);
-
+    const timer = setTimeout(() => setIsLoading(false), 350);
     return () => clearTimeout(timer);
   }, []);
-  // -------------------------------------------------
 
-  // 2. Paksa state lokal sinkron dan pastikan tipe datanya selalu String saat props berubah
   useEffect(() => {
     setStartDate(filters.start_date);
     setEndDate(filters.end_date);
     setStoreId(String(filters.store_id ?? 'all'));
   }, [filters.start_date, filters.end_date, filters.store_id]);
 
-  // 3. Gunakan window.location.pathname dan tambahkan replace: true agar history browser tidak penuh
-  const handleFilterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    router.get(window.location.pathname, {
-      start_date: startDate,
-      end_date: endDate,
-      store_id: storeId
-    }, {
-      preserveState: true,
-      replace: true // Mengganti URL saat ini tanpa menumpuk tombol 'Back' di browser
-    });
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      router.get(
+        MarginAnalysisController.index(),
+        { start_date: startDate, end_date: endDate, store_id: storeId },
+        { preserveState: true, replace: true }
+      );
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [startDate, endDate, storeId]);
+
+  const totalBeban = summary.total_hpp + summary.total_admin_fee + summary.total_affiliate_fee + summary.total_ads_fee;
+  const hasActiveFilters = storeId !== 'all';
+
+  const handleResetFilters = () => {
+    const today = new Date();
+    const past = new Date();
+    past.setDate(today.getDate() - 30);
+    setStartDate(past.toISOString().split('T')[0]);
+    setEndDate(today.toISOString().split('T')[0]);
+    setStoreId('all');
   };
 
   const formatIDR = (value: number) => {
@@ -182,307 +130,343 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(value);
   };
+
+  const formatAxisIDR = (value: number) => {
+    if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} jt`;
+    if (Math.abs(value) >= 1_000) return `${Math.round(value / 1_000)} rb`;
+    return String(value);
+  };
+
+  const formatChartDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+  };
+
+  const getMarginStyle = (margin: number) => {
+    if (margin >= 20) return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+    if (margin >= 10) return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
+    return 'bg-red-500/10 text-red-600 border-red-500/20';
+  };
+
+  const marginStatus = summary.average_margin_percentage >= 20
+    ? { label: 'Sehat', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' }
+    : summary.average_margin_percentage >= 10
+      ? { label: 'Waspada', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' }
+      : { label: 'Tipis', className: 'bg-red-500/10 text-red-600 border-red-500/20' };
+
+  const chartTrendData = useMemo(
+    () => trendData.map((item) => ({ ...item, dateLabel: formatChartDate(item.date) })),
+    [trendData]
+  );
 
   return (
     <>
       <Head title="Analisa Margin & Profit" />
 
-      <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-        {/* HEADER & FILTER BAR */}
-        <div className="flex flex-col gap-5 border-b pb-6">
-          <div>
-            <Heading
-              title="Analisa Margin"
-              description="Pantau profitabilitas riil toko dan produk Anda setelah dipotong beban HPP, admin marketplace, dan biaya affiliate."
+      <div className="flex flex-col gap-4 p-4">
+        <Heading
+          title="Analisa Margin"
+          description="Pantau profitabilitas riil toko dan produk Anda setelah dipotong beban HPP, admin marketplace, dan biaya affiliate."
+        />
+
+        <div className="flex flex-col lg:flex-row items-center gap-2 w-full bg-card p-3 rounded-lg border shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <Calendar className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent text-xs border rounded-md px-2 h-9 w-full sm:w-[150px] outline-none focus:ring-1 focus:ring-ring"
             />
+            <span className="text-xs text-muted-foreground">s/d</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent text-xs border rounded-md px-2 h-9 w-full sm:w-[150px] outline-none focus:ring-1 focus:ring-ring"
+            />
+            <Select value={storeId} onValueChange={setStoreId}>
+              <SelectTrigger className="w-full sm:w-[200px] h-9 text-xs">
+                <SelectValue placeholder="Semua Toko" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Toko</SelectItem>
+                {storesList.map((store) => (
+                  <SelectItem key={store.id} value={store.id.toString()}>
+                    {store.name} ({store.platform})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" className="text-xs h-9" onClick={handleResetFilters}>
+                Reset Filter
+              </Button>
+            )}
           </div>
-
-          <form
-            onSubmit={handleFilterSubmit}
-            className="flex flex-col gap-3 w-full sm:flex-row justify-center sm:flex-wrap"
-          >
-            <div className="flex items-center gap-2 bg-card px-3 h-10 rounded-lg border shadow-sm w-full sm:w-auto">
-              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-xs text-foreground outline-none border-none focus:ring-0 w-[115px] cursor-pointer dark:color-scheme-dark"
-              />
-              <span className="text-muted-foreground text-xs font-medium px-1">s/d</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-xs text-foreground outline-none border-none focus:ring-0 w-[115px] cursor-pointer dark:color-scheme-dark"
-              />
-            </div>
-
-            <div className="w-full sm:w-48">
-              <Select value={storeId} onValueChange={(value) => setStoreId(value)}>
-                <SelectTrigger className="w-full h-10 text-xs bg-card shadow-sm">
-                  <SelectValue placeholder="Pilih Toko" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Toko</SelectItem>
-                  {storesList.map((store) => (
-                    <SelectItem key={store.id} value={store.id.toString()}>
-                      {store.name} ({store.platform})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button type="submit" size="sm" className="h-10 px-5 w-full sm:w-auto font-medium shadow-sm shrink-0">
-              Terapkan
-            </Button>
-          </form>
         </div>
 
-        {/* LOGIKA PINTAR: JIKA LOADING TAMPILKAN SKELETON UTUH, JIKA TIDAK TAMPILKAN KONTEN ASLI */}
         {isLoading ? (
           <MarginAnalysisSkeleton />
         ) : (
           <>
-            {/* Hitung Total Seluruh Beban di atas return atau langsung sebelum layout kartu */}
-            {(() => {
-              const totalBeban = summary.total_hpp + summary.total_admin_fee + summary.total_affiliate_fee + summary.total_ads_fee;
-
-              return (
-                /* Menggunakan min-h-[210px] agar tinggi kartu seragam dan pas untuk menampung rincian biaya */
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-
-                  {/* CARD 1: TOTAL OMZET */}
-                  <Card className="shadow-sm border-muted/60 flex flex-col min-h-[210px] justify-between">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                      <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Omzet</CardTitle>
-                      <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
-                    </CardHeader>
-                    <CardContent className="pt-0 flex-1 flex flex-col justify-between">
-                      {/* PEMBUNGKUS INI MEMBUAT ANGKA PAS DI TENGAH MATI */}
-                      <div className="flex-1 flex items-center justify-center">
-                        <span className="text-3xl font-bold tracking-tight text-foreground">
-                          {formatIDR(summary.total_omzet)}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground border-t pt-1.5 border-dashed mt-auto">
-                        Akumulasi nilai transaksi bruto (Kotor)
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  {/* CARD 2: GABUNGAN TOTAL BEBAN PENGELUARAN */}
-                  <Card className="shadow-sm border-muted/60 flex flex-col min-h-[210px] justify-between">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                      <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Beban & Biaya</CardTitle>
-                      <ShoppingBag className="h-4 w-4 text-destructive shrink-0" />
-                    </CardHeader>
-                    <CardContent className="pt-0 flex-1 flex flex-col justify-between">
-                      {/* PEMBUNGKUS INI MEMBUAT ANGKA PAS DI TENGAH MATI */}
-                      <div className="flex-1 flex items-center justify-center">
-                        <span className="text-3xl font-bold tracking-tight text-destructive">
-                          {formatIDR(totalBeban)}
-                        </span>
-                      </div>
-
-                      <div className="pt-1.5 border-t border-dashed border-muted flex flex-col gap-0.5 text-[11px] mt-auto">
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>• Pokok (HPP):</span>
-                          <span className="font-medium text-foreground">{formatIDR(summary.total_hpp)}</span>
-                        </div>
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>• Admin Marketplace:</span>
-                          <span className="font-medium text-foreground">{formatIDR(summary.total_admin_fee)}</span>
-                        </div>
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>• Biaya Iklan (Ads):</span>
-                          <span className="text-purple-600 font-semibold">{formatIDR(summary.total_ads_fee)}</span>
-                        </div>
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>• Komisi Affiliate:</span>
-                          <span className="text-indigo-600 font-semibold">{formatIDR(summary.total_affiliate_fee)}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* CARD 3: PROFIT BERSIH RIIL */}
-                  <Card className="border-emerald-500/30 bg-emerald-500/[0.01] shadow-sm flex flex-col min-h-[210px] justify-between">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                      <CardTitle className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Profit Riil (Selesai)</CardTitle>
-                      <TrendingUp className="h-4 w-4 text-emerald-600 shrink-0" />
-                    </CardHeader>
-                    <CardContent className="pt-0 flex-1 flex flex-col justify-between">
-                      {/* PEMBUNGKUS INI MEMBUAT ANGKA PAS DI TENGAH MATI */}
-                      <div className="flex-1 flex items-center justify-center">
-                        <span className="text-3xl font-black text-emerald-600 tracking-tight">
-                          {formatIDR(summary.net_profit)}
-                        </span>
-                      </div>
-
-                      <div className="pt-1.5 border-t border-dashed border-emerald-500/20 mt-auto">
-                        <div className="flex flex-row justify-between items-center text-[10px] font-medium text-muted-foreground">
-                          <span className="flex items-center gap-1 border-b border-b-amber-600/30 pb-1 border-dashed">
-                            <strong className="text-amber-600 font-bold ml-0.5">{formatIDR(summary.profit_pending)}</strong>
-                            <Clock className="w-4 h-4 text-amber-600" />
-                          </span>
-                          <span className="flex items-center gap-1 border-b border-b-blue-600/30 pb-1 border-dashed">
-                            <strong className="text-blue-600 font-bold ml-0.5">{formatIDR(summary.profit_processing)}</strong>
-                            <Truck className="w-4 h-4 text-blue-600" />
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* CARD 4: RATA-RATA MARGIN */}
-                  <Card className="shadow-sm border-muted/60 flex flex-col min-h-[210px] justify-between">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                      <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rata-Rata Margin</CardTitle>
-                      <Percent className="h-4 w-4 text-primary shrink-0" />
-                    </CardHeader>
-                    <CardContent className="pt-0 flex-1 flex flex-col justify-between">
-                      {/* PEMBUNGKUS INI MEMBUAT ANGKA PAS DI TENGAH MATI */}
-                      <div className="flex-1 flex items-center justify-center">
-                        <span className="text-3xl font-bold tracking-tight text-primary">
-                          {summary.average_margin_percentage}%
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between border-t pt-1.5 border-dashed mt-auto">
-                        <span className="text-[11px] text-muted-foreground">Status Margin:</span>
-                        {summary.average_margin_percentage >= 20 ? (
-                          <span className="text-[11px] text-emerald-600 font-semibold flex items-center">
-                            <ArrowUpRight className="h-3.5 w-3.5 inline mr-0.5 shrink-0" /> Sehat (&gt;20%)
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-amber-600 font-semibold flex items-center">
-                            <ArrowDownRight className="h-3.5 w-3.5 inline mr-0.5 shrink-0" /> Tipis (&lt;20%)
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                </div>
-              );
-            })()}
-
-            {/* 2. AREA GRAFIK */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-              <Card className="lg:col-span-4">
-                <CardHeader>
-                  <CardTitle className="text-sm font-semibold">Tren Pertumbuhan Profit Harian</CardTitle>
-                  <CardDescription>Komparasi pergerakan omzet kotor vs laba bersih riil Anda.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px] pl-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorOmzet" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/40" />
-                      <XAxis dataKey="date" className="text-[10px]" stroke="#888888" />
-                      <YAxis className="text-[10px]" stroke="#888888" tickFormatter={(v) => `${v / 1000}k`} />
-                      <Tooltip formatter={(value: any) => formatIDR(value)} />
-                      <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Area type="monotone" dataKey="omzet" name="Omzet" stroke="#2563eb" fillOpacity={1} fill="url(#colorOmzet)" strokeWidth={2} />
-                      <Area type="monotone" dataKey="net_profit" name="Profit Bersih" stroke="#10b981" fillOpacity={1} fill="url(#colorProfit)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              <Card className="border-l-4 border-l-blue-500 shadow-sm">
+                <CardContent className="p-4 flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Total Omzet</p>
+                    <p className="text-xl font-black text-blue-600 tracking-tight">{formatIDR(summary.total_omzet)}</p>
+                    <p className="text-[10px] text-muted-foreground">Akumulasi transaksi bruto (kotor)</p>
+                  </div>
+                  <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                    <DollarSign className="h-5 w-5" />
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card className="lg:col-span-3">
-                <CardHeader>
-                  <CardTitle className="text-sm font-semibold">Performa Profit Antar Toko</CardTitle>
-                  <CardDescription>Toko mana yang menghasilkan kontribusi uang tunai terbanyak.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={storePerformance} layout="vertical" margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/40" horizontal={false} />
-                      <XAxis type="number" className="text-[10px]" stroke="#888888" tickFormatter={(v) => `${v / 1000}k`} />
-                      <YAxis dataKey="store_name" type="category" className="text-[11px] font-medium" stroke="#888888" width={90} />
-                      <Tooltip formatter={(value: any) => formatIDR(value)} />
-                      <Legend wrapperStyle={{ fontSize: '11px' }} />
-                      <Bar dataKey="omzet" name="Omzet" fill="#93c5fd" radius={[0, 4, 4, 0]} barSize={12} />
-                      <Bar dataKey="net_profit" name="Profit Bersih" fill="#10b981" radius={[0, 4, 4, 0]} barSize={12} />
-                    </BarChart>
-                  </ResponsiveContainer>
+              <Card className="border-l-4 border-l-red-500 shadow-sm">
+                <CardContent className="p-4 flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Total Beban & Biaya</p>
+                    <p className="text-xl font-black text-red-600 tracking-tight">{formatIDR(totalBeban)}</p>
+                    <div className="pt-1 flex flex-col gap-0.5 text-[10px] text-muted-foreground border-t border-dashed mt-1">
+                      <div className="flex justify-between gap-2">
+                        <span>HPP</span>
+                        <span className="font-medium text-foreground">{formatIDR(summary.total_hpp)}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>Admin</span>
+                        <span className="font-medium text-foreground">{formatIDR(summary.total_admin_fee)}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>Iklan</span>
+                        <span className="font-medium text-purple-600">{formatIDR(summary.total_ads_fee)}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>Affiliate</span>
+                        <span className="font-medium text-indigo-600">{formatIDR(summary.total_affiliate_fee)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+                    <ShoppingBag className="h-5 w-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-emerald-500 shadow-sm">
+                <CardContent className="p-4 flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-emerald-600">Profit Riil (Selesai)</p>
+                    <p className="text-xl font-black text-emerald-600 tracking-tight">{formatIDR(summary.net_profit)}</p>
+                    <div className="pt-1 flex flex-col gap-1 text-[10px] border-t border-dashed border-emerald-500/20 mt-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <Clock className="h-3 w-3" />
+                          Pending
+                        </span>
+                        <span className="font-bold text-amber-600">{formatIDR(summary.profit_pending)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1 text-blue-600">
+                          <Truck className="h-3 w-3" />
+                          Diproses
+                        </span>
+                        <span className="font-bold text-blue-600">{formatIDR(summary.profit_processing)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-amber-500 shadow-sm">
+                <CardContent className="p-4 flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Rata-Rata Margin</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-black text-amber-600 tracking-tight">{summary.average_margin_percentage}%</p>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${marginStatus.className}`}>
+                        {marginStatus.label}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Target sehat &gt; 20% dari omzet</p>
+                  </div>
+                  <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                    <Percent className="h-5 w-5" />
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* 3. TABEL RANKING PRODUK */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Top 10 Produk Berdasarkan Kontribusi Profit</CardTitle>
-                <CardDescription>Diurutkan berdasarkan total keuntungan kotor terbesar (Omzet Produk - HPP Pokok).</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[400px]">Nama Produk</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead className="text-center">Terjual</TableHead>
-                      <TableHead className="text-right">Total Penjualan</TableHead>
-                      <TableHead className="text-right text-emerald-600 font-bold">Estimasi Profit</TableHead>
-                      <TableHead className="text-center">Margin %</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {productPerformance.length === 0 ? (
+            <div className="grid gap-4 lg:grid-cols-7">
+              <Card className="lg:col-span-4 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Tren Pertumbuhan Profit Harian</CardTitle>
+                  <CardDescription className="text-xs">Komparasi omzet kotor vs laba bersih riil per hari.</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[280px] pl-2">
+                  {chartTrendData.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded-lg">
+                      Tidak ada data tren pada periode ini.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorOmzet" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/40" />
+                        <XAxis dataKey="dateLabel" className="text-[10px]" stroke="#888888" />
+                        <YAxis className="text-[10px]" stroke="#888888" tickFormatter={formatAxisIDR} width={48} />
+                        <Tooltip
+                          formatter={(value) => formatIDR(Number(value ?? 0))}
+                          labelFormatter={(_, payload) => {
+                            const raw = payload?.[0]?.payload?.date;
+                            return raw ? formatChartDate(raw) : '';
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '11px' }} />
+                        <Area type="monotone" dataKey="omzet" name="Omzet" stroke="#2563eb" fillOpacity={1} fill="url(#colorOmzet)" strokeWidth={2} />
+                        <Area type="monotone" dataKey="net_profit" name="Profit Bersih" stroke="#10b981" fillOpacity={1} fill="url(#colorProfit)" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-3 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Performa Profit Antar Toko</CardTitle>
+                  <CardDescription className="text-xs">Perbandingan omzet vs profit bersih per toko.</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[280px]">
+                  {storePerformance.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded-lg">
+                      Tidak ada data toko pada periode ini.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={storePerformance} layout="vertical" margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/40" horizontal={false} />
+                        <XAxis type="number" className="text-[10px]" stroke="#888888" tickFormatter={formatAxisIDR} />
+                        <YAxis dataKey="store_name" type="category" className="text-[10px] font-medium" stroke="#888888" width={72} />
+                        <Tooltip formatter={(value) => formatIDR(Number(value ?? 0))} />
+                        <Legend wrapperStyle={{ fontSize: '11px' }} />
+                        <Bar dataKey="omzet" name="Omzet" fill="#93c5fd" radius={[0, 4, 4, 0]} barSize={10} />
+                        <Bar dataKey="net_profit" name="Profit Bersih" fill="#10b981" radius={[0, 4, 4, 0]} barSize={10} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-foreground">Performa Profit per Toko</p>
+              <Card className="shadow-sm overflow-hidden">
+                <CardContent className="p-3">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-muted-foreground text-sm">
-                          Tidak ada data transaksi produk pada periode ini.
-                        </TableCell>
+                        <TableHead className="text-xs">Nama Toko</TableHead>
+                        <TableHead className="text-xs">Platform</TableHead>
+                        <TableHead className="text-xs text-right">Omzet</TableHead>
+                        <TableHead className="text-xs text-right">Profit Bersih</TableHead>
+                        <TableHead className="text-xs text-center w-[90px]">Margin</TableHead>
                       </TableRow>
-                    ) : (
-                      productPerformance.map((item, index) => (
-                        <TableRow key={index} className="hover:bg-muted/50">
-                          <TableCell className="font-medium text-xs max-w-[400px] truncate">
-                            {item.product_name}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {item.product_sku || '-'}
-                          </TableCell>
-                          <TableCell className="text-center text-xs font-semibold">
-                            {item.total_qty} pcs
-                          </TableCell>
-                          <TableCell className="text-right text-xs">
-                            {formatIDR(item.gross_sales)}
-                          </TableCell>
-                          <TableCell className="text-right text-xs font-bold text-emerald-600">
-                            {formatIDR(item.gross_profit)}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${item.margin_percentage >= 25 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                              item.margin_percentage >= 15 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-                                'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                              }`}>
-                              {item.margin_percentage}%
-                            </span>
+                    </TableHeader>
+                    <TableBody>
+                      {storePerformance.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-20 text-center text-xs text-muted-foreground">
+                            Tidak ada data performa toko pada periode ini.
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                      ) : (
+                        storePerformance.map((store) => (
+                          <TableRow key={`${store.store_name}-${store.platform}`} className="hover:bg-muted/10">
+                            <TableCell className="text-xs font-bold">{store.store_name}</TableCell>
+                            <TableCell>
+                              <Badge className="bg-sky-50 text-sky-700 capitalize text-[10px]">{store.platform}</Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-right font-medium">{formatIDR(store.omzet)}</TableCell>
+                            <TableCell className="text-xs text-right font-bold text-emerald-600">{formatIDR(store.net_profit)}</TableCell>
+                            <TableCell className="text-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${getMarginStyle(store.margin_percentage)}`}>
+                                {store.margin_percentage}%
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-foreground">Top 10 Produk — Kontribusi Profit</p>
+              <Card className="shadow-sm overflow-hidden">
+                <CardContent className="p-3">
+                  <p className="text-[10px] text-muted-foreground mb-3 pb-2 border-b border-dashed">
+                    Diurutkan berdasarkan profit kotor terbesar (penjualan produk dikurangi HPP pokok).
+                  </p>
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow>
+                        <TableHead className="text-xs max-w-[280px]">Nama Produk</TableHead>
+                        <TableHead className="text-xs">SKU</TableHead>
+                        <TableHead className="text-xs text-center">Terjual</TableHead>
+                        <TableHead className="text-xs text-right">Total Penjualan</TableHead>
+                        <TableHead className="text-xs text-right text-emerald-600 font-bold">Profit Kotor (HPP)</TableHead>
+                        <TableHead className="text-xs text-center">Margin %</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {productPerformance.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-6 text-muted-foreground text-xs">
+                            Tidak ada data transaksi produk pada periode ini.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        productPerformance.map((item, index) => (
+                          <TableRow key={index} className="hover:bg-muted/10">
+                            <TableCell className="font-medium text-xs max-w-[280px] truncate" title={item.product_name}>
+                              {item.product_name}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{item.product_sku || '-'}</TableCell>
+                            <TableCell className="text-center text-xs font-semibold">{item.total_qty} pcs</TableCell>
+                            <TableCell className="text-right text-xs">{formatIDR(item.gross_sales)}</TableCell>
+                            <TableCell className="text-right text-xs font-bold text-emerald-600">{formatIDR(item.gross_profit)}</TableCell>
+                            <TableCell className="text-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${getMarginStyle(item.margin_percentage)}`}>
+                                {item.margin_percentage}%
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           </>
         )}
       </div>
