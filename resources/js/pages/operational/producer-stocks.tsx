@@ -72,74 +72,74 @@ interface Props {
 // --- KOMPONEN SKELETON KHUSUS TABEL (DISAMAKAN PRESISI 100% DENGAN TABEL ASLI) ---
 function ProducerStocksTableSkeleton() {
   return (
-    <Card className="shadow-sm overflow-hidden animate-pulse">
-      <CardContent className="p-3">
+    <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 animate-pulse">
+      <div className="p-0">
         <Table>
-          <TableHeader className="bg-muted/40">
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
             <TableRow>
-              <TableHead className="w-[130px]">Tgl Datang</TableHead>
-              <TableHead className="w-[180px]">Produsen</TableHead>
-              <TableHead className="w-[140px]">No. Nota</TableHead>
-              <TableHead>Rincian Barang</TableHead>
-              <TableHead className="w-[130px] text-right">Total Tagihan</TableHead>
-              <TableHead className="w-[120px] text-center">Status</TableHead>
-              <TableHead className="w-[110px] text-center">Aksi</TableHead>
+              <TableHead className="w-[130px] text-xs font-bold text-zinc-500 dark:text-zinc-400">Tgl Datang</TableHead>
+              <TableHead className="w-[180px] text-xs font-bold text-zinc-500 dark:text-zinc-400">Produsen</TableHead>
+              <TableHead className="w-[140px] text-xs font-bold text-zinc-500 dark:text-zinc-400">No. Nota</TableHead>
+              <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Rincian Barang</TableHead>
+              <TableHead className="w-[130px] text-right text-xs font-bold text-zinc-500 dark:text-zinc-400">Total Tagihan</TableHead>
+              <TableHead className="w-[120px] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400">Status</TableHead>
+              <TableHead className="w-[110px] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {/* Membuat 3 baris loading palsu */}
             {[1, 2, 3].map((i) => (
-              <TableRow key={i} className="border-b border-muted/20">
+              <TableRow key={i} className="border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20">
                 {/* Tgl Datang */}
                 <TableCell>
                   <div className="flex flex-col gap-0.5">
-                    <div className="h-3.5 bg-muted rounded w-20" />
-                    <div className="h-3 bg-muted/60 rounded w-24" />
+                    <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-20" />
+                    <div className="h-3 bg-zinc-105 dark:bg-zinc-800 rounded w-24" />
                   </div>
                 </TableCell>
 
                 {/* Produsen */}
                 <TableCell>
-                  <div className="h-3.5 bg-muted rounded w-28 font-bold" />
+                  <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-28 font-bold" />
                 </TableCell>
 
                 {/* No. Nota */}
                 <TableCell>
-                  <div className="h-3.5 bg-muted/70 rounded w-24 font-mono" />
+                  <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-24 font-mono" />
                 </TableCell>
 
                 {/* Rincian Barang (Meniru box barang bawaan Anda) */}
                 <TableCell className="py-2">
                   <div className="flex flex-col gap-1 max-w-[320px]">
-                    <div className="h-6 bg-muted/40 rounded w-full border border-muted/10" />
-                    <div className="h-6 bg-muted/40 rounded w-4/5 border border-muted/10" />
-                    <div className="h-3 bg-muted/30 rounded w-1/2 mt-0.5 italic" />
+                    <div className="h-6 bg-zinc-105 dark:bg-zinc-800 rounded w-full border border-zinc-200/50 dark:border-zinc-800/80" />
+                    <div className="h-6 bg-zinc-105 dark:bg-zinc-800 rounded w-4/5 border border-zinc-200/50 dark:border-zinc-800/80" />
+                    <div className="h-3 bg-zinc-105 dark:bg-zinc-800 rounded w-1/2 mt-0.5 italic" />
                   </div>
                 </TableCell>
 
                 {/* Total Tagihan */}
                 <TableCell className="text-right">
                   <div className="flex flex-col items-end gap-1">
-                    <div className="h-4 bg-muted rounded w-20 font-extrabold" />
-                    {i === 1 && <div className="h-2.5 bg-muted/60 rounded w-16" />} {/* Simulasi teks sisa cicilan */}
+                    <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-20 font-extrabold" />
+                    {i === 1 && <div className="h-2.5 bg-zinc-105 dark:bg-zinc-800 rounded w-16" />} {/* Simulasi teks sisa cicilan */}
                   </div>
                 </TableCell>
 
                 {/* Status Badges */}
                 <TableCell className="text-center">
-                  <div className="h-5 bg-muted/60 rounded-full w-16 mx-auto" />
+                  <div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-16 mx-auto" />
                 </TableCell>
 
                 {/* Aksi Button */}
                 <TableCell className="text-center py-2">
-                  <div className="h-7 bg-muted/80 rounded w-16 mx-auto" />
+                  <div className="h-7 bg-zinc-200 dark:bg-zinc-700 rounded w-16 mx-auto" />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -495,19 +495,21 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
 
         {/* WIDGET TOTAL HUTANG JATUH TEMPO */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-l-4 border-l-red-500 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Hutang Produsen Belum Lunas</p>
-                <h3 className="text-xl font-black text-red-600 tracking-tight">
-                  {isLoading ? <Skeleton className="h-7 w-[200px]" /> : formatIDR(totalUnpaid)}
-                </h3>
+          <div className="relative overflow-hidden border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl bg-white dark:bg-zinc-900/50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm group">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-500 to-rose-500" />
+            <div className="p-5 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Hutang Produsen Belum Lunas</span>
+              <div className="h-8 w-8 rounded-lg bg-red-50 dark:bg-red-500/10 flex items-center justify-center border border-red-500/20 group-hover:scale-105 transition-transform duration-300">
+                <DollarSign className="h-4 w-4 text-red-600 dark:text-red-400" />
               </div>
-              <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-                <DollarSign className="h-5 w-5" />
+            </div>
+            <div className="px-5 pb-5">
+              <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
+                {isLoading ? <Skeleton className="h-8 w-[200px]" /> : formatIDR(totalUnpaid)}
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Total Tagihan Yang Harus Dilunasi</p>
+            </div>
+          </div>
         </div>
 
 
@@ -516,18 +518,18 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
           <ProducerStocksTableSkeleton />
         ) : (
           /* DATA UTAMA TABEL NOTA */
-          <Card className="shadow-sm overflow-hidden">
-            <CardContent className="p-3">
+          <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 shadow-sm">
+            <div className="p-0">
               <Table>
-                <TableHeader className="bg-muted/40">
+                <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
                   <TableRow>
-                    <TableHead className="w-[130px]">Tgl Datang</TableHead>
-                    <TableHead className="w-[180px]">Produsen</TableHead>
-                    <TableHead className="w-[140px]">No. Nota</TableHead>
-                    <TableHead>Rincian Barang</TableHead>
-                    <TableHead className="w-[130px] text-right">Total Tagihan</TableHead>
-                    <TableHead className="w-[120px] text-center">Status</TableHead>
-                    <TableHead className="w-[110px] text-center">Aksi</TableHead>
+                    <TableHead className="w-[130px] text-xs font-bold text-zinc-500 dark:text-zinc-400">Tgl Datang</TableHead>
+                    <TableHead className="w-[180px] text-xs font-bold text-zinc-500 dark:text-zinc-400">Produsen</TableHead>
+                    <TableHead className="w-[140px] text-xs font-bold text-zinc-500 dark:text-zinc-400">No. Nota</TableHead>
+                    <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Rincian Barang</TableHead>
+                    <TableHead className="w-[130px] text-right text-xs font-bold text-zinc-500 dark:text-zinc-400">Total Tagihan</TableHead>
+                    <TableHead className="w-[120px] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400">Status</TableHead>
+                    <TableHead className="w-[110px] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -541,7 +543,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
                     invoices.map((inv) => (
                       <TableRow
                         key={inv.id}
-                        className="hover:bg-muted/10 transition-colors cursor-pointer"
+                        className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors cursor-pointer border-b border-zinc-100 dark:border-zinc-800/60"
                         onClick={() => handleOpenDetailModal(inv)}
                       >
                         <TableCell className="py-3">
@@ -652,8 +654,8 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
                   )}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* SHEET DETAIL NOTA & RIWAYAT PEMBAYARAN */}

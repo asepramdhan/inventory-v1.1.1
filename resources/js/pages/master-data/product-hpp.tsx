@@ -185,14 +185,15 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
         </div>
 
         {/* BARIS SEKSI FILTER UTAMA */}
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full bg-card p-3 rounded-lg border border-sidebar-border/60">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+        {/* BARIS SEKSI FILTER UTAMA */}
+        <div className="flex flex-col lg:flex-row items-center gap-4 w-full bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
             {/* Filter Dropdown Category */}
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px] h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80">
                 <SelectValue placeholder="Semua Kategori" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="all">Semua Kategori</SelectItem>
                 {categoriesList && categoriesList.length > 0 ? (
                   categoriesList.map((cat: any) => (
@@ -208,10 +209,10 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
 
             {/* Filter Dropdown Status */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectTrigger className="w-full sm:w-[150px] h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80">
                 <SelectValue placeholder="Semua Status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="all">Semua Status</SelectItem>
                 <SelectItem value="active">Aktif</SelectItem>
                 <SelectItem value="inactive">Tidak Aktif</SelectItem>
@@ -220,10 +221,10 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
 
             {/* FILTER TOKO UNTUK PENYESUAIAN MARGIN DI TABEL */}
             <Select value={storeViewFilter} onValueChange={setStoreViewFilter}>
-              <SelectTrigger className="w-full sm:w-[180px] border-amber-500/30 text-amber-700 dark:text-amber-400">
+              <SelectTrigger className="w-full sm:w-[180px] h-10 text-xs rounded-xl border-amber-500/30 text-amber-700 dark:text-amber-400 bg-amber-50/20 dark:bg-amber-950/20">
                 <SelectValue placeholder="Lihat Margin: Semua Toko" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="all">Semua Toko (Margin Pokok)</SelectItem>
                 {storesList && storesList.map((store: any) => (
                   <SelectItem key={store.id} value={store.id.toString()}>
@@ -232,43 +233,59 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
                 ))}
               </SelectContent>
             </Select>
+
+            {(search !== '' || categoryFilter !== 'all' || statusFilter !== 'all' || storeViewFilter !== 'all') && (
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setCategoryFilter('all');
+                  setStatusFilter('all');
+                  setStoreViewFilter('all');
+                }}
+                className="text-xs h-10 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-950 transition-colors"
+              >
+                Reset Filter
+              </Button>
+            )}
           </div>
 
           {/* Kotak Input Pencarian */}
-          <div className="relative w-full max-w-sm sm:ml-auto">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full sm:w-80 lg:ml-auto">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
             <Input
               type="search"
               placeholder="Cari nama produk, SKU..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80"
             />
           </div>
         </div>
 
         {/* TABEL DATA HPP */}
-        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-          <div className="p-6">
+        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
+          <div className="p-0">
             <Table>
-              <TableCaption className='py-6'>Daftar perhitungan modal dan margin profit dari produk master Anda.</TableCaption>
-              <TableHeader>
+              <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Daftar perhitungan modal dan margin profit dari produk master Anda.</TableCaption>
+              <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
                 <TableRow>
-                  <TableHead>
+                  <TableHead className="w-[50px]">
                     <Checkbox
                       checked={products.data.length > 0 && selectedIds.length === products.data.length}
                       onCheckedChange={(checked) => handleSelectAll(!!checked)}
                       aria-label="Select all"
                     />
                   </TableHead>
-                  <TableHead>Gambar</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Nama Produk</TableHead>
-                  <TableHead>Harga Jual</TableHead>
-                  <TableHead>Total HPP</TableHead>
-                  <TableHead>Margin</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead className="text-xs">Gambar</TableHead>
+                  <TableHead className="text-xs">Tanggal</TableHead>
+                  <TableHead className="text-xs">SKU</TableHead>
+                  <TableHead className="text-xs">Nama Produk</TableHead>
+                  <TableHead className="text-xs">Harga Jual</TableHead>
+                  <TableHead className="text-xs">Total HPP</TableHead>
+                  <TableHead className="text-xs">Margin</TableHead>
+                  <TableHead className="text-xs text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -306,7 +323,7 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
 
                     return (
                       <TableRow key={product.id}
-                        className={`cursor-pointer transition-colors hover:bg-muted/70 ${isSelected ? 'bg-muted/60' : index % 2 === 1 ? 'bg-muted/25' : 'bg-background'}`}
+                        className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 border-b border-zinc-100 dark:border-zinc-800/60 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
                         onClick={() => {
                           setSelectedProduct(product);
                           setIsSheetOpenDetail(true);
@@ -412,24 +429,29 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
               </TableBody>
             </Table>
 
-            {/* PAGINATION */}
             {products.last_page > 1 && (
-              <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border">
-                <div className="text-xs md:text-sm text-muted-foreground">
+              <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60">
+                <div className="text-xs text-zinc-400 dark:text-zinc-500">
                   Menampilkan {products.from ?? 0} sampai {products.to ?? 0} dari {products.total ?? 0} produk
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button
-                    variant="outline" size="sm" disabled={!products.prev_page_url}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8 rounded-xl"
+                    disabled={!products.prev_page_url}
                     onClick={() => products.prev_page_url && router.get(products.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Sebelumnya
                   </Button>
-                  <div className="text-xs md:text-sm font-medium px-2">
+                  <div className="text-xs font-semibold text-zinc-650 dark:text-zinc-400 px-1">
                     Hal {products.current_page} dari {products.last_page}
                   </div>
                   <Button
-                    variant="outline" size="sm" disabled={!products.next_page_url}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8 rounded-xl"
+                    disabled={!products.next_page_url}
                     onClick={() => products.next_page_url && router.get(products.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
                   >
                     Selanjutnya
@@ -443,18 +465,18 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
 
       {/* ================= FLOATING ACTION BAR FOR BULK EXPORT ================= */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/4 z-50 flex items-center gap-4 rounded-full border bg-background/95 p-2 pl-4 pr-2 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
-            <strong className="text-foreground font-semibold">{selectedIds.length}</strong> produk terpilih
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 rounded-full border border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/95 p-2 pl-4 pr-2 shadow-xl backdrop-blur-md animate-in slide-in-from-bottom-2 duration-300">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+            <strong className="text-zinc-900 dark:text-zinc-50 font-bold">{selectedIds.length}</strong> produk terpilih
           </span>
-          <div className="h-5 w-px bg-border" />
+          <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
           <div className="flex items-center gap-1.5">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])} className="rounded-full text-xs h-8">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])} className="rounded-full text-xs h-8 hover:bg-zinc-100 dark:hover:bg-zinc-800">
               Batal
             </Button>
             <Button
               variant="outline" size="sm" onClick={handleBulkExport}
-              className="rounded-full gap-1.5 text-xs h-8 border-emerald-600/30 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-600 hover:text-white"
+              className="rounded-full gap-1.5 text-xs h-8 border-emerald-600/30 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-600 hover:text-white dark:border-emerald-900/30 dark:text-emerald-400 dark:bg-emerald-950/20 dark:hover:bg-emerald-600"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Export Excel HPP

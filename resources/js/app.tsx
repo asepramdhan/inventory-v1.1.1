@@ -27,7 +27,7 @@ createInertiaApp({
         return (
             <TooltipProvider delayDuration={0}>
                 {app}
-                <Toaster position="top-right" />
+                <Toaster />
             </TooltipProvider>
         );
     },

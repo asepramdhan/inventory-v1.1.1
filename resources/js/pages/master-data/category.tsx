@@ -234,42 +234,54 @@ export default function Category({ categories, filters }: any) {
         </div>
 
         {/* BARIS SEKSI FILTER UTAMA */}
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full bg-card p-3 rounded-lg border border-sidebar-border/60">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-
+        <div className="flex flex-col lg:flex-row items-center gap-4 w-full bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
             {/* Filter Dropdown Status */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectTrigger className="w-full sm:w-[150px] h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80">
                 <SelectValue placeholder="Semua Status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="all">Semua Status</SelectItem>
                 <SelectItem value="active">Aktif</SelectItem>
                 <SelectItem value="inactive">Tidak Aktif</SelectItem>
               </SelectContent>
             </Select>
+
+            {(search !== '' || statusFilter !== 'all') && (
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('all');
+                }}
+                className="text-xs h-10 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-950 transition-colors"
+              >
+                Reset Filter
+              </Button>
+            )}
           </div>
 
           {/* Kotak Input Pencarian dipindah ke kanan sebaris dengan filter dropdown */}
-          <div className="relative w-full max-w-sm sm:ml-auto">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full sm:w-80 lg:ml-auto">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
             <Input
               type="search"
               placeholder="Cari nama kategori..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80"
             />
           </div>
         </div>
 
-        <div className="relative min-h-\[100vh\] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-          <div className="p-6">
+        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
+          <div className="p-0">
             <Table>
-              <TableCaption className='py-6'>Daftar seluruh kategori yang tersimpan di sistem.</TableCaption>
-              <TableHeader>
+              <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Daftar seluruh kategori yang tersimpan di sistem.</TableCaption>
+              <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
                 <TableRow>
-                  {/* 2. Sesuaikan Header dengan kolom database kita */}
                   <TableHead className="w-[50px]">
                     <Checkbox
                       checked={categories.data.length > 0 && selectedIds.length === categories.data.length}
@@ -277,10 +289,10 @@ export default function Category({ categories, filters }: any) {
                       aria-label="Select all"
                     />
                   </TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Nama Kategori</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead className="text-xs">Tanggal</TableHead>
+                  <TableHead className="text-xs">Nama Kategori</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="text-xs text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -304,11 +316,7 @@ export default function Category({ categories, filters }: any) {
                     const isSelected = selectedIds.includes(category.id);
                     return (
                       <TableRow key={category.id}
-                        // FITUR: Zebra Striping, Hover & Clickable style
-                        className={`
-                          cursor-pointer transition-colors hover:bg-muted/70
-                          ${isSelected ? 'bg-muted/60 hover:bg-muted/60' : index % 2 === 1 ? 'bg-muted/25' : 'bg-background'}
-                        `}
+                        className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 border-b border-zinc-100 dark:border-zinc-800/60 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
                         // FITUR: Klik baris untuk buka Detail Info Sheet
                         onClick={() => {
                           setSelectedCategory(category);
@@ -397,25 +405,27 @@ export default function Category({ categories, filters }: any) {
             </Table>
 
             {categories.last_page > 1 && (
-              <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border">
-                <div className="text-xs md:text-sm text-muted-foreground">
+              <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60">
+                <div className="text-xs text-zinc-400 dark:text-zinc-500">
                   Menampilkan {categories.from ?? 0} sampai {categories.to ?? 0} dari {categories.total ?? 0} kategori
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="text-xs h-8 rounded-xl"
                     disabled={!categories.prev_page_url}
                     onClick={() => categories.prev_page_url && router.get(categories.prev_page_url, {}, { preserveState: true })}
                   >
                     Sebelumnya
                   </Button>
-                  <div className="text-xs md:text-sm font-medium px-2">
+                  <div className="text-xs font-semibold text-zinc-650 dark:text-zinc-400 px-1">
                     Hal {categories.current_page} dari {categories.last_page}
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
+                    className="text-xs h-8 rounded-xl"
                     disabled={!categories.next_page_url}
                     onClick={() => categories.next_page_url && router.get(categories.next_page_url, {}, { preserveState: true })}
                   >
@@ -430,27 +440,26 @@ export default function Category({ categories, filters }: any) {
 
       {/* ================= KOTAK MELAYANG (FLOATING ACTION BAR) ================= */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/4 z-50 flex items-center gap-4 rounded-full border bg-background/95 p-2 pl-4 pr-2 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
-            <strong className="text-foreground font-semibold">{selectedIds.length}</strong> kategori terpilih
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 rounded-full border border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/95 p-2 pl-4 pr-2 shadow-xl backdrop-blur-md animate-in slide-in-from-bottom-2 duration-300">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+            <strong className="text-zinc-900 dark:text-zinc-50 font-bold">{selectedIds.length}</strong> kategori terpilih
           </span>
-          <div className="h-5 w-px bg-border" />
+          <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
           <div className="flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSelectedIds([])}
-              className="rounded-full text-xs h-8"
+              className="rounded-full text-xs h-8 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               Batal
             </Button>
 
-            {/* TOMBOL BARU: EXPORT EXCEL */}
             <Button
               variant="outline"
               size="sm"
               onClick={handleBulkExport}
-              className="rounded-full gap-1.5 text-xs h-8 border-emerald-600/30 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/20 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white"
+              className="rounded-full gap-1.5 text-xs h-8 border-emerald-600/30 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-600 hover:text-white dark:border-emerald-900/30 dark:text-emerald-400 dark:bg-emerald-950/20 dark:hover:bg-emerald-600"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Export Excel
@@ -467,16 +476,16 @@ export default function Category({ categories, filters }: any) {
                   Hapus Terpilih
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="rounded-2xl">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Tindakan ini tidak dapat dibatalkan. Sebanyak <strong className="text-foreground font-semibold">{selectedIds.length} kategori</strong> yang Anda pilih akan dihapus secara permanen dari server.
+                  <AlertDialogDescription className="text-xs text-zinc-500">
+                    Tindakan ini tidak dapat dibatalkan. Sebanyak <strong className="text-zinc-950 dark:text-zinc-50 font-bold">{selectedIds.length} kategori</strong> yang Anda pilih akan dihapus secara permanen dari server.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                  <AlertDialogAction variant="destructive" onClick={handleBulkDelete}>
+                  <AlertDialogCancel className="rounded-xl text-xs">Batal</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" className="rounded-xl text-xs" onClick={handleBulkDelete}>
                     Hapus Sekaligus
                   </AlertDialogAction>
                 </AlertDialogFooter>

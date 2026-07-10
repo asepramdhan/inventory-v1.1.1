@@ -141,3 +141,10 @@
         @apply bg-background text-foreground;
     }
 }
+
+.recharts-tooltip-wrapper {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}

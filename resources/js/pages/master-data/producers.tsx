@@ -221,31 +221,36 @@ export default function Producers({ producers }: Props) {
           </Sheet>
         </div>
 
+        {/* TOTAL DEBT CARD */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-l-4 border-l-amber-500 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Total Hutang (Semua Produsen)</p>
-                <h3 className="text-xl font-black text-amber-600 tracking-tight">{formatIDR(globalTotalDebt)}</h3>
+          <div className="relative overflow-hidden border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl bg-white dark:bg-zinc-900/50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm group">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-500 to-orange-500" />
+            <div className="p-5 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total Hutang (Semua Produsen)</span>
+              <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform duration-300">
+                <BookOpen className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               </div>
-              <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                <BookOpen className="h-5 w-5" />
+            </div>
+            <div className="px-5 pb-5">
+              <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
+                {formatIDR(globalTotalDebt)}
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Total Tagihan Kredit Konveksi Belum Terbayar</p>
+            </div>
+          </div>
         </div>
 
-        <Card className="shadow-sm overflow-hidden">
-          <CardContent className="p-3">
+        <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 shadow-sm">
+          <div className="p-0">
             <Table>
-              <TableHeader className="bg-muted/40">
+              <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
                 <TableRow>
-                  <TableHead>Nama Produsen / Konveksi</TableHead>
-                  <TableHead className="w-[150px]">No. Telepon / WA</TableHead>
-                  <TableHead>Alamat Gudang</TableHead>
-                  <TableHead>Ket. Sistem Kerja Sama</TableHead>
-                  <TableHead className="w-[180px] text-right">Sisa Hutang Tempo</TableHead>
-                  <TableHead className="w-[80px] text-center">Aksi</TableHead>
+                  <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Nama Produsen / Konveksi</TableHead>
+                  <TableHead className="w-[150px] text-xs font-bold text-zinc-500 dark:text-zinc-400">No. Telepon / WA</TableHead>
+                  <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Alamat Gudang</TableHead>
+                  <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Ket. Sistem Kerja Sama</TableHead>
+                  <TableHead className="w-[180px] text-right text-xs font-bold text-zinc-500 dark:text-zinc-400">Sisa Hutang Tempo</TableHead>
+                  <TableHead className="w-[80px] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -257,7 +262,7 @@ export default function Producers({ producers }: Props) {
                   </TableRow>
                 ) : (
                   producers.map((prod) => (
-                    <TableRow key={prod.id} className="hover:bg-muted/10 transition-colors">
+                    <TableRow key={prod.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors border-b border-zinc-100 dark:border-zinc-800/60">
                       <TableCell className="text-xs font-bold text-foreground py-3">
                         🏢 {prod.name}
                       </TableCell>
@@ -334,8 +339,8 @@ export default function Producers({ producers }: Props) {
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         <Sheet
           open={isEditOpen}

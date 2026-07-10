@@ -13,17 +13,7 @@ export function useFlashToast(): void {
                 return;
             }
 
-            const titles: Record<string, string> = {
-                success: 'Berhasil',
-                error: 'Gagal',
-                info: 'Informasi',
-                warning: 'Peringatan'
-            };
-            const title = titles[data.type] || 'Pemberitahuan';
-
-            toast[data.type](title, {
-                description: data.message
-            });
+            toast[data.type](data.message);
         });
     }, []);
 }

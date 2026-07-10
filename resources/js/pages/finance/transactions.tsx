@@ -82,71 +82,53 @@ const getLocalDatetimeString = () => {
 // --- KOMKOMPEN SKELETON LOADER KHUSUS DATA TRANSAKSI (PRESISI 100%) ---
 function TransactionsTableSkeleton() {
   return (
-    <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border animate-pulse">
-      <div className="p-6">
+    <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 animate-pulse">
+      <div className="p-0">
         <Table>
-          <TableCaption className='py-6'>Arsip rekaman penjualan masuk produk omnichannel Anda.</TableCaption>
-          <TableHeader>
+          <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Arsip rekaman penjualan masuk produk omnichannel Anda.</TableCaption>
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
             <TableRow>
-              <TableHead className="w-[50px]"><div className="h-4 w-4 bg-muted rounded" /></TableHead>
-              <TableHead>Gambar</TableHead>
-              <TableHead>Tanggal Transaksi</TableHead>
-              <TableHead>No. Pesanan</TableHead>
-              <TableHead>Toko / Platform</TableHead>
-              <TableHead>Total Bayar</TableHead>
-              <TableHead>Biaya Admin</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+              <TableHead className="w-[50px]"><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-700 rounded" /></TableHead>
+              <TableHead className="text-xs">Gambar</TableHead>
+              <TableHead className="text-xs">Tanggal Transaksi</TableHead>
+              <TableHead className="text-xs">No. Pesanan</TableHead>
+              <TableHead className="text-xs">Toko / Platform</TableHead>
+              <TableHead className="text-xs">Total Bayar</TableHead>
+              <TableHead className="text-xs">Biaya Admin</TableHead>
+              <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* Membuat 4 baris loading belang-belang palsu */}
             {[1, 2, 3, 4].map((i) => (
-              <TableRow key={i} className={i % 2 === 0 ? 'bg-muted/25' : 'bg-background'}>
-                {/* Checkbox */}
-                <TableCell><div className="h-4 w-4 bg-muted rounded" /></TableCell>
-
-                {/* Gambar Produk */}
+              <TableRow key={i} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20">
+                <TableCell><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-700 rounded" /></TableCell>
                 <TableCell>
-                  <div className="w-12 h-12 rounded-sm bg-muted border" />
+                  <div className="w-12 h-12 rounded-lg bg-zinc-200 dark:bg-zinc-700 border" />
                 </TableCell>
-
-                {/* Tanggal Transaksi */}
                 <TableCell>
                   <div className="flex flex-col gap-1">
-                    <div className="h-3.5 bg-muted rounded w-20" />
-                    <div className="h-2.5 bg-muted/60 rounded w-24" />
+                    <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-20" />
+                    <div className="h-2.5 bg-zinc-100 dark:bg-zinc-800 rounded w-24" />
                   </div>
                 </TableCell>
-
-                {/* No. Pesanan */}
                 <TableCell>
                   <div className="flex items-center gap-1.5">
-                    <div className="h-3.5 bg-muted rounded w-28 font-mono" />
-                    <div className="h-5 w-5 bg-muted/50 rounded" /> {/* Simulasi CopyButton */}
+                    <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-28" />
+                    <div className="h-5 w-5 bg-zinc-100 dark:bg-zinc-800 rounded" />
                   </div>
                 </TableCell>
-
-                {/* Toko / Platform */}
                 <TableCell>
                   <div className="flex flex-col gap-1">
-                    <div className="h-3.5 bg-muted rounded w-24" />
-                    <div className="h-2.5 bg-muted/60 rounded w-14" />
+                    <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-24" />
+                    <div className="h-2.5 bg-zinc-100 dark:bg-zinc-800 rounded w-14" />
                   </div>
                 </TableCell>
-
-                {/* Total Bayar */}
-                <TableCell><div className="h-3.5 bg-muted rounded w-20 font-bold" /></TableCell>
-
-                {/* Biaya Admin */}
-                <TableCell><div className="h-3.5 bg-muted/70 rounded w-16 font-medium" /></TableCell>
-
-                {/* Status Badge */}
-                <TableCell><div className="h-5 bg-muted rounded-full w-16" /></TableCell>
-
-                {/* Aksi Button */}
+                <TableCell><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-20" /></TableCell>
+                <TableCell><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-16" /></TableCell>
+                <TableCell><div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-16" /></TableCell>
                 <TableCell className="text-right">
-                  <div className="h-8 w-8 bg-muted rounded-md ml-auto" />
+                  <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-700 rounded-lg ml-auto" />
                 </TableCell>
               </TableRow>
             ))}
@@ -154,12 +136,12 @@ function TransactionsTableSkeleton() {
         </Table>
 
         {/* Panel Navigasi Halaman Palsu */}
-        <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border mt-4">
-          <div className="h-4 bg-muted rounded w-52" />
+        <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60 mt-4">
+          <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-52" />
           <div className="flex items-center space-x-2">
-            <div className="h-8 bg-muted rounded w-20" />
-            <div className="h-4 bg-muted rounded w-16" />
-            <div className="h-8 bg-muted rounded w-20" />
+            <div className="h-8 bg-zinc-200 dark:bg-zinc-700 rounded-xl w-20" />
+            <div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-16" />
+            <div className="h-8 bg-zinc-200 dark:bg-zinc-700 rounded-xl w-20" />
           </div>
         </div>
       </div>
@@ -547,7 +529,7 @@ export default function Transactions({ transactions, storesList, productsList, f
         },
         onError: (err: any) => {
           setUploadProcessing(false);
-          toast.error('Gagal', { description: err.file || 'Gagal mengupload file Excel.' });
+          toast.error(err.file || 'Gagal mengupload file Excel.');
           if (e.target) e.target.value = '';
         },
         onFinish: () => {
@@ -581,7 +563,7 @@ export default function Transactions({ transactions, storesList, productsList, f
         },
         onError: (err: any) => {
           setShopeeUploadProcessing(false);
-          toast.error('Gagal', { description: err.file || 'Gagal mengimpor pesanan.' });
+          toast.error(err.file || 'Gagal mengimpor pesanan.');
           if (e.target) e.target.value = '';
         },
         onFinish: () => {
@@ -1178,50 +1160,50 @@ export default function Transactions({ transactions, storesList, productsList, f
 
 
         {/* ================= TABS FILTER BARU ================= */}
-        <div className="flex w-full justify-center my-4">
+        <div className="flex w-full justify-center my-4 overflow-x-auto no-scrollbar">
           <Tabs
             value={statusFilter}
             onValueChange={setStatusFilter}
             className="w-auto"
           >
-            <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted/50 p-1.5 gap-1.5 backdrop-blur-sm border border-border/50">
+            <TabsList className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800/40 p-1 gap-1 backdrop-blur-sm border border-zinc-200/50 dark:border-zinc-800/80">
 
-              <TabsTrigger value="all" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
-                <ShoppingBag className="h-4 w-4" />
+              <TabsTrigger value="all" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <ShoppingBag className="h-3.5 w-3.5 text-zinc-500" />
                 Semua
-                <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-semibold bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 rounded-full">
+                <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-bold bg-zinc-200/60 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-full">
                   {countAll}
                 </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="pending" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
-                <Package className="h-4 w-4" />
+              <TabsTrigger value="pending" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <Package className="h-3.5 w-3.5 text-amber-500" />
                 Perlu Dikirim
-                <Badge className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500 text-white rounded-full">
+                <Badge className="px-2 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">
                   {countPending}
                 </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="processing" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
-                <Truck className="h-4 w-4" />
+              <TabsTrigger value="processing" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <Truck className="h-3.5 w-3.5 text-blue-500" />
                 Dikirim
-                <Badge className="px-2 py-0.5 text-[10px] font-semibold bg-blue-500 text-white rounded-full">
+                <Badge className="px-2 py-0.5 text-[10px] font-bold bg-blue-500 text-white rounded-full">
                   {countProcessing}
                 </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="completed" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
-                <CheckCircle className="h-4 w-4" />
+              <TabsTrigger value="completed" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
                 Selesai
-                <Badge className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500 text-white rounded-full">
+                <Badge className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500 text-white rounded-full">
                   {countCompleted}
                 </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="cancelled" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
-                <XCircle className="h-4 w-4" />
+              <TabsTrigger value="cancelled" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <XCircle className="h-3.5 w-3.5 text-red-500" />
                 Gagal / Batal
-                <Badge variant="destructive" className="px-2 py-0.5 text-[10px] font-semibold rounded-full">
+                <Badge variant="destructive" className="px-2 py-0.5 text-[10px] font-bold rounded-full">
                   {countCancelled}
                 </Badge>
               </TabsTrigger>
@@ -1230,12 +1212,14 @@ export default function Transactions({ transactions, storesList, productsList, f
           </Tabs>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-col lg:flex-row items-center gap-4 w-full bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
 
             <Select value={datePreset} onValueChange={applyDatePreset}>
-              <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Semua Waktu" /></SelectTrigger>
-              <SelectContent>
+              <SelectTrigger className="w-full sm:w-[150px] h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80">
+                <SelectValue placeholder="Semua Waktu" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="all">Semua Waktu</SelectItem>
                 <SelectItem value="today">Hari Ini</SelectItem>
                 <SelectItem value="yesterday">Kemarin</SelectItem>
@@ -1247,7 +1231,7 @@ export default function Transactions({ transactions, storesList, productsList, f
             </Select>
 
             {datePreset === 'custom' && (
-              <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
+              <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80 rounded-xl px-3 h-10 animate-in fade-in slide-in-from-left-2 duration-200">
                 <input
                   type="date"
                   value={startDate}
@@ -1255,9 +1239,9 @@ export default function Transactions({ transactions, storesList, productsList, f
                     setStartDate(e.target.value);
                     setDatePreset('custom');
                   }}
-                  className="bg-transparent text-xs border rounded-md px-2 h-9 outline-none focus:ring-1 focus:ring-ring w-[130px] dark:border-zinc-800"
+                  className="bg-transparent border-0 p-0 text-xs focus:outline-none focus:ring-0 w-[115px] outline-none h-auto"
                 />
-                <span className="text-[10px] text-muted-foreground">s/d</span>
+                <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
                 <input
                   type="date"
                   value={endDate}
@@ -1265,7 +1249,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                     setEndDate(e.target.value);
                     setDatePreset('custom');
                   }}
-                  className="bg-transparent text-xs border rounded-md px-2 h-9 outline-none focus:ring-1 focus:ring-ring w-[130px] dark:border-zinc-800"
+                  className="bg-transparent border-0 p-0 text-xs focus:outline-none focus:ring-0 w-[115px] outline-none h-auto"
                 />
               </div>
             )}
@@ -1275,22 +1259,22 @@ export default function Transactions({ transactions, storesList, productsList, f
                 variant="ghost"
                 type="button"
                 onClick={handleResetFilter}
-                className="h-9 px-3 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                className="text-xs h-10 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-950 transition-colors"
               >
-                Reset
+                Reset Filter
               </Button>
             )}
           </div>
 
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full sm:w-80 lg:ml-auto">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
             <Input
               ref={searchInputRef}
               type="search"
               placeholder="Cari No. Pesanan... (Tekan '/' untuk fokus)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80"
             />
           </div>
         </div>
@@ -1300,11 +1284,11 @@ export default function Transactions({ transactions, storesList, productsList, f
           <TransactionsTableSkeleton />
         ) : (
           /* TABEL DATA UTAMA ASLI */
-          <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-            <div className="p-6">
+          <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
+            <div className="p-0">
               <Table>
-                <TableCaption className='py-6'>Arsip rekaman penjualan masuk produk omnichannel Anda.</TableCaption>
-                <TableHeader>
+                <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Arsip rekaman penjualan masuk produk omnichannel Anda.</TableCaption>
+                <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
                   <TableRow>
                     <TableHead className="w-[50px]">
                       <Checkbox
@@ -1313,14 +1297,14 @@ export default function Transactions({ transactions, storesList, productsList, f
                         aria-label="Select all"
                       />
                     </TableHead>
-                    <TableHead>Gambar</TableHead>
-                    <TableHead>Tanggal Transaksi</TableHead>
-                    <TableHead>No. Pesanan</TableHead>
-                    <TableHead>Toko / Platform</TableHead>
-                    <TableHead>Total Bayar</TableHead>
-                    <TableHead>Biaya Admin</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
+                    <TableHead className="text-xs">Gambar</TableHead>
+                    <TableHead className="text-xs">Tanggal Transaksi</TableHead>
+                    <TableHead className="text-xs">No. Pesanan</TableHead>
+                    <TableHead className="text-xs">Toko / Platform</TableHead>
+                    <TableHead className="text-xs">Total Bayar</TableHead>
+                    <TableHead className="text-xs">Biaya Admin</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1344,7 +1328,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                       return (
                         <TableRow
                           key={tx.id}
-                          className={`cursor-pointer transition-colors hover:bg-muted/70 ${isSelected ? 'bg-muted/60 hover:bg-muted/60' : index % 2 === 1 ? 'bg-muted/25' : 'bg-background'}`}
+                          className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
                           onClick={() => {
                             setSelectedTransaction(tx);
                             setIsSheetOpen(true);
@@ -1457,48 +1441,50 @@ export default function Transactions({ transactions, storesList, productsList, f
               </Table>
 
               {transactions.last_page > 1 && (
-                <div className="flex items-center justify-between px-2 py-4 border-t border-sidebar-border/50 dark:border-sidebar-border">
-                  <div className="text-xs md:text-sm text-muted-foreground">
-                    Menampilkan {transactions.from ?? 0} sampai {transactions.to ?? 0} dari {transactions.total ?? 0} transaksi
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!transactions.prev_page_url}
-                      onClick={() => transactions.prev_page_url && router.get(transactions.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
-                    >
-                      Sebelumnya
-                    </Button>
-                    <div className="text-xs md:text-sm font-medium px-2">
-                      Hal {transactions.current_page} dari {transactions.last_page}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!transactions.next_page_url}
-                      onClick={() => transactions.next_page_url && router.get(transactions.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
-                    >
-                      Selanjutnya
-                    </Button>
-                  </div>
-                </div>
-              )}
+                 <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60">
+                   <div className="text-xs text-zinc-400 dark:text-zinc-500">
+                     Menampilkan {transactions.from ?? 0} sampai {transactions.to ?? 0} dari {transactions.total ?? 0} transaksi
+                   </div>
+                   <div className="flex items-center space-x-2">
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       className="text-xs h-8 rounded-xl"
+                       disabled={!transactions.prev_page_url}
+                       onClick={() => transactions.prev_page_url && router.get(transactions.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                     >
+                       Sebelumnya
+                     </Button>
+                     <div className="text-xs font-semibold text-zinc-650 dark:text-zinc-400 px-1">
+                       Hal {transactions.current_page} dari {transactions.last_page}
+                     </div>
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       className="text-xs h-8 rounded-xl"
+                       disabled={!transactions.next_page_url}
+                       onClick={() => transactions.next_page_url && router.get(transactions.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                     >
+                       Selanjutnya
+                     </Button>
+                   </div>
+                 </div>
+               )}  
             </div>
           </div>
         )}
 
         {/* Ringkasan Jumlah Transaksi Per Toko (Sleek Summary Table) */}
-        <div className="border rounded-xl bg-card overflow-hidden mt-6 shadow-sm border-border/80">
-          <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center justify-between">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ringkasan Transaksi Per Toko</span>
-            <span className="text-[10px] text-muted-foreground italic hidden sm:inline">Klik baris toko untuk menyaring data</span>
+        <div className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl overflow-hidden mt-6">
+          <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800/60 bg-zinc-50/55 dark:bg-zinc-800/30 flex items-center justify-between">
+            <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Ringkasan Transaksi Per Toko</span>
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic hidden sm:inline">Klik baris toko untuk menyaring data</span>
           </div>
           <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-left border-collapse text-xs select-none">
               <thead>
-                <tr className="border-b bg-muted/10 text-muted-foreground font-semibold">
-                  <th className="p-3 pl-4">Nama Toko</th>
+                <tr className="border-b border-zinc-100 dark:border-zinc-800/60 bg-zinc-50/20 dark:bg-zinc-800/10 text-zinc-500 dark:text-zinc-400 font-semibold">
+                  <th className="p-3 pl-5">Nama Toko</th>
                   <th className="p-3 text-center">Platform</th>
                   <th className="p-3 text-center font-bold">Total Order</th>
                   <th className="p-3 text-center text-amber-600 dark:text-amber-400">Kirim</th>
@@ -1507,26 +1493,26 @@ export default function Transactions({ transactions, storesList, productsList, f
                   <th className="p-3 text-center text-red-600 dark:text-red-400">Batal</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/60">
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                 {/* Row: Semua Toko */}
                 <tr 
                   onClick={() => setStoreFilter('all')}
-                  className={`cursor-pointer transition-colors hover:bg-muted/40 ${storeFilter === 'all' ? 'bg-primary/5 font-semibold text-primary' : ''}`}
+                  className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 ${storeFilter === 'all' ? 'bg-blue-50/50 dark:bg-blue-950/20 font-semibold text-blue-600 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300'}`}
                 >
-                  <td className="p-3 pl-4 flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full ${storeFilter === 'all' ? 'bg-primary' : 'bg-transparent'}`} />
+                  <td className="p-3 pl-5 flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${storeFilter === 'all' ? 'bg-blue-600 dark:bg-blue-400' : 'bg-transparent'}`} />
                     Semua Toko
                   </td>
                   <td className="p-3 text-center">
-                    <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                    <span className="text-[9px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
                       TOTAL
                     </span>
                   </td>
-                  <td className="p-3 text-center font-mono font-bold">{countAll}</td>
-                  <td className="p-3 text-center font-mono text-amber-700 dark:text-amber-400">{countPending}</td>
-                  <td className="p-3 text-center font-mono text-blue-700 dark:text-blue-400">{countProcessing}</td>
-                  <td className="p-3 text-center font-mono text-emerald-700 dark:text-emerald-400">{countCompleted}</td>
-                  <td className="p-3 text-center font-mono text-red-700 dark:text-red-400">{countCancelled}</td>
+                  <td className="p-3 text-center font-mono font-bold text-zinc-900 dark:text-zinc-100">{countAll}</td>
+                  <td className="p-3 text-center font-mono text-amber-600 dark:text-amber-400">{countPending}</td>
+                  <td className="p-3 text-center font-mono text-blue-600 dark:text-blue-400">{countProcessing}</td>
+                  <td className="p-3 text-center font-mono text-emerald-600 dark:text-emerald-400">{countCompleted}</td>
+                  <td className="p-3 text-center font-mono text-red-600 dark:text-red-400">{countCancelled}</td>
                 </tr>
 
                 {/* Rows: Each Store */}
@@ -1536,22 +1522,22 @@ export default function Transactions({ transactions, storesList, productsList, f
                     <tr 
                       key={store.id}
                       onClick={() => setStoreFilter(store.id.toString())}
-                      className={`cursor-pointer transition-colors hover:bg-muted/40 ${isSelected ? 'bg-primary/5 font-semibold text-primary' : ''}`}
+                      className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 ${isSelected ? 'bg-blue-50/50 dark:bg-blue-950/20 font-semibold text-blue-600 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300'}`}
                     >
-                      <td className="p-3 pl-4 flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary' : 'bg-transparent'}`} />
+                      <td className="p-3 pl-5 flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-blue-600 dark:bg-blue-400' : 'bg-transparent'}`} />
                         {store.name}
                       </td>
                       <td className="p-3 text-center">
-                        <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                        <span className="text-[9px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
                           {store.platform || 'manual'}
                         </span>
                       </td>
-                      <td className="p-3 text-center font-mono font-bold">{store.transactions_count || 0}</td>
-                      <td className="p-3 text-center font-mono text-amber-700 dark:text-amber-400">{store.pending_count || 0}</td>
-                      <td className="p-3 text-center font-mono text-blue-700 dark:text-blue-400">{store.processing_count || 0}</td>
-                      <td className="p-3 text-center font-mono text-emerald-700 dark:text-emerald-400">{store.completed_count || 0}</td>
-                      <td className="p-3 text-center font-mono text-red-700 dark:text-red-400">{store.cancelled_count || 0}</td>
+                      <td className="p-3 text-center font-mono font-bold text-zinc-900 dark:text-zinc-100">{store.transactions_count || 0}</td>
+                      <td className="p-3 text-center font-mono text-amber-600 dark:text-amber-400">{store.pending_count || 0}</td>
+                      <td className="p-3 text-center font-mono text-blue-600 dark:text-blue-400">{store.processing_count || 0}</td>
+                      <td className="p-3 text-center font-mono text-emerald-600 dark:text-emerald-400">{store.completed_count || 0}</td>
+                      <td className="p-3 text-center font-mono text-red-600 dark:text-red-400">{store.cancelled_count || 0}</td>
                     </tr>
                   );
                 })}
@@ -1563,13 +1549,13 @@ export default function Transactions({ transactions, storesList, productsList, f
 
       {/* FLOATING ACTION BAR */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/4 z-50 flex items-center gap-4 rounded-full border bg-background/95 p-2 pl-4 pr-2 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
-            <strong className="text-foreground font-semibold">{selectedIds.length}</strong> transaksi terpilih
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 rounded-full border border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/95 p-2 pl-4 pr-2 shadow-xl backdrop-blur-md animate-in slide-in-from-bottom-2 duration-300">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+            <strong className="text-zinc-900 dark:text-zinc-50 font-bold">{selectedIds.length}</strong> transaksi terpilih
           </span>
-          <div className="h-5 w-px bg-border" />
+          <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
           <div className="flex items-center gap-1.5">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])} className="rounded-full text-xs h-8">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])} className="rounded-full text-xs h-8 hover:bg-zinc-100 dark:hover:bg-zinc-800">
               Batal
             </Button>
 
@@ -1578,7 +1564,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 <Button
                   variant="outline"
                   size="sm"
-                  className="rounded-full gap-1.5 text-xs h-8 border-blue-600/30 text-blue-600 bg-blue-50/50 hover:bg-blue-600 hover:text-white"
+                  className="rounded-full gap-1.5 text-xs h-8 border-blue-600/30 text-blue-600 bg-blue-50/50 hover:bg-blue-600 hover:text-white dark:border-blue-900/30 dark:text-blue-400 dark:bg-blue-950/20 dark:hover:bg-blue-600"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                   Ubah Status
@@ -1604,7 +1590,7 @@ export default function Transactions({ transactions, storesList, productsList, f
               variant="outline"
               size="sm"
               onClick={handleBulkExport}
-              className="rounded-full gap-1.5 text-xs h-8 border-emerald-600/30 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-600 hover:text-white"
+              className="rounded-full gap-1.5 text-xs h-8 border-emerald-600/30 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-600 hover:text-white dark:border-emerald-900/30 dark:text-emerald-400 dark:bg-emerald-950/20 dark:hover:bg-emerald-600"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Export Excel
@@ -1621,16 +1607,16 @@ export default function Transactions({ transactions, storesList, productsList, f
                   Hapus Massal
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="rounded-2xl">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Sebanyak <strong className="text-foreground font-semibold">{selectedIds.length} data transaksi</strong> terpilih akan dihapus permanen dari basis data sistem.
+                  <AlertDialogDescription className="text-xs text-zinc-500">
+                    Sebanyak <strong className="text-zinc-950 dark:text-zinc-50 font-bold">{selectedIds.length} data transaksi</strong> terpilih akan dihapus permanen dari basis data sistem.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                  <AlertDialogAction variant="destructive" onClick={handleBulkDelete}>
+                  <AlertDialogCancel className="rounded-xl text-xs">Batal</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" className="rounded-xl text-xs" onClick={handleBulkDelete}>
                     Hapus Sekaligus
                   </AlertDialogAction>
                 </AlertDialogFooter>

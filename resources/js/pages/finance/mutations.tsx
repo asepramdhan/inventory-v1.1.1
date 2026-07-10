@@ -80,10 +80,10 @@ interface Props {
 // --- KOMPONEN SKELETON LOADER KHUSUS TABEL MUTASI (PRESISI 100%) ---
 function MutationsTableSkeleton() {
   return (
-    <Card className="border-sidebar-border/70 shadow-sm overflow-hidden animate-pulse">
-      <CardContent className="p-3">
+    <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 animate-pulse">
+      <div className="p-0">
         <Table>
-          <TableHeader className="bg-muted/40">
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
             <TableRow>
               <TableHead className="w-[130px] text-xs font-bold">Tanggal</TableHead>
               <TableHead className="w-[150px] text-xs font-bold">Akun Kas</TableHead>
@@ -97,50 +97,50 @@ function MutationsTableSkeleton() {
           <TableBody>
             {/* Membuat 4 baris riwayat mutasi palsu */}
             {[1, 2, 3, 4].map((i) => (
-              <TableRow key={i} className="border-b border-muted/10">
+              <TableRow key={i} className="border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20">
                 {/* Tanggal */}
                 <TableCell>
-                  <div className="h-3.5 bg-muted rounded w-16" />
+                  <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-16" />
                 </TableCell>
 
                 {/* Akun Kas */}
                 <TableCell>
-                  <div className="h-3.5 bg-muted rounded w-24 font-semibold" />
+                  <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-24 font-semibold" />
                 </TableCell>
 
                 {/* Kategori / Keterangan */}
                 <TableCell className="py-2.5">
                   <div className="flex flex-col gap-1.5">
-                    <div className="h-3.5 bg-muted rounded w-28 font-bold" />
-                    <div className="h-3 bg-muted/50 rounded w-44" /> {/* Simulasi description */}
+                    <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-28 font-bold" />
+                    <div className="h-3 bg-zinc-105 dark:bg-zinc-800 rounded w-44" /> {/* Simulasi description */}
                   </div>
                 </TableCell>
 
                 {/* No. Ref */}
                 <TableCell>
-                  <div className="h-3.5 bg-muted/60 rounded w-20 font-mono" />
+                  <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-20 font-mono" />
                 </TableCell>
 
                 {/* Nominal */}
                 <TableCell className="text-right">
-                  <div className="h-3.5 bg-muted rounded w-20 ml-auto font-extrabold" />
+                  <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-20 ml-auto font-extrabold" />
                 </TableCell>
 
                 {/* Saldo Berjalan */}
                 <TableCell className="text-right">
-                  <div className="h-3.5 bg-muted/70 rounded w-24 ml-auto" />
+                  <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-24 ml-auto" />
                 </TableCell>
 
                 {/* Aksi Button / Lock Tag */}
                 <TableCell className="text-center py-2">
-                  <div className="h-6 bg-muted/80 rounded w-8 mx-auto" />
+                  <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded w-8 mx-auto" />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -711,34 +711,34 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
         </div>
 
         {/* ================= TABS FILTER TYPE ================= */}
-        <div className="flex w-full justify-center my-4">
+        <div className="flex w-full justify-center my-4 overflow-x-auto no-scrollbar">
           <Tabs
             value={typeFilter}
             onValueChange={setTypeFilter}
             className="w-auto"
           >
-            <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted/50 p-1.5 gap-1.5 backdrop-blur-sm border border-border/50">
+            <TabsList className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800/40 p-1 gap-1 backdrop-blur-sm border border-zinc-200/50 dark:border-zinc-800/80">
 
-              <TabsTrigger value="all" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
-                <Wallet className="h-4 w-4" />
+              <TabsTrigger value="all" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <Wallet className="h-3.5 w-3.5 text-zinc-500" />
                 Semua
-                <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-semibold bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 rounded-full">
+                <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-bold bg-zinc-200/60 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-full">
                   {countAll}
                 </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="income" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
-                <TrendingUp className="h-4 w-4" />
+              <TabsTrigger value="income" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
                 Uang Masuk
-                <Badge className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500 text-white rounded-full">
+                <Badge className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500 text-white rounded-full">
                   {countIncome}
                 </Badge>
               </TabsTrigger>
 
-              <TabsTrigger value="expense" className="gap-2 px-4 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground transition-all duration-200">
-                <TrendingDown className="h-4 w-4" />
+              <TabsTrigger value="expense" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <TrendingDown className="h-3.5 w-3.5 text-red-500" />
                 Uang Keluar
-                <Badge variant="destructive" className="px-2 py-0.5 text-[10px] font-semibold rounded-full">
+                <Badge variant="destructive" className="px-2 py-0.5 text-[10px] font-bold rounded-full">
                   {countExpense}
                 </Badge>
               </TabsTrigger>
@@ -772,15 +772,15 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
               const isEditing = editingAccountId === acc.id;
 
               return (
-                <div key={acc.id} className={`group/card relative p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:border-border/80 ${!isActive ? 'opacity-50 bg-muted/30' : ''} ${isDefault ? 'border-primary ring-1 ring-primary/30' : ''} ${isEditing ? 'ring-2 ring-primary/40 border-primary/50' : ''}`} >
+                <div key={acc.id} className={`group/card relative p-5 rounded-2xl border bg-white dark:bg-zinc-900/50 text-card-foreground shadow-sm flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 ${!isActive ? 'opacity-50 bg-zinc-105/40 dark:bg-zinc-800/20' : ''} ${isDefault ? 'border-emerald-500/80 shadow-emerald-500/5 dark:border-emerald-500/40 ring-1 ring-emerald-500/30' : 'border-zinc-200/50 dark:border-zinc-800/80'} ${isEditing ? 'ring-2 ring-primary/40 border-primary/50' : ''}`} >
 
                   {/* Label Indikator Status */}
-                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                  <div className="absolute top-4 right-4 flex items-center gap-1.5">
                     {isDefault ? (
-                      <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full border border-primary/20"> 🟢 Default Utama </span>
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold px-2 py-0.5 rounded-full border border-emerald-500/20"> 🟢 Default </span>
                     ) : null}
                     {!isActive ? (
-                      <span className="text-[10px] bg-destructive/10 text-destructive font-semibold px-2 py-0.5 rounded-full"> 📁 Diarsipkan </span>
+                      <span className="text-[10px] bg-red-500/10 text-red-600 dark:text-red-400 font-bold px-2 py-0.5 rounded-full"> Arsip </span>
                     ) : null}
                   </div>
 
@@ -907,58 +907,63 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
 
         {/* SECTION 2: METRICS CASH FLOW ANALYSIS */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="border-sidebar-border/70 bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-950/20 dark:to-emerald-900/10 hover:shadow-md transition-shadow">
-            <div className="p-4 flex flex-row items-center justify-between pb-2">
-              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Total Arus Masuk</span>
-              <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+          <div className="relative overflow-hidden border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl bg-white dark:bg-zinc-900/50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm group">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-500 to-teal-500" />
+            <div className="p-5 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total Arus Masuk</span>
+              <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-105 transition-transform duration-300">
                 <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
-            <div className="px-4 pb-4">
-              <div className="text-2xl font-extrabold tracking-tight text-emerald-700 dark:text-emerald-400">
+            <div className="px-5 pb-5">
+              <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
                 {isLoading ? <Skeleton className="h-8 w-[180px]" /> : formatIDR(summary.total_income)}
               </div>
-              <p className="text-[10px] text-emerald-600/70 dark:text-emerald-500/70 mt-1">Income</p>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Uang Masuk / Pendapatan</p>
             </div>
-          </Card>
+          </div>
 
-          <Card className="border-sidebar-border/70 bg-gradient-to-br from-red-50/50 to-red-100/30 dark:from-red-950/20 dark:to-red-900/10 hover:shadow-md transition-shadow">
-            <div className="p-4 flex flex-row items-center justify-between pb-2">
-              <span className="text-xs font-bold text-red-700 dark:text-red-400">Total Arus Keluar</span>
-              <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+          <div className="relative overflow-hidden border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl bg-white dark:bg-zinc-900/50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm group">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-red-500 to-rose-500" />
+            <div className="p-5 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total Arus Keluar</span>
+              <div className="h-8 w-8 rounded-lg bg-red-50 dark:bg-red-500/10 flex items-center justify-center border border-red-500/20 group-hover:scale-105 transition-transform duration-300">
                 <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
               </div>
             </div>
-            <div className="px-4 pb-4">
-              <div className="text-2xl font-extrabold tracking-tight text-red-700 dark:text-red-400">
+            <div className="px-5 pb-5">
+              <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
                 {isLoading ? <Skeleton className="h-8 w-[180px]" /> : formatIDR(summary.total_expense)}
               </div>
-              <p className="text-[10px] text-red-600/70 dark:text-red-500/70 mt-1">Expense</p>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Uang Keluar / Pengeluaran</p>
             </div>
-          </Card>
+          </div>
 
-          <Card className={`border-sidebar-border/70 bg-gradient-to-br ${summary.net_cash_flow >= 0 ? 'from-blue-50/50 to-blue-100/30 dark:from-blue-950/20 dark:to-blue-900/10' : 'from-amber-50/50 to-amber-100/30 dark:from-amber-950/20 dark:to-amber-900/10'} hover:shadow-md transition-shadow`}>
-            <div className="p-4 flex flex-row items-center justify-between pb-2">
-              <span className="text-xs font-bold text-muted-foreground">Net Cash Flow</span>
-              <div className={`h-8 w-8 rounded-full ${summary.net_cash_flow >= 0 ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-amber-100 dark:bg-amber-900/30'} flex items-center justify-center`}>
+          <div className="relative overflow-hidden border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl bg-white dark:bg-zinc-900/50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm group">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 to-indigo-500" />
+            <div className="p-5 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Net Cash Flow</span>
+              <div className={`h-8 w-8 rounded-lg ${summary.net_cash_flow >= 0 ? 'bg-blue-50 dark:bg-blue-500/10 border border-blue-500/20' : 'bg-amber-50 dark:bg-amber-500/10 border border-amber-500/20'} flex items-center justify-center group-hover:scale-105 transition-transform duration-300`}>
                 <DollarSign className={`h-4 w-4 ${summary.net_cash_flow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'}`} />
               </div>
             </div>
-            <div className="px-4 pb-4">
-              <div className={`text-2xl font-black tracking-tight ${summary.net_cash_flow >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-amber-700 dark:text-amber-400'}`}>
+            <div className="px-5 pb-5">
+              <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
                 {isLoading ? <Skeleton className="h-8 w-[180px]" /> : formatIDR(summary.net_cash_flow)}
               </div>
-              <p className={`text-[10px] mt-1 ${summary.net_cash_flow >= 0 ? 'text-blue-600/70 dark:text-blue-500/70' : 'text-amber-600/70 dark:text-amber-500/70'}`}>Arus Bersih</p>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Arus Bersih Seluruh Kas</p>
             </div>
-          </Card>
+          </div>
         </div>
 
         {/* SECTION 3: FILTER CONTROLLER BAR */}
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-3 w-full">
-          <div className="flex items-center gap-2 w-full lg:w-auto">
+        <div className="flex flex-col lg:flex-row items-center gap-4 w-full bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
             <Select value={accountFilter} onValueChange={setAccountFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Semua Akun" /></SelectTrigger>
-              <SelectContent>
+              <SelectTrigger className="w-full sm:w-[200px] h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80">
+                <SelectValue placeholder="Semua Akun" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="all">Semua Rekening</SelectItem>
                 {accounts?.map((acc) => <SelectItem key={acc.id} value={acc.id.toString()}>{acc.name}</SelectItem>)}
               </SelectContent>
@@ -969,24 +974,24 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                 variant="ghost"
                 type="button"
                 onClick={handleResetFilter}
-                className="h-9 px-3 text-xs text-muted-foreground hover:text-destructive"
+                className="text-xs h-10 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-950 transition-colors"
               >
-                Reset
+                Reset Filter
               </Button>
             )}
           </div>
 
-          <div className="flex items-center gap-2 w-full lg:w-auto">
-            <div className="flex items-center gap-1.5 bg-background border rounded-lg px-2 h-9 w-full sm:w-auto">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-xs border-none outline-none focus:ring-0 p-0 w-28" />
-              <span className="text-muted-foreground text-xs">s/d</span>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-xs border-none outline-none focus:ring-0 p-0 w-28" />
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:ml-auto">
+            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80 rounded-xl px-3 h-10 w-full sm:w-auto">
+              <Calendar className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent border-0 p-0 text-xs focus:outline-none focus:ring-0 w-[115px] outline-none h-auto" />
+              <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent border-0 p-0 text-xs focus:outline-none focus:ring-0 w-[115px] outline-none h-auto" />
             </div>
 
             <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input type="search" placeholder="Cari kategori, memo, atau ref..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
+              <Input type="search" placeholder="Cari kategori, memo, atau ref..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80" />
             </div>
           </div>
         </div>
@@ -996,18 +1001,18 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
           <MutationsTableSkeleton />
         ) : (
           /* SECTION 4: DATA TABLE HISTORY MUTASI */
-          <Card className="border-sidebar-border/70 shadow-sm overflow-hidden">
-            <CardContent className="p-0">
+          <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 shadow-sm">
+            <div className="p-0">
               <Table>
-                <TableHeader className="bg-muted/50 border-b border-border/50">
+                <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
                   <TableRow>
-                    <TableHead className="w-[130px] text-xs font-bold text-muted-foreground">Tanggal</TableHead>
-                    <TableHead className="w-[150px] text-xs font-bold text-muted-foreground">Akun Kas</TableHead>
-                    <TableHead className="text-xs font-bold text-muted-foreground">Kategori / Keterangan</TableHead>
-                    <TableHead className="w-[150px] text-xs font-bold text-muted-foreground">No. Ref</TableHead>
-                    <TableHead className="text-right w-[150px] text-xs font-bold text-muted-foreground">Nominal</TableHead>
-                    <TableHead className="text-right w-[160px] text-xs font-bold text-muted-foreground">Saldo Berjalan</TableHead>
-                    <TableHead className="w-[50px] text-xs font-bold text-muted-foreground text-center">Aksi</TableHead>
+                    <TableHead className="w-[130px] text-xs font-bold text-zinc-500 dark:text-zinc-400">Tanggal</TableHead>
+                    <TableHead className="w-[150px] text-xs font-bold text-zinc-500 dark:text-zinc-400">Akun Kas</TableHead>
+                    <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Kategori / Keterangan</TableHead>
+                    <TableHead className="w-[150px] text-xs font-bold text-zinc-500 dark:text-zinc-400">No. Ref</TableHead>
+                    <TableHead className="text-right w-[150px] text-xs font-bold text-zinc-500 dark:text-zinc-400">Nominal</TableHead>
+                    <TableHead className="text-right w-[160px] text-xs font-bold text-zinc-500 dark:text-zinc-400">Saldo Berjalan</TableHead>
+                    <TableHead className="w-[50px] text-xs font-bold text-zinc-500 dark:text-zinc-400 text-center">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1027,7 +1032,7 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                     </TableRow>
                   ) : (
                     mutations?.data?.map((item, index) => (
-                      <TableRow key={item.id} className={`hover:bg-muted/50 transition-colors border-b border-border/30 ${index === 0 ? 'border-t-0' : ''}`}>
+                      <TableRow key={item.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors border-b border-zinc-100 dark:border-zinc-800/60">
                         <TableCell className="py-3">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs font-medium text-foreground">
@@ -1097,15 +1102,15 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                   )}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
         {/* ================= BARIS TOMBOL PAGINATION BARU ================= */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 pb-6 px-1">
-          <p className="text-xs text-muted-foreground text-center sm:text-left">
-            Menampilkan <span className="font-semibold text-foreground">{mutations.from || 0}</span> sampai{" "}
-            <span className="font-semibold text-foreground">{mutations.to || 0}</span> dari{" "}
-            <span className="font-semibold text-foreground">{mutations.total}</span> riwayat mutasi
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center sm:text-left">
+            Menampilkan <span className="font-semibold text-zinc-900 dark:text-zinc-50">{mutations.from || 0}</span> sampai{" "}
+            <span className="font-semibold text-zinc-900 dark:text-zinc-50">{mutations.to || 0}</span> dari{" "}
+            <span className="font-semibold text-zinc-900 dark:text-zinc-50">{mutations.total}</span> riwayat mutasi
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-1">
@@ -1114,11 +1119,10 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                 key={idx}
                 variant={link.active ? "default" : "outline"}
                 size="sm"
-                className={`h-8 text-xs px-3 rounded-md transition-all duration-200 ${link.active ? 'pointer-events-none shadow-sm' : 'hover:bg-muted/80'} ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`h-8 text-xs px-3 rounded-xl transition-all duration-200 ${link.active ? 'pointer-events-none shadow-sm' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'} ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
                 disabled={!link.url}
                 onClick={() => {
                   if (link.url) {
-                    // Ambil angka page dari URL link bawaan Laravel (contoh: ?page=2 diambil angka 2-nya)
                     const urlObj = new URL(link.url, window.location.origin);
                     const pageNumber = urlObj.searchParams.get('page');
                     if (pageNumber) setPage(Number(pageNumber));

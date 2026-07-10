@@ -98,11 +98,12 @@ function DashboardSkeleton() {
     <div className="flex flex-col gap-6 animate-pulse">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="border-l-4 border-l-muted shadow-sm">
-            <CardContent className="p-4 space-y-3">
+          <Card key={i} className="relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm rounded-2xl">
+            <div className="absolute inset-x-0 top-0 h-1 bg-zinc-200 dark:bg-zinc-800" />
+            <CardContent className="p-5 space-y-3">
               <div className="flex justify-between">
                 <div className="h-3 bg-muted rounded w-24" />
-                <div className="h-9 w-9 bg-muted rounded-full" />
+                <div className="h-9 w-9 bg-muted rounded-lg" />
               </div>
               <div className="h-7 bg-muted rounded w-32" />
               <div className="h-3 bg-muted/60 rounded w-full" />
@@ -111,15 +112,44 @@ function DashboardSkeleton() {
         ))}
       </div>
       <div className="grid gap-4 md:grid-cols-7">
-        <Card className="md:col-span-4 shadow-sm"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
-        <Card className="md:col-span-3 shadow-sm"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+        <Card className="md:col-span-4 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+        <Card className="md:col-span-3 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="shadow-sm"><CardContent className="h-[220px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
-        <Card className="shadow-sm"><CardContent className="h-[220px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+        <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[220px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+        <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[220px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
       </div>
     </div>
   );
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+}
+
+function CustomTooltip({ active, payload }: CustomTooltipProps) {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="backdrop-blur-md bg-white/95 dark:bg-zinc-950/95 border border-zinc-200/60 dark:border-zinc-800/60 p-3.5 rounded-2xl shadow-xl space-y-2 min-w-[170px] text-xs">
+        <p className="font-semibold text-zinc-500 dark:text-zinc-400">{formatChartDate(data.date)}</p>
+        <div className="space-y-1.5 border-t border-zinc-100 dark:border-zinc-800/60 pt-2 mt-1.5">
+          {payload.map((entry: any) => (
+            <div key={entry.name} className="flex justify-between items-center gap-4">
+              <span className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: entry.stroke || entry.color }} />
+                {entry.name}
+              </span>
+              <span className="font-bold text-zinc-900 dark:text-zinc-50">{formatIDR(entry.value)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
 }
 
 export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasiTerbaru, chartData }: Props) {
@@ -153,62 +183,66 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
           <div className="flex flex-col gap-6">
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="border-l-4 border-l-emerald-500 shadow-sm">
-                <CardContent className="p-4 flex items-center justify-between gap-3">
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Omzet Bulan Ini</p>
-                    <p className="text-xl font-black text-emerald-600 tracking-tight">{formatIDR(summary.omzet)}</p>
-                    <p className="text-[10px] text-muted-foreground">Transaksi bruto bulan berjalan</p>
+              <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+                <CardContent className="p-5 flex items-center justify-between gap-4">
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Omzet Bulan Ini</p>
+                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.omzet)}</p>
+                    <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Transaksi bruto bulan berjalan</p>
                   </div>
-                  <div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
                     <TrendingUp className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-amber-500 shadow-sm">
-                <CardContent className="p-4 flex items-center justify-between gap-3">
-                  <div className="space-y-0.5 min-w-0 flex-1">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-amber-600">Profit Bersih Bulan Ini</p>
-                    <p className="text-xl font-black text-amber-600 tracking-tight">{formatIDR(summary.profit)}</p>
-                    <div className="pt-1 flex flex-col gap-0.5 text-[10px] border-t border-dashed mt-1">
+              <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 to-orange-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+                <CardContent className="p-5 flex items-center justify-between gap-4">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Profit Bersih Bulan Ini</p>
+                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.profit)}</p>
+                    <div className="pt-2 flex flex-col gap-1 text-[10.5px] border-t border-zinc-100 dark:border-zinc-800 border-dashed mt-2">
                       <div className="flex justify-between gap-2">
-                        <span className="flex items-center gap-1 text-amber-600"><Clock className="h-3 w-3" /> Pending</span>
-                        <span className="font-bold text-amber-600">{formatIDR(summary.profit_pending)}</span>
+                        <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><Clock className="h-3 w-3" /> Pending</span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_pending)}</span>
                       </div>
                       <div className="flex justify-between gap-2">
-                        <span className="flex items-center gap-1 text-indigo-600"><Truck className="h-3 w-3" /> Diproses</span>
-                        <span className="font-bold text-indigo-600">{formatIDR(summary.profit_processing)}</span>
+                        <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400"><Truck className="h-3 w-3" /> Diproses</span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_processing)}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-100/50 dark:border-amber-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
                     <DollarSign className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-purple-500 shadow-sm">
-                <CardContent className="p-4 flex items-center justify-between gap-3">
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Saldo Kas Berjalan</p>
-                    <p className="text-xl font-black text-purple-600 tracking-tight">{formatIDR(summary.kas)}</p>
-                    <p className="text-[10px] text-muted-foreground">Total saldo semua rekening aktif</p>
+              <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+                <CardContent className="p-5 flex items-center justify-between gap-4">
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Saldo Kas Berjalan</p>
+                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.kas)}</p>
+                    <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Total saldo semua rekening aktif</p>
                   </div>
-                  <div className="h-9 w-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-100/50 dark:border-purple-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
                     <Wallet className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-red-500 shadow-sm">
-                <CardContent className="p-4 flex items-center justify-between gap-3">
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Hutang Produsen</p>
-                    <p className="text-xl font-black text-red-600 tracking-tight">{formatIDR(summary.hutang)}</p>
-                    <p className="text-[10px] text-muted-foreground">Sisa tagihan produsen belum lunas</p>
+              <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500 to-red-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+                <CardContent className="p-5 flex items-center justify-between gap-4">
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Hutang Produsen</p>
+                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.hutang)}</p>
+                    <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Sisa tagihan produsen belum lunas</p>
                   </div>
-                  <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-100/50 dark:border-rose-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
                     <AlertCircle className="h-5 w-5" />
                   </div>
                 </CardContent>
@@ -216,14 +250,14 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
             </div>
 
             <div className="grid gap-4 md:grid-cols-7">
-              <Card className="md:col-span-4 shadow-sm">
+              <Card className="md:col-span-4 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Tren Penjualan 7 Hari Terakhir</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Tren Penjualan 7 Hari Terakhir</CardTitle>
                   <CardDescription className="text-xs">Omzet kotor vs profit bersih harian.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[280px]">
                   {!hasChartData ? (
-                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded-lg">
+                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded-xl">
                       Belum ada data penjualan 7 hari terakhir.
                     </div>
                   ) : (
@@ -231,43 +265,41 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                       <AreaChart data={chartDisplayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="dashColorOmzet" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
                             <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                           </linearGradient>
                           <linearGradient id="dashColorProfit" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#d97706" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#d97706" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted/40" />
-                        <XAxis dataKey="dateLabel" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatAxisIDR} width={48} />
-                        <Tooltip
-                          formatter={(value) => formatIDR(Number(value ?? 0))}
-                          labelFormatter={(_, payload) => {
-                            const raw = payload?.[0]?.payload?.date;
-                            return raw ? formatChartDate(raw) : '';
-                          }}
-                        />
-                        <Legend wrapperStyle={{ fontSize: '11px' }} />
-                        <Area type="monotone" dataKey="omzet" name="Omzet" stroke="#10b981" strokeWidth={2} fill="url(#dashColorOmzet)" />
-                        <Area type="monotone" dataKey="profit" name="Profit" stroke="#d97706" strokeWidth={2} fill="url(#dashColorProfit)" />
+                        <CartesianGrid strokeDasharray="4 4" vertical={false} className="stroke-zinc-100 dark:stroke-zinc-800/40" />
+                        <XAxis dataKey="dateLabel" fontSize={11} tickLine={false} axisLine={false} className="fill-zinc-400 dark:fill-zinc-500" />
+                        <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatAxisIDR} width={48} className="fill-zinc-400 dark:fill-zinc-500" />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                        <Area type="monotone" dataKey="omzet" name="Omzet" stroke="#10b981" strokeWidth={2} fill="url(#dashColorOmzet)" activeDot={{ r: 4, strokeWidth: 0 }} />
+                        <Area type="monotone" dataKey="profit" name="Profit" stroke="#6366f1" strokeWidth={2} fill="url(#dashColorProfit)" activeDot={{ r: 4, strokeWidth: 0 }} />
                       </AreaChart>
                     </ResponsiveContainer>
                   )}
                 </CardContent>
               </Card>
 
-              <Card className="md:col-span-3 shadow-sm border-l-4 border-l-red-500">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-red-600">
-                    <AlertCircle className="h-4 w-4" />
+              <Card className="md:col-span-3 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl relative overflow-hidden">
+                <div className="absolute inset-y-0 left-0 w-1 bg-red-500" />
+                <CardHeader className="pb-2.5">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-rose-600">
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                    </span>
                     Peringatan Stok Tipis
                   </CardTitle>
-                  <CardDescription className="text-xs">Produk dengan stok ≤ 5 pcs.</CardDescription>
+                  <CardDescription className="text-xs">Produk dengan sisa stok kritis (≤ 5 pcs).</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1">
+                  <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
                     {stokTipis.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
                         <CheckCircle2 className="h-8 w-8 text-emerald-500" />
@@ -275,21 +307,21 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                       </div>
                     ) : (
                       stokTipis.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                        <div key={item.id} className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2.5 last:border-0 last:pb-0 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 p-1 rounded-xl transition-all duration-200">
                           <div className="flex items-center gap-2.5 min-w-0">
                             {item.image ? (
-                              <img src={item.image} alt={item.name} className="h-10 w-10 rounded-md border object-cover shrink-0" />
+                              <img src={item.image} alt={item.name} className="h-10 w-10 rounded-lg border border-zinc-200/60 dark:border-zinc-800 object-cover shrink-0 transition-transform duration-300 hover:scale-105" />
                             ) : (
-                              <div className="h-10 w-10 bg-muted rounded-md border flex items-center justify-center shrink-0">
-                                <Package className="h-4 w-4 text-muted-foreground/60" />
+                              <div className="h-10 w-10 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-center shrink-0">
+                                <Package className="h-5 w-5 text-zinc-400" />
                               </div>
                             )}
                             <div className="min-w-0">
-                              <p className="text-xs font-bold truncate">{item.name}</p>
-                              <p className="text-[10px] text-muted-foreground">Sisa stok gudang</p>
+                              <p className="text-xs font-bold text-zinc-950 dark:text-zinc-100 truncate">{item.name}</p>
+                              <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Sisa stok gudang</p>
                             </div>
                           </div>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${item.stock === 0 ? 'bg-red-500/10 text-red-600 border border-red-500/20' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'}`}>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 border ${item.stock === 0 ? 'bg-red-500/10 text-red-600 border-red-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`}>
                             {item.stock} pcs
                           </span>
                         </div>
@@ -306,19 +338,19 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Card className="shadow-sm overflow-hidden">
-                <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4" />
+              <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl overflow-hidden">
+                <CardHeader className="pb-2.5 flex flex-row items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+                    <ShoppingBag className="h-4 w-4 text-emerald-500" />
                     Transaksi Penjualan Terbaru
                   </CardTitle>
                   <Link href="/finance/transactions" className="text-[11px] font-medium text-blue-600 hover:underline flex items-center gap-0.5">
                     Lihat semua <ArrowRight className="h-3 w-3" />
                   </Link>
                 </CardHeader>
-                <CardContent className="p-0 pb-2">
+                <CardContent className="p-0">
                   <Table>
-                    <TableHeader className="bg-muted/40">
+                    <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
                       <TableRow>
                         <TableHead className="text-xs">Tanggal</TableHead>
                         <TableHead className="text-xs">No. Nota</TableHead>
@@ -335,15 +367,19 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                         </TableRow>
                       ) : (
                         transaksiTerbaru.map((tx) => (
-                          <TableRow key={tx.id} className="hover:bg-muted/10">
-                            <TableCell className="py-2">
+                          <TableRow key={tx.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
+                            <TableCell className="py-2.5">
                               <div className="flex flex-col gap-0.5">
-                                <span className="text-xs font-medium">{formatDateTime(tx.transaction_date).dateStr}</span>
-                                <span className="text-[10px] text-muted-foreground italic">Pukul {formatDateTime(tx.transaction_date).timeStr}</span>
+                                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{formatDateTime(tx.transaction_date).dateStr}</span>
+                                <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Pukul {formatDateTime(tx.transaction_date).timeStr}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
-                            <TableCell className="text-xs truncate max-w-[100px]">{tx.store?.name || '-'}</TableCell>
+                            <TableCell>
+                              <span className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-md border border-zinc-200/50 dark:border-zinc-700/50">{tx.invoice_number}</span>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <span className="inline-block max-w-[100px] truncate bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-full text-[10px] font-medium border border-zinc-200/30 dark:border-zinc-700/30">{tx.store?.name || '-'}</span>
+                            </TableCell>
                             <TableCell className="text-right text-xs font-bold text-emerald-600">{formatIDR(tx.grand_total)}</TableCell>
                           </TableRow>
                         ))
@@ -353,19 +389,19 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                 </CardContent>
               </Card>
 
-              <Card className="shadow-sm overflow-hidden">
-                <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Wallet className="h-4 w-4" />
+              <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl overflow-hidden">
+                <CardHeader className="pb-2.5 flex flex-row items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+                    <Wallet className="h-4 w-4 text-purple-500" />
                     Mutasi Kas Terbaru
                   </CardTitle>
                   <Link href="/finance/mutations" className="text-[11px] font-medium text-blue-600 hover:underline flex items-center gap-0.5">
                     Lihat semua <ArrowRight className="h-3 w-3" />
                   </Link>
                 </CardHeader>
-                <CardContent className="p-0 pb-2">
+                <CardContent className="p-0">
                   <Table>
-                    <TableHeader className="bg-muted/40">
+                    <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
                       <TableRow>
                         <TableHead className="text-xs">Tanggal</TableHead>
                         <TableHead className="text-xs">Kategori</TableHead>
@@ -382,17 +418,19 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                         </TableRow>
                       ) : (
                         mutasiTerbaru.map((mut) => (
-                          <TableRow key={mut.id} className="hover:bg-muted/10">
-                            <TableCell className="py-2">
+                          <TableRow key={mut.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
+                            <TableCell className="py-2.5">
                               <div className="flex flex-col gap-0.5">
-                                <span className="text-xs font-medium">{formatDateTimes(mut.created_at).dateStr}</span>
-                                <span className="text-[10px] text-muted-foreground italic">Pukul {formatDateTimes(mut.created_at).timeStr}</span>
+                                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{formatDateTimes(mut.created_at).dateStr}</span>
+                                <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Pukul {formatDateTimes(mut.created_at).timeStr}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="text-xs font-semibold">{mut.category}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground truncate max-w-[90px]">{mut.account?.name || '-'}</TableCell>
-                            <TableCell className={`text-right text-xs font-bold ${mut.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
-                              {mut.type === 'income' ? '+' : '-'}{formatIDR(mut.amount)}
+                            <TableCell className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{mut.category}</TableCell>
+                            <TableCell className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[90px]">{mut.account?.name || '-'}</TableCell>
+                            <TableCell className="text-right py-2">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${mut.type === 'income' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                                {mut.type === 'income' ? '+' : '-'}{formatIDR(mut.amount)}
+                              </span>
                             </TableCell>
                           </TableRow>
                         ))
