@@ -22,6 +22,8 @@ class TransactionController extends Controller
         $search = $request->input('search');
         $storeId = $request->input('store_id');
         $status = $request->input('status');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
         // Query transaksi bawa data toko & item produknya
         $transactions = Transaction::with(['store', 'items.product'])
@@ -46,14 +48,40 @@ class TransactionController extends Controller
             ->when($status && $status !== 'all', function ($query) use ($status) {
                 return $query->where('status', $status);
             })
+
+            // Filter Berdasarkan Rentang Tanggal
+            ->when($startDate, function ($query) use ($startDate) {
+                return $query->where('transaction_date', '>=', $startDate . ' 00:00:00');
+            })
+            ->when($endDate, function ($query) use ($endDate) {
+                return $query->where('transaction_date', '<=', $endDate . ' 23:59:59');
+            })
+
             ->latest('transaction_date')
             ->paginate(50)
             ->withQueryString();
 
-        // Ambil list toko untuk opsi filter dropdown
+        // Hitung jumlah transaksi per toko per status untuk indicator cards
+        $storeStatusCounts = Transaction::where('user_id', Auth::user()->id)
+            ->selectRaw('store_id, status, COUNT(*) as count')
+            ->groupBy('store_id', 'status')
+            ->get()
+            ->groupBy('store_id');
+
         $storesList = Store::where('user_id', Auth::user()->id)
             ->select('id', 'name', 'platform')
-            ->get();
+            ->get()
+            ->map(function ($store) use ($storeStatusCounts) {
+                $counts = $storeStatusCounts->get($store->id);
+                
+                $store->transactions_count = $counts ? $counts->sum('count') : 0;
+                $store->pending_count = $counts ? ($counts->where('status', 'pending')->first()->count ?? 0) : 0;
+                $store->processing_count = $counts ? ($counts->where('status', 'processing')->first()->count ?? 0) : 0;
+                $store->completed_count = $counts ? ($counts->where('status', 'completed')->first()->count ?? 0) : 0;
+                $store->cancelled_count = $counts ? ($counts->where('status', 'cancelled')->first()->count ?? 0) : 0;
+                
+                return $store;
+            });
 
         // Ambil list produk yang punya HPP untuk form input manual
         $productsList = Product::with('hpp')
@@ -84,6 +112,8 @@ class TransactionController extends Controller
                 'search' => $search ?? '',
                 'store_id' => $storeId ?? 'all',
                 'status' => $status ?? 'all',
+                'start_date' => $startDate ?? '',
+                'end_date' => $endDate ?? '',
             ]
         ]);
     }
@@ -562,8 +592,10 @@ class TransactionController extends Controller
                 }
             }
 
-            if ($invoiceIndex === null || $statusIndex === null || $skuIndex === null || 
-                $priceIndex === null || $quantityIndex === null || $subtotalIndex === null) {
+            if (
+                $invoiceIndex === null || $statusIndex === null || $skuIndex === null ||
+                $priceIndex === null || $quantityIndex === null || $subtotalIndex === null
+            ) {
                 throw ValidationException::withMessages([
                     'file' => 'Format kolom Excel Shopee tidak dikenali. Pastikan terdapat kolom: No. Pesanan, Status Pesanan, SKU Induk, Harga Setelah Diskon, Jumlah, Subtotal Pesanan.'
                 ]);
@@ -575,9 +607,8 @@ class TransactionController extends Controller
             $skippedCount = 0;
             $errorMessages = [];
 
-            DB::transaction(function () use ($rows, $invoiceIndex, $statusIndex, $skuIndex, $priceIndex, 
-                $quantityIndex, $subtotalIndex, $orderDateIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
-                
+            DB::transaction(function () use ($rows, $invoiceIndex, $statusIndex, $skuIndex, $priceIndex, $quantityIndex, $subtotalIndex, $orderDateIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
+
                 $ordersByInvoice = [];
 
                 for ($i = 1; $i < count($rows); $i++) {
@@ -699,7 +730,7 @@ class TransactionController extends Controller
 
                     foreach ($validItems as $item) {
                         $product = $item['product'];
-                        
+
                         TransactionItem::create([
                             'transaction_id' => $transaction->id,
                             'product_id' => $product->id,

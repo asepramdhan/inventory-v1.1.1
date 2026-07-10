@@ -2,6 +2,7 @@ import { AppContent } from '@/components/app-content';
 import { AppHeader } from '@/components/app-header';
 import { AppShell } from '@/components/app-shell';
 import type { AppLayoutProps } from '@/types';
+import { FloatingControlGroup } from '@/components/floating-control-group';
 
 export default function AppHeaderLayout({
     children,
@@ -11,6 +12,7 @@ export default function AppHeaderLayout({
         <AppShell variant="header">
             <AppHeader breadcrumbs={breadcrumbs} />
             <AppContent variant="header">{children}</AppContent>
+            <FloatingControlGroup />
         </AppShell>
     );
 }

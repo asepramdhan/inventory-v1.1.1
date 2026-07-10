@@ -127,20 +127,15 @@ export function NetworkStatus() {
                         onClick={checkLatency}
                         disabled={isChecking}
                         className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold select-none transition-all hover:bg-opacity-80 active:scale-95 duration-200",
+                            "relative flex items-center justify-center h-9 w-9 rounded-full select-none transition-all hover:bg-opacity-80 active:scale-95 duration-200",
                             statusColor
                         )}
                     >
-                        <span className={cn("h-1.5 w-1.5 rounded-full", dotColor)} />
                         {isOnline ? (
-                            <Wifi className="h-3.5 w-3.5 shrink-0" />
+                            <Wifi className={cn("h-4 w-4 shrink-0", isChecking && "animate-pulse")} />
                         ) : (
-                            <WifiOff className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                            <WifiOff className="h-4 w-4 shrink-0" />
                         )}
-                        <span className="hidden sm:inline">
-                            {latency !== null ? `${latency} ms` : statusText}
-                        </span>
-                        {isChecking && <RefreshCw className="h-3 w-3 animate-spin opacity-60 ml-0.5" />}
                     </button>
                 </TooltipTrigger>
                 <TooltipContent align="end" className="text-xs p-3 space-y-1">

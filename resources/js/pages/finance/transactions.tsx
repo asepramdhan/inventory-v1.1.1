@@ -3,7 +3,7 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 /* eslint-disable curly */
 import { Form, Head, router } from '@inertiajs/react';
-import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload } from 'lucide-react';
+import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload, Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import Heading from '@/components/heading';
@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -201,14 +202,103 @@ export default function Transactions({ transactions, storesList, productsList, f
     return filters.status || 'all';
   });
 
+  const [startDate, setStartDate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tx_filter_start_date') || filters.start_date || '';
+    }
+    return filters.start_date || '';
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tx_filter_end_date') || filters.end_date || '';
+    }
+    return filters.end_date || '';
+  });
+
+  const [datePreset, setDatePreset] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const storedStart = localStorage.getItem('tx_filter_start_date') || filters.start_date || '';
+      const storedEnd = localStorage.getItem('tx_filter_end_date') || filters.end_date || '';
+      
+      if (!storedStart && !storedEnd) return 'all';
+      
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (storedStart === todayStr && storedEnd === todayStr) return 'today';
+      
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      if (storedStart === yesterdayStr && storedEnd === yesterdayStr) return 'yesterday';
+      
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+      if (storedStart === sevenDaysAgoStr && storedEnd === todayStr) return '7_days';
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      if (storedStart === thirtyDaysAgoStr && storedEnd === todayStr) return '30_days';
+
+      const firstOfMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+      if (storedStart === firstOfMonthStr && storedEnd === todayStr) return 'this_month';
+
+      return 'custom';
+    }
+    return 'all';
+  });
+
+  const applyDatePreset = (preset: string) => {
+    setDatePreset(preset);
+    const today = new Date();
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    if (preset === 'all') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset === 'today') {
+      const formatted = formatDate(today);
+      setStartDate(formatted);
+      setEndDate(formatted);
+    } else if (preset === 'yesterday') {
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      const formatted = formatDate(yesterday);
+      setStartDate(formatted);
+      setEndDate(formatted);
+    } else if (preset === '7_days') {
+      const past = new Date();
+      past.setDate(today.getDate() - 7);
+      setStartDate(formatDate(past));
+      setEndDate(formatDate(today));
+    } else if (preset === '30_days') {
+      const past = new Date();
+      past.setDate(today.getDate() - 30);
+      setStartDate(formatDate(past));
+      setEndDate(formatDate(today));
+    } else if (preset === 'this_month') {
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      setStartDate(formatDate(startOfMonth));
+      setEndDate(formatDate(today));
+    }
+  };
+
   // Efek untuk menyimpan filter transaksi ke localStorage saat ada perubahan
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('tx_filter_search', search);
       localStorage.setItem('tx_filter_store', storeFilter);
       localStorage.setItem('tx_filter_status', statusFilter);
+      localStorage.setItem('tx_filter_start_date', startDate);
+      localStorage.setItem('tx_filter_end_date', endDate);
     }
-  }, [search, storeFilter, statusFilter]);
+  }, [search, storeFilter, statusFilter, startDate, endDate]);
 
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -217,6 +307,32 @@ export default function Transactions({ transactions, storesList, productsList, f
 
   // REFS UNTUK AUTO FOCUS
   const invoiceInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Efek Pintasan Keyboard (Hotkeys) untuk operasional cepat (satset)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInputActive = target.tagName === 'INPUT' || 
+                            target.tagName === 'TEXTAREA' || 
+                            target.isContentEditable;
+      
+      if (isInputActive) return;
+
+      if (e.key === '/') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      if (e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        setIsCreateSheetOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // STATE MANAGEMENT PENCARIAN PRODUK
   const [openProductSearchIndex, setOpenProductSearchIndex] = useState<number | null>(null);
@@ -240,6 +356,62 @@ export default function Transactions({ transactions, storesList, productsList, f
   const [items, setItems] = useState<any[]>([
     { product_id: '', quantity: 1, selling_price: '', display_selling_price: '' }
   ]);
+
+  const [barcodeInput, setBarcodeInput] = useState('');
+
+  const handleBarcodeScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = barcodeInput.trim();
+      if (!query) return;
+
+      const product = productsList.find(
+        (p: any) => p.sku && p.sku.toLowerCase() === query.toLowerCase()
+      );
+
+      if (product) {
+        const existingIndex = items.findIndex(
+          (item) => item.product_id.toString() === product.id.toString()
+        );
+
+        if (existingIndex !== -1) {
+          const updatedItems = [...items];
+          const currentQty = updatedItems[existingIndex].quantity;
+          updatedItems[existingIndex].quantity = (typeof currentQty === 'number' ? currentQty : parseInt(currentQty) || 0) + 1;
+          setItems(updatedItems);
+        } else {
+          const basePrice = product.price ? Math.round(product.price).toString() : '0';
+          const displayPrice = product.price
+            ? new Intl.NumberFormat('id-ID').format(product.price)
+            : '0';
+
+          if (items.length === 1 && items[0].product_id === '') {
+            setItems([
+              {
+                product_id: product.id.toString(),
+                quantity: 1,
+                selling_price: basePrice,
+                display_selling_price: displayPrice
+              }
+            ]);
+          } else {
+            setItems([
+              ...items,
+              {
+                product_id: product.id.toString(),
+                quantity: 1,
+                selling_price: basePrice,
+                display_selling_price: displayPrice
+              }
+            ]);
+          }
+        }
+        setBarcodeInput('');
+      } else {
+        alert(`Produk dengan SKU "${query}" tidak ditemukan.`);
+      }
+    }
+  };
 
   // Efek memicu Auto Focus saat form tambah transaksi manual dibuka
   useEffect(() => {
@@ -278,22 +450,27 @@ export default function Transactions({ transactions, storesList, productsList, f
     const delayDebounceFn = setTimeout(() => {
       router.get(
         TransactionController.index(),
-        { search, store_id: storeFilter, status: statusFilter },
+        { search, store_id: storeFilter, status: statusFilter, start_date: startDate, end_date: endDate },
         { preserveState: true, replace: true }
       );
     }, 300);
     return () => clearTimeout(delayDebounceFn);
-  }, [search, storeFilter, statusFilter]);
+  }, [search, storeFilter, statusFilter, startDate, endDate]);
 
   const handleResetFilter = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('tx_filter_search');
       localStorage.removeItem('tx_filter_store');
       localStorage.removeItem('tx_filter_status');
+      localStorage.removeItem('tx_filter_start_date');
+      localStorage.removeItem('tx_filter_end_date');
     }
     setSearch('');
     setStoreFilter('all');
     setStatusFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setDatePreset('all');
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -366,13 +543,11 @@ export default function Transactions({ transactions, storesList, productsList, f
         forceFormData: true,
         onSuccess: () => {
           setUploadProcessing(false);
-          // Anda bisa mengganti alert ini dengan toast library Anda jika diperlukan
-          // alert('Status pesanan berhasil diperbarui!');
           if (e.target) e.target.value = '';
         },
         onError: (err: any) => {
           setUploadProcessing(false);
-          alert(err.file || 'Gagal mengupload file Excel.');
+          toast.error('Gagal', { description: err.file || 'Gagal mengupload file Excel.' });
           if (e.target) e.target.value = '';
         },
         onFinish: () => {
@@ -406,7 +581,7 @@ export default function Transactions({ transactions, storesList, productsList, f
         },
         onError: (err: any) => {
           setShopeeUploadProcessing(false);
-          alert(err.file || 'Gagal mengimpor pesanan.');
+          toast.error('Gagal', { description: err.file || 'Gagal mengimpor pesanan.' });
           if (e.target) e.target.value = '';
         },
         onFinish: () => {
@@ -484,6 +659,7 @@ export default function Transactions({ transactions, storesList, productsList, f
     setItems([{ product_id: '', quantity: 1, selling_price: '', display_selling_price: '' }]);
     setRawAffiliate('');
     setDisplayAffiliate('');
+    setBarcodeInput('');
   };
 
   const formatDateTime = (dateString: string) => {
@@ -532,6 +708,15 @@ export default function Transactions({ transactions, storesList, productsList, f
       totalHppSnapshotSum)
     : 0;
 
+  const liveSubtotal = items.reduce((acc, item) => {
+    const qty = Number(item.quantity) || 0;
+    const price = Number(item.selling_price) || 0;
+    return acc + (qty * price);
+  }, 0);
+
+  const liveDiscount = Number(rawDiscount) || 0;
+  const liveGrandTotal = Math.max(0, liveSubtotal - liveDiscount);
+
   return (
     <>
       <Head title="Data Transaksi" />
@@ -545,8 +730,17 @@ export default function Transactions({ transactions, storesList, productsList, f
           <div className="flex flex-wrap gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-1.5">
-                  <Upload className="h-4 w-4" /> Import Excel
+                <Button variant="outline" className="gap-1.5" disabled={shopeeUploadProcessing || uploadProcessing}>
+                  {shopeeUploadProcessing || uploadProcessing ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+                      Proses Impor...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" /> Import Excel
+                    </>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -573,6 +767,19 @@ export default function Transactions({ transactions, storesList, productsList, f
                   <RefreshCw className={`h-4 w-4 ${uploadProcessing ? 'animate-spin text-blue-600' : 'text-blue-600'}`} />
                   <span>{uploadProcessing ? 'Mengompilasi...' : 'Status (.xlsx)'}</span>
                 </DropdownMenuItem>
+                <div className="border-t my-1" />
+                <div className="px-2 py-1.5 text-[10px] text-muted-foreground space-y-1">
+                  <div className="font-semibold text-foreground flex items-center gap-1">
+                    <Info className="h-3.5 w-3.5 text-blue-500" />
+                    <span>Info Format Kolom:</span>
+                  </div>
+                  <div>
+                    <strong className="text-foreground">Shopee:</strong> No. Pesanan, Status Pesanan, SKU Induk, Harga Setelah Diskon, Jumlah, Subtotal Pesanan
+                  </div>
+                  <div className="mt-0.5">
+                    <strong className="text-foreground">Status:</strong> No. Pesanan, Status Pesanan
+                  </div>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -746,6 +953,21 @@ export default function Transactions({ transactions, storesList, productsList, f
                             </Button>
                           </div>
 
+                          <div className="grid gap-1.5 pb-2">
+                            <Label htmlFor="barcode_scan" className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                              <Package className="h-3.5 w-3.5 text-primary" />
+                              Scan Barcode / Ketik SKU Produk
+                            </Label>
+                            <Input
+                              id="barcode_scan"
+                              placeholder="Ketik SKU lalu tekan Enter..."
+                              value={barcodeInput}
+                              onChange={(e) => setBarcodeInput(e.target.value)}
+                              onKeyDown={handleBarcodeScan}
+                              className="bg-background font-mono text-xs focus-visible:ring-emerald-500 h-9"
+                            />
+                          </div>
+
                           <div className="space-y-3">
                             {items.map((item, index) => {
                               const activeProduct = productsList.find((p: any) => p.id.toString() === item.product_id.toString());
@@ -802,20 +1024,37 @@ export default function Transactions({ transactions, storesList, productsList, f
                                         {/* Opsi Item Produk */}
                                         <div className="flex-1 overflow-y-auto space-y-0.5 pr-1 text-xs max-h-40 no-scrollbar">
                                           {productsList
-                                            ?.filter((p: any) => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()))
-                                            .map((p: any) => (
-                                              <DropdownMenuItem
-                                                key={p.id}
-                                                className={`w-full text-left px-2 py-1.5 rounded cursor-pointer ${item.product_id === p.id.toString() ? 'bg-accent font-semibold text-accent-foreground' : ''}`}
-                                                onSelect={() => {
-                                                  handleItemChange(index, 'product_id', p.id.toString());
-                                                  setOpenProductSearchIndex(null);
-                                                }}
-                                              >
-                                                {p.name}
-                                              </DropdownMenuItem>
-                                            ))}
-                                          {productsList?.filter((p: any) => p.name.toLowerCase().includes(productSearchQuery.toLowerCase())).length === 0 && (
+                                            ?.filter((p: any) => 
+                                              p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                                              (p.sku && p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                                            )
+                                            .map((p: any) => {
+                                              const isOutOfStock = p.stock <= 0;
+                                              return (
+                                                <DropdownMenuItem
+                                                  key={p.id}
+                                                  disabled={isOutOfStock}
+                                                  className={`w-full text-left px-2 py-1.5 rounded cursor-pointer flex justify-between items-center gap-2 ${item.product_id === p.id.toString() ? 'bg-accent font-semibold text-accent-foreground' : ''} ${isOutOfStock ? 'opacity-50 cursor-not-allowed text-destructive' : ''}`}
+                                                  onSelect={() => {
+                                                    if (isOutOfStock) return;
+                                                    handleItemChange(index, 'product_id', p.id.toString());
+                                                    setOpenProductSearchIndex(null);
+                                                  }}
+                                                >
+                                                  <div className="flex flex-col min-w-0">
+                                                    <span className="font-medium truncate">{p.name}</span>
+                                                    <span className="text-[10px] text-muted-foreground font-mono">{p.sku || '-'}</span>
+                                                  </div>
+                                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0 ${isOutOfStock ? 'bg-red-500/10 text-red-600 border border-red-500/20' : p.stock < 5 ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'}`}>
+                                                    {isOutOfStock ? 'Habis' : `Stok: ${p.stock}`}
+                                                  </span>
+                                                </DropdownMenuItem>
+                                              );
+                                            })}
+                                          {productsList?.filter((p: any) => 
+                                            p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                                            (p.sku && p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                                          ).length === 0 && (
                                             <div className="text-[11px] text-muted-foreground text-center py-3">Produk tidak ditemukan</div>
                                           )}
                                         </div>
@@ -837,7 +1076,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                                         handleItemChange(index, 'quantity', val === '' ? '' : (parseInt(val) || 1));
                                       }}
                                       name={`items[${index}][quantity]`}
-                                      className="bg-background px-2 text-xs h-9"
+                                      className={`bg-background px-2 text-xs h-9 ${activeProduct && item.quantity > activeProduct.stock ? 'border-destructive focus-visible:ring-destructive text-destructive font-semibold' : ''}`}
                                       required
                                     />
                                   </div>
@@ -861,6 +1100,13 @@ export default function Transactions({ transactions, storesList, productsList, f
                                     </Button>
                                   </div>
 
+                                  {activeProduct && item.quantity > activeProduct.stock && (
+                                    <div className="col-span-12 mt-1">
+                                      <p className="text-[10px] text-red-600 font-semibold bg-red-500/10 border border-red-500/20 px-2 py-1 rounded">
+                                        Stok tidak mencukupi! Sisa stok tersedia: {activeProduct.stock} pcs.
+                                      </p>
+                                    </div>
+                                  )}
                                   {errors[`items.${index}.quantity`] && (
                                     <div className="col-span-12 mt-1">
                                       <InputError message={errors[`items.${index}.quantity`]} />
@@ -874,6 +1120,23 @@ export default function Transactions({ transactions, storesList, productsList, f
                                 </div>
                               );
                             })}
+                          </div>
+                        </div>
+
+                        {/* Live Calculation Summary */}
+                        <div className="p-4 border rounded-xl bg-muted/20 dark:bg-zinc-900/40 space-y-2.5 text-xs select-none shadow-inner">
+                          <span className="text-xs font-bold text-foreground block border-b pb-1.5">Kalkulasi Live (Sebelum Disimpan)</span>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Subtotal Item:</span>
+                            <span className="font-semibold">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(liveSubtotal)}</span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Potongan Diskon:</span>
+                            <span className="text-destructive font-semibold">-{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(liveDiscount)}</span>
+                          </div>
+                          <div className="flex justify-between font-extrabold text-sm border-t border-dashed mt-2 pt-2">
+                            <span className="text-foreground">Grand Total Payout:</span>
+                            <span className="text-emerald-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(liveGrandTotal)}</span>
                           </div>
                         </div>
                       </div>
@@ -911,6 +1174,8 @@ export default function Transactions({ transactions, storesList, productsList, f
             </Sheet>
           </div>
         </div>
+
+
 
         {/* ================= TABS FILTER BARU ================= */}
         <div className="flex w-full justify-center my-4">
@@ -965,18 +1230,47 @@ export default function Transactions({ transactions, storesList, productsList, f
           </Tabs>
         </div>
 
-        {/* BARIS SEKSI FILTER */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Select value={storeFilter} onValueChange={setStoreFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Semua Toko" /></SelectTrigger>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+
+            <Select value={datePreset} onValueChange={applyDatePreset}>
+              <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Semua Waktu" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Toko</SelectItem>
-                {storesList?.map((store: any) => <SelectItem key={store.id} value={store.id.toString()}>{store.name}</SelectItem>)}
+                <SelectItem value="all">Semua Waktu</SelectItem>
+                <SelectItem value="today">Hari Ini</SelectItem>
+                <SelectItem value="yesterday">Kemarin</SelectItem>
+                <SelectItem value="7_days">7 Hari Terakhir</SelectItem>
+                <SelectItem value="30_days">30 Hari Terakhir</SelectItem>
+                <SelectItem value="this_month">Bulan Ini</SelectItem>
+                <SelectItem value="custom">Kustom Tanggal</SelectItem>
               </SelectContent>
             </Select>
 
-            {(search !== '' || storeFilter !== 'all') && (
+            {datePreset === 'custom' && (
+              <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setDatePreset('custom');
+                  }}
+                  className="bg-transparent text-xs border rounded-md px-2 h-9 outline-none focus:ring-1 focus:ring-ring w-[130px] dark:border-zinc-800"
+                />
+                <span className="text-[10px] text-muted-foreground">s/d</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setDatePreset('custom');
+                  }}
+                  className="bg-transparent text-xs border rounded-md px-2 h-9 outline-none focus:ring-1 focus:ring-ring w-[130px] dark:border-zinc-800"
+                />
+              </div>
+            )}
+
+            {(search !== '' || storeFilter !== 'all' || startDate !== '' || endDate !== '') && (
               <Button
                 variant="ghost"
                 type="button"
@@ -990,7 +1284,14 @@ export default function Transactions({ transactions, storesList, productsList, f
 
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input type="search" placeholder="Cari No. Pesanan atau Produk..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input
+              ref={searchInputRef}
+              type="search"
+              placeholder="Cari No. Pesanan... (Tekan '/' untuk fokus)"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
           </div>
         </div>
 
@@ -1107,7 +1408,39 @@ export default function Transactions({ transactions, storesList, productsList, f
                           <TableCell className="text-xs text-destructive font-medium">
                             -{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(tx.marketplace_admin_fee)}
                           </TableCell>
-                          <TableCell>{getStatusBadge(tx.status)}</TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger className="focus:outline-none select-none hover:opacity-80 active:scale-95 transition-all duration-150 cursor-pointer">
+                                {getStatusBadge(tx.status)}
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-44 rounded-xl shadow-lg z-[50]">
+                                <DropdownMenuItem
+                                  onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'processing' }, { preserveScroll: true })}
+                                  className="gap-2 cursor-pointer text-xs"
+                                >
+                                  <span className="h-2 w-2 rounded-full bg-blue-500" /> Diproses (Dikirim)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'completed' }, { preserveScroll: true })}
+                                  className="gap-2 cursor-pointer text-xs"
+                                >
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Selesai (Completed)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'pending' }, { preserveScroll: true })}
+                                  className="gap-2 cursor-pointer text-xs"
+                                >
+                                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Menunggu (Pending)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'cancelled' }, { preserveScroll: true })}
+                                  className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive"
+                                >
+                                  <span className="h-2 w-2 rounded-full bg-red-500" /> Dibatalkan
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="size-8" onClick={() => {
                               setSelectedTransaction(tx);
@@ -1154,6 +1487,78 @@ export default function Transactions({ transactions, storesList, productsList, f
             </div>
           </div>
         )}
+
+        {/* Ringkasan Jumlah Transaksi Per Toko (Sleek Summary Table) */}
+        <div className="border rounded-xl bg-card overflow-hidden mt-6 shadow-sm border-border/80">
+          <div className="px-4 py-2.5 border-b bg-muted/20 flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ringkasan Transaksi Per Toko</span>
+            <span className="text-[10px] text-muted-foreground italic hidden sm:inline">Klik baris toko untuk menyaring data</span>
+          </div>
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full text-left border-collapse text-xs select-none">
+              <thead>
+                <tr className="border-b bg-muted/10 text-muted-foreground font-semibold">
+                  <th className="p-3 pl-4">Nama Toko</th>
+                  <th className="p-3 text-center">Platform</th>
+                  <th className="p-3 text-center font-bold">Total Order</th>
+                  <th className="p-3 text-center text-amber-600 dark:text-amber-400">Kirim</th>
+                  <th className="p-3 text-center text-blue-600 dark:text-blue-400">Proses</th>
+                  <th className="p-3 text-center text-emerald-600 dark:text-emerald-400">Selesai</th>
+                  <th className="p-3 text-center text-red-600 dark:text-red-400">Batal</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {/* Row: Semua Toko */}
+                <tr 
+                  onClick={() => setStoreFilter('all')}
+                  className={`cursor-pointer transition-colors hover:bg-muted/40 ${storeFilter === 'all' ? 'bg-primary/5 font-semibold text-primary' : ''}`}
+                >
+                  <td className="p-3 pl-4 flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${storeFilter === 'all' ? 'bg-primary' : 'bg-transparent'}`} />
+                    Semua Toko
+                  </td>
+                  <td className="p-3 text-center">
+                    <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                      TOTAL
+                    </span>
+                  </td>
+                  <td className="p-3 text-center font-mono font-bold">{countAll}</td>
+                  <td className="p-3 text-center font-mono text-amber-700 dark:text-amber-400">{countPending}</td>
+                  <td className="p-3 text-center font-mono text-blue-700 dark:text-blue-400">{countProcessing}</td>
+                  <td className="p-3 text-center font-mono text-emerald-700 dark:text-emerald-400">{countCompleted}</td>
+                  <td className="p-3 text-center font-mono text-red-700 dark:text-red-400">{countCancelled}</td>
+                </tr>
+
+                {/* Rows: Each Store */}
+                {storesList?.map((store: any) => {
+                  const isSelected = storeFilter === store.id.toString();
+                  return (
+                    <tr 
+                      key={store.id}
+                      onClick={() => setStoreFilter(store.id.toString())}
+                      className={`cursor-pointer transition-colors hover:bg-muted/40 ${isSelected ? 'bg-primary/5 font-semibold text-primary' : ''}`}
+                    >
+                      <td className="p-3 pl-4 flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary' : 'bg-transparent'}`} />
+                        {store.name}
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                          {store.platform || 'manual'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center font-mono font-bold">{store.transactions_count || 0}</td>
+                      <td className="p-3 text-center font-mono text-amber-700 dark:text-amber-400">{store.pending_count || 0}</td>
+                      <td className="p-3 text-center font-mono text-blue-700 dark:text-blue-400">{store.processing_count || 0}</td>
+                      <td className="p-3 text-center font-mono text-emerald-700 dark:text-emerald-400">{store.completed_count || 0}</td>
+                      <td className="p-3 text-center font-mono text-red-700 dark:text-red-400">{store.cancelled_count || 0}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* FLOATING ACTION BAR */}
@@ -1298,7 +1703,25 @@ export default function Transactions({ transactions, storesList, productsList, f
                         {selectedTransaction.items?.map((item: any) => (
                           <TableRow key={item.id} className="hover:bg-transparent">
                             <TableCell className="py-2.5">
-                              <div className="flex flex-col"><span className="text-xs font-semibold text-foreground">{item.product?.name || 'Produk Terhapus'}</span><span className="text-[10px] font-mono text-muted-foreground">{item.product?.sku || '-'}</span></div>
+                              <div className="flex flex-col">
+                                {item.product ? (
+                                  <span
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setIsSheetOpen(false); // Tutup sheet detail terlebih dahulu
+                                      const searchQuery = item.product.sku || item.product.name;
+                                      router.get('/products', { search: searchQuery });
+                                    }}
+                                    className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                                  >
+                                    {item.product.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-semibold text-foreground">Produk Terhapus</span>
+                                )}
+                                <span className="text-[10px] font-mono text-muted-foreground">{item.product?.sku || '-'}</span>
+                              </div>
                             </TableCell>
                             <TableCell className="text-center text-xs py-2.5">{item.quantity} pcs</TableCell>
                             <TableCell className="text-right text-xs font-medium py-2.5">Rp {parseFloat(item.selling_price).toLocaleString('id-ID')}</TableCell>
@@ -1324,6 +1747,41 @@ export default function Transactions({ transactions, storesList, productsList, f
           <div className="p-6 border-t bg-background mt-auto"><SheetClose asChild><Button variant="outline" className="w-full">Tutup Detail</Button></SheetClose></div>
         </SheetContent>
       </Sheet>
+
+      {/* Premium Glassmorphism Import Overlay Loader */}
+      {(shopeeUploadProcessing || uploadProcessing) && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="mx-4 w-full max-w-sm rounded-2xl border border-white/20 bg-background/80 p-6 text-center shadow-2xl backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-950/80 animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                <FileSpreadsheet className="h-8 w-8 animate-bounce" />
+                <span className="absolute inset-0 rounded-full border-2 border-emerald-500/30 animate-ping" />
+              </div>
+              
+              <div className="space-y-1">
+                <h3 className="font-bold text-sm text-foreground">
+                  {shopeeUploadProcessing ? 'Mengimpor Pesanan Shopee' : 'Memperbarui Status Pesanan'}
+                </h3>
+                <p className="text-xs text-muted-foreground animate-pulse">
+                  Sedang membaca berkas Excel & mensinkronisasi stok produk...
+                </p>
+              </div>
+
+              <div className="w-full space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    Mencocokkan SKU database...
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Proses ini memerlukan waktu beberapa detik. Mohon jangan menutup halaman.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
