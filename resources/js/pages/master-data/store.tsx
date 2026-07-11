@@ -8,7 +8,7 @@ import { Form, Head, Link, router } from '@inertiajs/react';
 
 import { Calendar, Coins, FileSpreadsheet, Info, MoreHorizontalIcon, Pencil, Percent, Plus, Search, StoreIcon, Trash2 } from 'lucide-react';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 import StoreController from '@/actions/App/Http/Controllers/StoreController';
 
@@ -41,6 +41,43 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
+
+function StoreTableSkeleton() {
+  return (
+    <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border animate-pulse">
+      <div className="p-6">
+        <Table>
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
+            <TableRow>
+              <TableHead className="w-[50px]"><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableHead>
+              <TableHead className="w-50 text-xs">Tanggal</TableHead>
+              <TableHead className='w-30 text-xs'>Platform</TableHead>
+              <TableHead className="w-30 text-xs">Nama Toko</TableHead>
+              <TableHead className="w-40 text-center text-xs">Admin (%)</TableHead>
+              <TableHead className='w-35 text-xs'>Proses (Rp)</TableHead>
+              <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-right text-xs">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[1, 2, 3, 4].map((i) => (
+              <TableRow key={i} className="border-b border-zinc-100 dark:border-zinc-800/60">
+                <TableCell><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-16" /></TableCell>
+                <TableCell><div className="h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-12" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-28" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-10 mx-auto" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-16" /></TableCell>
+                <TableCell><div className="h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-12" /></TableCell>
+                <TableCell className="text-right"><div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-8 ml-auto" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
 
 export default function Store({ stores, filters }: any) {
 
@@ -88,6 +125,13 @@ export default function Store({ stores, filters }: any) {
 
   const [isActive, setIsActive] = useState(true);
 
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 350);
+    return () => clearTimeout(timer);
+  }, []);
+
 
 
   // Reset pilihan saat data stores berubah
@@ -100,9 +144,19 @@ export default function Store({ stores, filters }: any) {
 
 
 
+  const isMounted = useRef(false);
+
   // Effect untuk server-side search & filtering dengan debounce 300ms
 
   useEffect(() => {
+
+    if (!isMounted.current) {
+
+      isMounted.current = true;
+
+      return;
+
+    }
 
     const delayDebounceFn = setTimeout(() => {
 
@@ -632,7 +686,10 @@ export default function Store({ stores, filters }: any) {
 
 
 
-        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
+        {isLoading ? (
+          <StoreTableSkeleton />
+        ) : (
+          <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
 
           <div className="p-6">
 
@@ -993,6 +1050,7 @@ export default function Store({ stores, filters }: any) {
           </div>
 
         </div>
+        )}
 
       </div>
 

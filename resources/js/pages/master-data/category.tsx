@@ -3,7 +3,7 @@
 /* eslint-disable curly */
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { FileSpreadsheet, MoreHorizontalIcon, Pencil, Plus, Search, Tags, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -19,6 +19,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+function CategoryTableSkeleton() {
+  return (
+    <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm animate-pulse">
+      <div className="p-0">
+        <Table>
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
+            <TableRow>
+              <TableHead className="w-[50px]"><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableHead>
+              <TableHead className="text-xs">Tanggal</TableHead>
+              <TableHead className="text-xs">Nama Kategori</TableHead>
+              <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[1, 2, 3, 4].map((i) => (
+              <TableRow key={i} className="border-b border-zinc-100 dark:border-zinc-800/60">
+                <TableCell><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-28 py-2" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-40" /></TableCell>
+                <TableCell><div className="h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-12" /></TableCell>
+                <TableCell className="text-right"><div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-8 ml-auto" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
 
 export default function Category({ categories, filters }: any) {
   // State Kontrol Sheet (Tambah, Edit, Detail)
@@ -36,14 +67,24 @@ export default function Category({ categories, filters }: any) {
 
   // State Form fields
   const [isActive, setIsActive] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 350);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Reset pilihan saat data stores berubah
   useEffect(() => {
     setSelectedIds([]);
   }, [categories]);
 
+  const isMounted = useRef(false);
   // Effect untuk server-side search & filtering dengan debounce 300ms
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     const delayDebounceFn = setTimeout(() => {
       router.get(
         CategoryController.index(),
@@ -276,166 +317,173 @@ export default function Category({ categories, filters }: any) {
           </div>
         </div>
 
-        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
-          <div className="p-0">
-            <Table>
-              <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Daftar seluruh kategori yang tersimpan di sistem.</TableCaption>
-              <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
-                <TableRow>
-                  <TableHead className="w-[50px]">
-                    <Checkbox
-                      checked={categories.data.length > 0 && selectedIds.length === categories.data.length}
-                      onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead className="text-xs">Tanggal</TableHead>
-                  <TableHead className="text-xs">Nama Kategori</TableHead>
-                  <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* 3. Mapping data categories dari database */}
-                {categories.data.length === 0 ? (
+        {isLoading ? (
+          <CategoryTableSkeleton />
+        ) : (
+          <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
+            <div className="p-0">
+              <Table>
+                <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Daftar seluruh kategori yang tersimpan di sistem.</TableCaption>
+                <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                      <Empty>
-                        <EmptyHeader>
-                          <EmptyMedia variant="icon">
-                            <Tags />
-                          </EmptyMedia>
-                          <EmptyTitle>Belum ada data</EmptyTitle>
-                          <EmptyDescription>Tidak ada data yang ditemukan.</EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    </TableCell>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={categories.data.length > 0 && selectedIds.length === categories.data.length}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                    <TableHead className="text-xs">Tanggal</TableHead>
+                    <TableHead className="text-xs">Nama Kategori</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs text-right">Aksi</TableHead>
                   </TableRow>
-                ) : (
-                  categories.data.map((category: any, index: number) => {
-                    const isSelected = selectedIds.includes(category.id);
-                    return (
-                      <TableRow key={category.id}
-                        className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 border-b border-zinc-100 dark:border-zinc-800/60 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
-                        // FITUR: Klik baris untuk buka Detail Info Sheet
-                        onClick={() => {
-                          setSelectedCategory(category);
-                          setIsSheetOpenDetail(true);
-                        }}
-                      >
-                        {/* Checkbox Cell - StopPropagation agar tidak memicu detil Sheet */}
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectRow(category.id, !!checked)}
-                            aria-label={`Select ${category.name}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium text-sm text-foreground">
-                              {formatDateTime(category.created_at).dateStr}
-                            </span>
-                            <span className="text-xs text-muted-foreground italic">
-                              Pukul {formatDateTime(category.created_at).timeStr} WIB
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{category.name}</TableCell>
-                        <TableCell>
-                          <Badge className={category.active ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300' : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'}>{category.active ? 'Aktif' : 'Tidak Aktif'}</Badge>
-                        </TableCell>
-                        {/* Action Cell - StopPropagation agar tidak memicu detil Sheet */}
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <AlertDialog>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="size-8">
-                                  <MoreHorizontalIcon />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedCategory(category);
-                                    setIsActive(!!category.active);
-                                    setIsSheetOpenEdit(true);
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-
-                                {/* Jadikan AlertDialogTrigger sebagai pembungkus Item */}
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem variant="destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete
+                </TableHeader>
+                <TableBody>
+                  {/* 3. Mapping data categories dari database */}
+                  {categories.data.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        <Empty>
+                          <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                              <Tags />
+                            </EmptyMedia>
+                            <EmptyTitle>Belum ada data</EmptyTitle>
+                            <EmptyDescription>Tidak ada data yang ditemukan.</EmptyDescription>
+                          </EmptyHeader>
+                        </Empty>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    categories.data.map((category: any, index: number) => {
+                      const isSelected = selectedIds.includes(category.id);
+                      return (
+                        <TableRow key={category.id}
+                          className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 border-b border-zinc-100 dark:border-zinc-800/60 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
+                          // FITUR: Klik baris untuk buka Detail Info Sheet
+                          onClick={() => {
+                            setSelectedCategory(category);
+                            setIsSheetOpenDetail(true);
+                          }}
+                        >
+                          {/* Checkbox Cell - StopPropagation agar tidak memicu detil Sheet */}
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleSelectRow(category.id, !!checked)}
+                              aria-label={`Select ${category.name}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium text-sm text-foreground">
+                                {formatDateTime(category.created_at).dateStr}
+                              </span>
+                              <span className="text-xs text-muted-foreground italic">
+                                Pukul {formatDateTime(category.created_at).timeStr} WIB
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-bold text-xs text-zinc-900 dark:text-zinc-100">{category.name}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-bold border transition-colors ${category.active == 1 ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/5 dark:border-emerald-500/10' : 'bg-red-500/10 text-red-600 border-red-500/20 dark:bg-red-500/5 dark:border-red-500/10'}`}
+                            >
+                              {category.active == 1 ? 'Aktif' : 'Arsip'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <AlertDialog>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0 rounded-xl">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontalIcon className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="rounded-xl">
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedCategory(category);
+                                      setIsSheetOpenEdit(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                    Edit
                                   </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                  <DropdownMenuSeparator />
 
-                            {/* Konten Pop-up Konfirmasi */}
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tindakan ini tidak dapat dibatalkan. Kategori akan dihapus secara permanen dari server.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <Link href={CategoryController.destroy(category.id)}>
-                                  <AlertDialogAction variant="destructive">
-                                    Hapus
-                                  </AlertDialogAction>
-                                </Link>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                                  {/* Jadikan AlertDialogTrigger sebagai pembungkus Item */}
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem variant="destructive">
+                                      <Trash2 className="h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
 
-            {categories.last_page > 1 && (
-              <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60">
-                <div className="text-xs text-zinc-400 dark:text-zinc-500">
-                  Menampilkan {categories.from ?? 0} sampai {categories.to ?? 0} dari {categories.total ?? 0} kategori
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8 rounded-xl"
-                    disabled={!categories.prev_page_url}
-                    onClick={() => categories.prev_page_url && router.get(categories.prev_page_url, {}, { preserveState: true })}
-                  >
-                    Sebelumnya
-                  </Button>
-                  <div className="text-xs font-semibold text-zinc-650 dark:text-zinc-400 px-1">
-                    Hal {categories.current_page} dari {categories.last_page}
+                              {/* Konten Pop-up Konfirmasi */}
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tindakan ini tidak dapat dibatalkan. Kategori akan dihapus secara permanen dari server.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                                  <Link href={CategoryController.destroy(category.id)}>
+                                    <AlertDialogAction variant="destructive">
+                                      Hapus
+                                    </AlertDialogAction>
+                                  </Link>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+
+              {categories.last_page > 1 && (
+                <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60">
+                  <div className="text-xs text-zinc-400 dark:text-zinc-500">
+                    Menampilkan {categories.from ?? 0} sampai {categories.to ?? 0} dari {categories.total ?? 0} kategori
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8 rounded-xl"
-                    disabled={!categories.next_page_url}
-                    onClick={() => categories.next_page_url && router.get(categories.next_page_url, {}, { preserveState: true })}
-                  >
-                    Selanjutnya
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8 rounded-xl"
+                      disabled={!categories.prev_page_url}
+                      onClick={() => categories.prev_page_url && router.get(categories.prev_page_url, {}, { preserveState: true })}
+                    >
+                      Sebelumnya
+                    </Button>
+                    <div className="text-xs font-semibold text-zinc-650 dark:text-zinc-400 px-1">
+                      Hal {categories.current_page} dari {categories.last_page}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8 rounded-xl"
+                      disabled={!categories.next_page_url}
+                      onClick={() => categories.next_page_url && router.get(categories.next_page_url, {}, { preserveState: true })}
+                    >
+                      Selanjutnya
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ================= KOTAK MELAYANG (FLOATING ACTION BAR) ================= */}

@@ -49,6 +49,15 @@ class FinancialMutationController extends Controller
         // 3. Hitung Total Uang Masuk & Keluar dari SELURUH data yang lolos filter (Akurat lintas halaman)
         $totalIncome = (clone $query)->where('type', 'income')->sum('amount');
         $totalExpense = (clone $query)->where('type', 'expense')->sum('amount');
+        $totalWithdrawal = (clone $query)
+            ->where('type', 'expense')
+            ->where(function ($q) {
+                $q->where('category', 'Tarik Tunai')
+                  ->orWhere('category', 'like', '%tarik%')
+                  ->orWhere('category', 'like', '%tarik tunai%')
+                  ->orWhere('description', 'like', '%tarik tunai%');
+            })
+            ->sum('amount');
 
         // 4. Hitung jumlah mutasi per type untuk badge tabs
         $typeCounts = FinancialMutation::where('user_id', $userId)
@@ -70,6 +79,7 @@ class FinancialMutationController extends Controller
             'summary' => [
                 'total_income' => (float)$totalIncome,
                 'total_expense' => (float)$totalExpense,
+                'total_withdrawal' => (float)$totalWithdrawal,
                 'net_cash_flow' => (float)($totalIncome - $totalExpense)
             ],
             'typeCounts' => [

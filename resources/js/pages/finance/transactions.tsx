@@ -428,7 +428,12 @@ export default function Transactions({ transactions, storesList, productsList, f
     }
   }, [transactions.data]);
 
+  const isMounted = useRef(false);
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     const delayDebounceFn = setTimeout(() => {
       router.get(
         TransactionController.index(),

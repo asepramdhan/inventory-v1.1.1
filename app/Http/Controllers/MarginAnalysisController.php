@@ -93,6 +93,23 @@ class MarginAnalysisController extends Controller
         $profitPending = (float) $ongoingRaw->profit_pending;
         $profitProcessing = (float) $ongoingRaw->profit_processing;
 
+        // H. Hitung Profit Batal / Cancel
+        $profitCancelled = (float) Transaction::query()
+            ->leftJoinSub($subQueryHpp, 'items_hpp', function ($join) {
+                $join->on('transactions.id', '=', 'items_hpp.transaction_id');
+            })
+            ->whereBetween('transaction_date', [$fullStartDate, $fullEndDate])
+            ->where('status', 'cancelled')
+            ->whereIn('store_id', $userStoreIds)
+            ->when($storeId && $storeId !== 'all', function ($q) use ($storeId, $userStoreIds) {
+                if (in_array($storeId, $userStoreIds)) {
+                    return $q->where('store_id', $storeId);
+                }
+                return $q;
+            })
+            ->selectRaw('COALESCE(SUM(grand_total - marketplace_admin_fee - COALESCE(items_hpp.total_transaction_hpp, 0)), 0) as total')
+            ->value('total') ?? 0;
+
         $realNetProfit = $totalNetProfitAbsolut - $profitPending - $profitProcessing;
         $averageMargin = $totalOmzet > 0 ? round(($realNetProfit / $totalOmzet) * 100, 2) : 0;
 
@@ -106,6 +123,7 @@ class MarginAnalysisController extends Controller
             'average_margin_percentage' => $averageMargin,
             'profit_pending' => $profitPending,
             'profit_processing' => $profitProcessing,
+            'profit_cancelled' => $profitCancelled,
         ];
 
         // ==========================================

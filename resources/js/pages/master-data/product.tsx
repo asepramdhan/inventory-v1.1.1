@@ -3,7 +3,7 @@
 /* eslint-disable curly */
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { Box, FileSpreadsheet, MoreHorizontalIcon, PencilIcon, Plus, Search, Trash2, Trash2Icon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -21,6 +21,47 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+function ProductTableSkeleton() {
+  return (
+    <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm animate-pulse">
+      <div className="p-0">
+        <Table>
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
+            <TableRow>
+              <TableHead className="w-[50px]"><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableHead>
+              <TableHead className="text-xs">Gambar</TableHead>
+              <TableHead className="text-xs">Tanggal</TableHead>
+              <TableHead className="text-xs">SKU</TableHead>
+              <TableHead className="text-xs">Nama Produk</TableHead>
+              <TableHead className="text-xs">Kategori</TableHead>
+              <TableHead className="text-xs">Stok</TableHead>
+              <TableHead className="text-xs">Harga Jual</TableHead>
+              <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <TableRow key={i} className="border-b border-zinc-100 dark:border-zinc-800/60">
+                <TableCell><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableCell>
+                <TableCell><div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-16" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-20" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-36" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-20" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-10" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-20" /></TableCell>
+                <TableCell><div className="h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-12" /></TableCell>
+                <TableCell className="text-right"><div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-8 ml-auto" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
 
 export default function Product({ products, categoriesList, filters }: any) {
   // State Kontrol Sheet (Tambah, Edit, Detail, skeleton)
@@ -45,6 +86,11 @@ export default function Product({ products, categoriesList, filters }: any) {
   const [categoryFilter, setCategoryFilter] = useState(filters?.category || 'all');
   const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
   // -----------------------------------------------
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 350);
+    return () => clearTimeout(timer);
+  }, []);
 
   // State Form fields
   const [rawPrice, setRawPrice] = useState('');
@@ -64,8 +110,13 @@ export default function Product({ products, categoriesList, filters }: any) {
     }
   }, [products, selectedProduct]);
 
+  const isMounted = useRef(false);
   // Effect untuk server-side search & filtering dengan debounce 300ms
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     const delayDebounceFn = setTimeout(() => {
       router.get(
         ProductController.index(),
@@ -528,7 +579,10 @@ export default function Product({ products, categoriesList, filters }: any) {
         </div>
 
         {/* TABLE */}
-        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
+        {isLoading ? (
+          <ProductTableSkeleton />
+        ) : (
+          <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
           <div className="p-0">
             <Table>
               <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Daftar seluruh produk yang tersimpan di sistem.</TableCaption>
@@ -759,6 +813,7 @@ export default function Product({ products, categoriesList, filters }: any) {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* ================= KOTAK MELAYANG (FLOATING ACTION BAR) ================= */}

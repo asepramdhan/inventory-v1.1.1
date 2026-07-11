@@ -4,7 +4,7 @@
 /* eslint-disable curly */
 import { Form, Head, router } from '@inertiajs/react';
 import { Box, FileSpreadsheet, MoreHorizontalIcon, PencilIcon, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import ProductHppController from '@/actions/App/Http/Controllers/ProductHppController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -20,6 +20,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+function ProductHppTableSkeleton() {
+  return (
+    <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm animate-pulse">
+      <div className="p-0">
+        <Table>
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
+            <TableRow>
+              <TableHead className="w-[50px]"><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableHead>
+              <TableHead className="text-xs">Gambar</TableHead>
+              <TableHead className="text-xs">Tanggal</TableHead>
+              <TableHead className="text-xs">SKU</TableHead>
+              <TableHead className="text-xs">Nama Produk</TableHead>
+              <TableHead className="text-xs">Harga Jual</TableHead>
+              <TableHead className="text-xs">Total HPP</TableHead>
+              <TableHead className="text-xs">Margin</TableHead>
+              <TableHead className="text-xs text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <TableRow key={i} className="border-b border-zinc-100 dark:border-zinc-800/60">
+                <TableCell><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableCell>
+                <TableCell><div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-800 rounded-lg" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-16" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-20" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-36" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-20" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-16" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-16" /></TableCell>
+                <TableCell className="text-right"><div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-8 ml-auto" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductHpp({ products, categoriesList, storesList, filters }: any) {
   // State Kontrol Sheet Form HPP & Detail
   const [isSheetOpenForm, setIsSheetOpenForm] = useState(false);
@@ -34,6 +73,11 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
   const [categoryFilter, setCategoryFilter] = useState(filters?.category || 'all');
   const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
   const [storeViewFilter, setStoreViewFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 350);
+    return () => clearTimeout(timer);
+  }, []);
 
   // ---- STATE BARU: KOMPONEN BIAYA HPP ----
   const [rawPurchase, setRawPurchase] = useState('');
@@ -70,8 +114,13 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
     }
   }, [products, selectedProduct]);
 
+  const isMounted = useRef(false);
   // Effect untuk server-side search & filtering dengan debounce 300ms
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     const delayDebounceFn = setTimeout(() => {
       router.get(
         '/master-data/product-hpp', // Sesuai kesepakatan, mengarah ke route index HPP
@@ -265,202 +314,206 @@ export default function ProductHpp({ products, categoriesList, storesList, filte
         </div>
 
         {/* TABEL DATA HPP */}
-        <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
-          <div className="p-0">
-            <Table>
-              <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Daftar perhitungan modal dan margin profit dari produk master Anda.</TableCaption>
-              <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
-                <TableRow>
-                  <TableHead className="w-[50px]">
-                    <Checkbox
-                      checked={products.data.length > 0 && selectedIds.length === products.data.length}
-                      onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead className="text-xs">Gambar</TableHead>
-                  <TableHead className="text-xs">Tanggal</TableHead>
-                  <TableHead className="text-xs">SKU</TableHead>
-                  <TableHead className="text-xs">Nama Produk</TableHead>
-                  <TableHead className="text-xs">Harga Jual</TableHead>
-                  <TableHead className="text-xs">Total HPP</TableHead>
-                  <TableHead className="text-xs">Margin</TableHead>
-                  <TableHead className="text-xs text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.data.length === 0 ? (
+        {isLoading ? (
+          <ProductHppTableSkeleton />
+        ) : (
+          <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
+            <div className="p-0">
+              <Table>
+                <TableCaption className='py-6 text-zinc-400 dark:text-zinc-500'>Daftar perhitungan modal dan margin profit dari produk master Anda.</TableCaption>
+                <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                      <Empty>
-                        <EmptyHeader>
-                          <EmptyMedia variant="icon"><Box /></EmptyMedia>
-                          <EmptyTitle>Belum ada data</EmptyTitle>
-                          <EmptyDescription>Tidak ada data produk ditemukan.</EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    </TableCell>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={products.data.length > 0 && selectedIds.length === products.data.length}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                    <TableHead className="text-xs">Gambar</TableHead>
+                    <TableHead className="text-xs">Tanggal</TableHead>
+                    <TableHead className="text-xs">SKU</TableHead>
+                    <TableHead className="text-xs">Nama Produk</TableHead>
+                    <TableHead className="text-xs">Harga Jual</TableHead>
+                    <TableHead className="text-xs">Total HPP</TableHead>
+                    <TableHead className="text-xs">Margin</TableHead>
+                    <TableHead className="text-xs text-right">Aksi</TableHead>
                   </TableRow>
-                ) : (
-                  products.data.map((product: any, index: any) => {
-                    const isSelected = selectedIds.includes(product.id);
-                    const hasHpp = !!product.hpp;
+                </TableHeader>
+                <TableBody>
+                  {products.data.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                        <Empty>
+                          <EmptyHeader>
+                            <EmptyMedia variant="icon"><Box /></EmptyMedia>
+                            <EmptyTitle>Belum ada data</EmptyTitle>
+                            <EmptyDescription>Tidak ada data produk ditemukan.</EmptyDescription>
+                          </EmptyHeader>
+                        </Empty>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    products.data.map((product: any, index: any) => {
+                      const isSelected = selectedIds.includes(product.id);
+                      const hasHpp = !!product.hpp;
 
-                    // Hitung HPP & Margin Dinamis berdasarkan toko terpilih di filter
-                    let calculatedHpp = hasHpp ? parseFloat(product.hpp.total_hpp) : 0;
+                      // Hitung HPP & Margin Dinamis berdasarkan toko terpilih di filter
+                      let calculatedHpp = hasHpp ? parseFloat(product.hpp.total_hpp) : 0;
 
-                    if (hasHpp && storeViewFilter !== 'all') {
-                      const currentStore = storesList.find((s: any) => s.id.toString() === storeViewFilter);
-                      if (currentStore) {
-                        const potonganAdmin = (product.price * parseFloat(currentStore.admin_fee)) / 100;
-                        const potonganProses = parseFloat(currentStore.processing_fee) || 0;
-                        // Akumulasikan base hpp produk + potongan admin toko terpilih
-                        calculatedHpp = calculatedHpp + potonganAdmin + potonganProses;
+                      if (hasHpp && storeViewFilter !== 'all') {
+                        const currentStore = storesList.find((s: any) => s.id.toString() === storeViewFilter);
+                        if (currentStore) {
+                          const potonganAdmin = (product.price * parseFloat(currentStore.admin_fee)) / 100;
+                          const potonganProses = parseFloat(currentStore.processing_fee) || 0;
+                          // Akumulasikan base hpp produk + potongan admin toko terpilih
+                          calculatedHpp = calculatedHpp + potonganAdmin + potonganProses;
+                        }
                       }
-                    }
 
-                    const margin = hasHpp ? (product.price - calculatedHpp) : 0;
+                      const margin = hasHpp ? (product.price - calculatedHpp) : 0;
 
-                    return (
-                      <TableRow key={product.id}
-                        className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 border-b border-zinc-100 dark:border-zinc-800/60 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setIsSheetOpenDetail(true);
-                        }}
-                      >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectRow(product.id, !!checked)}
-                            aria-label={`Select ${product.name}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {product.image ? (
-                            <HoverCard openDelay={0} closeDelay={0}>
-                              <HoverCardTrigger asChild>
-                                <div className="w-12 h-12 rounded-sm overflow-hidden border bg-muted flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
-                                  <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                                </div>
-                              </HoverCardTrigger>
-                              <HoverCardContent side="right" align="center" sideOffset={12} className="w-48 p-1.5 bg-background border shadow-xl rounded-lg">
-                                <div className="w-full aspect-square overflow-hidden rounded-sm">
-                                  <img src={product.image} alt="Preview Besar" className="w-full h-full object-cover" />
-                                </div>
-                              </HoverCardContent>
-                            </HoverCard>
-                          ) : (
-                            <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border text-muted-foreground/60">
-                              <Box className="h-4 w-4" />
+                      return (
+                        <TableRow key={product.id}
+                          className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 border-b border-zinc-100 dark:border-zinc-800/60 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setIsSheetOpenDetail(true);
+                          }}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleSelectRow(product.id, !!checked)}
+                              aria-label={`Select ${product.name}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {product.image ? (
+                              <HoverCard openDelay={0} closeDelay={0}>
+                                <HoverCardTrigger asChild>
+                                  <div className="w-12 h-12 rounded-sm overflow-hidden border bg-muted flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                  </div>
+                                </HoverCardTrigger>
+                                <HoverCardContent side="right" align="center" sideOffset={12} className="w-48 p-1.5 bg-background border shadow-xl rounded-lg">
+                                  <div className="w-full aspect-square overflow-hidden rounded-sm">
+                                    <img src={product.image} alt="Preview Besar" className="w-full h-full object-cover" />
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
+                            ) : (
+                              <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border text-muted-foreground/60">
+                                <Box className="h-4 w-4" />
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium text-xs text-foreground">
+                                {formatDateTime(product.created_at).dateStr}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground italic">
+                                Pukul {formatDateTime(product.created_at).timeStr} WIB
+                              </span>
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium text-xs text-foreground">
-                              {formatDateTime(product.created_at).dateStr}
+                          </TableCell>
+                          <TableCell className="font-medium font-mono text-xs">{product.sku}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{product.name}</span>
+                              <span className="text-[10px] text-muted-foreground">{product.category?.name || 'Tanpa Kategori'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className='font-semibold text-foreground'>
+                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(product.price)}
                             </span>
-                            <span className="text-[10px] text-muted-foreground italic">
-                              Pukul {formatDateTime(product.created_at).timeStr} WIB
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium font-mono text-xs">{product.sku}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{product.name}</span>
-                            <span className="text-[10px] text-muted-foreground">{product.category?.name || 'Tanpa Kategori'}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className='font-semibold text-foreground'>
-                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(product.price)}
-                          </span>
-                        </TableCell>
+                          </TableCell>
 
-                        {/* FIELD KONDISIONAL TOTAL HPP */}
-                        <TableCell>
-                          {hasHpp ? (
-                            <span className='font-bold text-amber-600 dark:text-amber-500'>
-                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(calculatedHpp)}
-                            </span>
-                          ) : (
-                            <Badge variant="destructive" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400">Belum Diatur</Badge>
-                          )}
-                        </TableCell>
+                          {/* FIELD KONDISIONAL TOTAL HPP */}
+                          <TableCell>
+                            {hasHpp ? (
+                              <span className='font-bold text-amber-600 dark:text-amber-500'>
+                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(calculatedHpp)}
+                              </span>
+                            ) : (
+                              <Badge variant="destructive" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400">Belum Diatur</Badge>
+                            )}
+                          </TableCell>
 
-                        {/* FIELD KONDISIONAL MARGIN PROFIT */}
-                        <TableCell>
-                          {hasHpp ? (
-                            <span className={`font-extrabold ${margin >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
-                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(margin)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-xs italic">-</span>
-                          )}
-                        </TableCell>
+                          {/* FIELD KONDISIONAL MARGIN PROFIT */}
+                          <TableCell>
+                            {hasHpp ? (
+                              <span className={`font-extrabold ${margin >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(margin)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs italic">-</span>
+                            )}
+                          </TableCell>
 
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8">
-                                <MoreHorizontalIcon />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedProduct(product);
-                                  setIsSheetOpenForm(true);
-                                }}
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                                {hasHpp ? 'Edit HPP Produk' : 'Atur HPP Produk'}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-8">
+                                  <MoreHorizontalIcon />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedProduct(product);
+                                    setIsSheetOpenForm(true);
+                                  }}
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                  {hasHpp ? 'Edit HPP Produk' : 'Atur HPP Produk'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
 
-            {products.last_page > 1 && (
-              <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60">
-                <div className="text-xs text-zinc-400 dark:text-zinc-500">
-                  Menampilkan {products.from ?? 0} sampai {products.to ?? 0} dari {products.total ?? 0} produk
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8 rounded-xl"
-                    disabled={!products.prev_page_url}
-                    onClick={() => products.prev_page_url && router.get(products.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
-                  >
-                    Sebelumnya
-                  </Button>
-                  <div className="text-xs font-semibold text-zinc-650 dark:text-zinc-400 px-1">
-                    Hal {products.current_page} dari {products.last_page}
+              {products.last_page > 1 && (
+                <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60">
+                  <div className="text-xs text-zinc-400 dark:text-zinc-500">
+                    Menampilkan {products.from ?? 0} sampai {products.to ?? 0} dari {products.total ?? 0} produk
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8 rounded-xl"
-                    disabled={!products.next_page_url}
-                    onClick={() => products.next_page_url && router.get(products.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
-                  >
-                    Selanjutnya
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8 rounded-xl"
+                      disabled={!products.prev_page_url}
+                      onClick={() => products.prev_page_url && router.get(products.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                    >
+                      Sebelumnya
+                    </Button>
+                    <div className="text-xs font-semibold text-zinc-650 dark:text-zinc-400 px-1">
+                      Hal {products.current_page} dari {products.last_page}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8 rounded-xl"
+                      disabled={!products.next_page_url}
+                      onClick={() => products.next_page_url && router.get(products.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                    >
+                      Selanjutnya
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ================= FLOATING ACTION BAR FOR BULK EXPORT ================= */}

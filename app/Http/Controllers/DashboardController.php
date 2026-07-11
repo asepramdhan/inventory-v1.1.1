@@ -83,6 +83,17 @@ class DashboardController extends Controller
         $profitBulanIni = $totalNetProfitAbsolut - (float)$ongoingRaw->profit_pending - (float)$ongoingRaw->profit_processing;
         $profitPending = (float) $ongoingRaw->profit_pending;
         $profitProcessing = (float) $ongoingRaw->profit_processing;
+
+        // H. Hitung Profit Batal / Cancel
+        $profitCancelled = (float) Transaction::query()
+            ->leftJoinSub($subQueryHpp, 'items_hpp', function ($join) {
+                $join->on('transactions.id', '=', 'items_hpp.transaction_id');
+            })
+            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+            ->where('status', 'cancelled')
+            ->whereIn('store_id', $userStoreIds)
+            ->selectRaw('COALESCE(SUM(grand_total - marketplace_admin_fee - COALESCE(items_hpp.total_transaction_hpp, 0)), 0) as total')
+            ->value('total') ?? 0;
         // =========================================================================
 
         // 2. AMBIL DATA PERINGATAN STOK TIPIS (Stok di bawah 5)
@@ -161,6 +172,7 @@ class DashboardController extends Controller
                 'profit' => (float)$profitBulanIni,
                 'profit_pending' => $profitPending,
                 'profit_processing' => $profitProcessing,
+                'profit_cancelled' => $profitCancelled,
             ],
             'stokTipis' => $stokTipis,
             'transaksiTerbaru' => $transaksiTerbaru,

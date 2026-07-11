@@ -1,7 +1,7 @@
 /* eslint-disable curly */
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowDownLeft, ArrowUpRight, Calendar, Check, DollarSign, Eye, EyeOff, Landmark, Pencil, Plus, Search, Trash2, TrendingUp, TrendingDown, Wallet, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Calendar, Check, Coins, DollarSign, Eye, EyeOff, Landmark, Pencil, Plus, Search, Trash2, TrendingUp, TrendingDown, Wallet, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -72,7 +72,7 @@ interface Props {
     to: number;
     total: number;
   };
-  summary: { total_income: number; total_expense: number; net_cash_flow: number };
+  summary: { total_income: number; total_expense: number; total_withdrawal?: number; net_cash_flow: number };
   typeCounts: { all: number; income: number; expense: number };
   filters: { financial_account_id: string; type: string; start_date: string; end_date: string; search: string };
 }
@@ -143,6 +143,23 @@ function MutationsTableSkeleton() {
     </div>
   );
 }
+
+const popularIncomeCategories = [
+  'Omzet Penjualan',
+  'Transfer Masuk',
+  'Pencairan Saldo Toko',
+  'Modal Tambahan'
+];
+
+const popularExpenseCategories = [
+  'Tarik Tunai',
+  'Pelunasan Produsen',
+  'Gaji Karyawan',
+  'Biaya Iklan & Affiliate',
+  'Biaya Packing / Plastik',
+  'Operasional Gudang',
+  'Transfer Keluar'
+];
 
 export default function Mutations({ accounts, mutations, summary, typeCounts, filters }: Props) {
   // States Filter bawaan sinkronisasi URL
@@ -319,7 +336,12 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
   };
 
   // Ganti seluruh useEffect lama dengan ini:
+  const isMounted = useRef(false);
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     const timer = setTimeout(() => {
       // Ambil parameter dari URL saat ini untuk mengecek apakah filter benar-back berubah
       const urlParams = new URLSearchParams(window.location.search);
@@ -528,7 +550,7 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                       <SelectContent>
                         {accounts?.filter((acc) => acc.is_active == true || acc.is_active == 1).map((acc) => (
                           <SelectItem key={acc.id} value={acc.id.toString()}>
-                            {acc.name} ({acc.type.toUpperCase()}) {acc.is_default == true || acc.is_default == 1 ? '⭐' : ''}
+                            {acc.name} ({acc.type.toUpperCase()}) - Saldo: {formatIDR(acc.current_balance)} {acc.is_default == true || acc.is_default == 1 ? '⭐' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -558,10 +580,23 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                   <div className="space-y-1.5">
                     <Label htmlFor="category">Kategori Dana</Label>
                     <Input
+                      id="category"
                       placeholder="Contoh: Pencairan Shopee, Saldo Iklan, Biaya Packing, Gaji Admin"
                       value={data.category}
                       onChange={(e) => setData('category', e.target.value)}
                     />
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {(data.type === 'income' ? popularIncomeCategories : popularExpenseCategories).map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setData('category', cat)}
+                          className="text-[10px] px-2.5 py-1 rounded-full bg-zinc-150 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors border border-zinc-200/40 dark:border-zinc-800/80 font-medium"
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
                     <InputError message={errors.category} />
                   </div>
 
@@ -906,7 +941,7 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
         </div>
 
         {/* SECTION 2: METRICS CASH FLOW ANALYSIS */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="relative overflow-hidden border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl bg-white dark:bg-zinc-900/50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm group">
             <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-500 to-teal-500" />
             <div className="p-5 flex flex-row items-center justify-between pb-2">
@@ -936,6 +971,22 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
                 {isLoading ? <Skeleton className="h-8 w-[180px]" /> : formatIDR(summary.total_expense)}
               </div>
               <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Uang Keluar / Pengeluaran</p>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl bg-white dark:bg-zinc-900/50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm group">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-500 to-orange-500" />
+            <div className="p-5 flex flex-row items-center justify-between pb-2">
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total Tarik Tunai</span>
+              <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform duration-300">
+                <Coins className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+            <div className="px-5 pb-5">
+              <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
+                {isLoading ? <Skeleton className="h-8 w-[180px]" /> : formatIDR(summary.total_withdrawal ?? 0)}
+              </div>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Penarikan Uang Untuk Pribadi</p>
             </div>
           </div>
 

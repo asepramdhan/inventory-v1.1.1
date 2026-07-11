@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { BookOpen, MapPin, MoreHorizontalIcon, Pencil, Phone, Plus, Text, Trash2, User } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -104,10 +104,49 @@ function ProducerFormFields({
   );
 }
 
+function ProducersTableSkeleton() {
+  return (
+    <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 shadow-sm animate-pulse">
+      <div className="p-0">
+        <Table>
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
+            <TableRow>
+              <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Nama Produsen / Konveksi</TableHead>
+              <TableHead className="w-[150px] text-xs font-bold text-zinc-500 dark:text-zinc-400">No. Telepon / WA</TableHead>
+              <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Alamat Gudang</TableHead>
+              <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Ket. Sistem Kerja Sama</TableHead>
+              <TableHead className="w-[180px] text-right text-xs font-bold text-zinc-500 dark:text-zinc-400">Sisa Hutang Tempo</TableHead>
+              <TableHead className="w-[80px] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[1, 2, 3, 4].map((i) => (
+              <TableRow key={i} className="border-b border-zinc-100 dark:border-zinc-800/60">
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-32 py-2" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-24" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-40" /></TableCell>
+                <TableCell><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-28" /></TableCell>
+                <TableCell className="text-right"><div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-20 ml-auto" /></TableCell>
+                <TableCell className="text-center"><div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-8 mx-auto" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 export default function Producers({ producers }: Props) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedProducer, setSelectedProducer] = useState<Producer | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 350);
+    return () => clearTimeout(timer);
+  }, []);
 
   const formatIDR = (num: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -240,107 +279,111 @@ export default function Producers({ producers }: Props) {
           </div>
         </div>
 
-        <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 shadow-sm">
-          <div className="p-0">
-            <Table>
-              <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
-                <TableRow>
-                  <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Nama Produsen / Konveksi</TableHead>
-                  <TableHead className="w-[150px] text-xs font-bold text-zinc-500 dark:text-zinc-400">No. Telepon / WA</TableHead>
-                  <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Alamat Gudang</TableHead>
-                  <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Ket. Sistem Kerja Sama</TableHead>
-                  <TableHead className="w-[180px] text-right text-xs font-bold text-zinc-500 dark:text-zinc-400">Sisa Hutang Tempo</TableHead>
-                  <TableHead className="w-[80px] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {producers.length === 0 ? (
+        {isLoading ? (
+          <ProducersTableSkeleton />
+        ) : (
+          <div className="relative flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 shadow-sm">
+            <div className="p-0">
+              <Table>
+                <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
                   <TableRow>
-                    <TableCell colSpan={6} className="h-40 text-center text-muted-foreground text-sm">
-                      Belum ada master data produsen. Klik tombol &quot;Tambah Produsen&quot; untuk meregistrasikan.
-                    </TableCell>
+                    <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Nama Produsen / Konveksi</TableHead>
+                    <TableHead className="w-[150px] text-xs font-bold text-zinc-500 dark:text-zinc-400">No. Telepon / WA</TableHead>
+                    <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Alamat Gudang</TableHead>
+                    <TableHead className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Ket. Sistem Kerja Sama</TableHead>
+                    <TableHead className="w-[180px] text-right text-xs font-bold text-zinc-500 dark:text-zinc-400">Sisa Hutang Tempo</TableHead>
+                    <TableHead className="w-[80px] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400">Aksi</TableHead>
                   </TableRow>
-                ) : (
-                  producers.map((prod) => (
-                    <TableRow key={prod.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors border-b border-zinc-100 dark:border-zinc-800/60">
-                      <TableCell className="text-xs font-bold text-foreground py-3">
-                        🏢 {prod.name}
-                      </TableCell>
-                      <TableCell className="text-xs font-medium text-muted-foreground">
-                        {prod.phone ? (
-                          <a
-                            href={`https://wa.me/${prod.phone.replace(/\D/g, '').replace(/^0/, '62')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:text-emerald-600 hover:underline"
-                          >
-                            {prod.phone}
-                          </a>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={prod.address || undefined}>
-                        {prod.address || '-'}
-                      </TableCell>
-                      <TableCell className="text-xs italic text-muted-foreground max-w-[220px] truncate" title={prod.notes || undefined}>
-                        {prod.notes || '-'}
-                      </TableCell>
-                      <TableCell className={`text-right text-xs font-extrabold ${prod.total_unpaid_debt > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {prod.total_unpaid_debt > 0 ? formatIDR(prod.total_unpaid_debt) : 'Lunas'}
-                      </TableCell>
-                      <TableCell className="text-center py-2">
-                        <AlertDialog>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8">
-                                <MoreHorizontalIcon className="h-4 w-4" />
-                                <span className="sr-only">Buka menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleOpenEdit(prod)}>
-                                <Pencil className="h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {prod.invoices_count > 0 ? (
-                                <DropdownMenuItem disabled className="text-muted-foreground">
-                                  <Trash2 className="h-4 w-4" />
-                                  Hapus (ada nota)
-                                </DropdownMenuItem>
-                              ) : (
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem variant="destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                    Hapus
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus produsen ini?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Produsen <strong className="text-foreground">{prod.name}</strong> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction variant="destructive" onClick={() => handleDelete(prod.id)}>
-                                Hapus
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                </TableHeader>
+                <TableBody>
+                  {producers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-40 text-center text-muted-foreground text-sm">
+                        Belum ada master data produsen. Klik tombol &quot;Tambah Produsen&quot; untuk meregistrasikan.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    producers.map((prod) => (
+                      <TableRow key={prod.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors border-b border-zinc-100 dark:border-zinc-800/60">
+                        <TableCell className="text-xs font-bold text-foreground py-3">
+                          🏢 {prod.name}
+                        </TableCell>
+                        <TableCell className="text-xs font-medium text-muted-foreground">
+                          {prod.phone ? (
+                            <a
+                              href={`https://wa.me/${prod.phone.replace(/\D/g, '').replace(/^0/, '62')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-emerald-600 hover:underline"
+                            >
+                              {prod.phone}
+                            </a>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={prod.address || undefined}>
+                          {prod.address || '-'}
+                        </TableCell>
+                        <TableCell className="text-xs italic text-muted-foreground max-w-[220px] truncate" title={prod.notes || undefined}>
+                          {prod.notes || '-'}
+                        </TableCell>
+                        <TableCell className={`text-right text-xs font-extrabold ${prod.total_unpaid_debt > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {prod.total_unpaid_debt > 0 ? formatIDR(prod.total_unpaid_debt) : 'Lunas'}
+                        </TableCell>
+                        <TableCell className="text-center py-2">
+                          <AlertDialog>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-8">
+                                  <MoreHorizontalIcon className="h-4 w-4" />
+                                  <span className="sr-only">Buka menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleOpenEdit(prod)}>
+                                  <Pencil className="h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {prod.invoices_count > 0 ? (
+                                  <DropdownMenuItem disabled className="text-muted-foreground">
+                                    <Trash2 className="h-4 w-4" />
+                                    Hapus (ada nota)
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem variant="destructive">
+                                      <Trash2 className="h-4 w-4" />
+                                      Hapus
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Hapus produsen ini?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Produsen <strong className="text-foreground">{prod.name}</strong> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction variant="destructive" onClick={() => handleDelete(prod.id)}>
+                                  Hapus
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
-        </div>
+        )}
 
         <Sheet
           open={isEditOpen}

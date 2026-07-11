@@ -1,6 +1,6 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, Link } from '@inertiajs/react';
-import { AlertCircle, ArrowRight, CheckCircle2, Clock, DollarSign, Package, ShoppingBag, TrendingUp, Truck, Wallet } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Clock, DollarSign, Package, ShoppingBag, TrendingUp, Truck, Wallet, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import DashboardController from '@/actions/App/Http/Controllers/DashboardController';
@@ -16,6 +16,7 @@ interface Summary {
   hutang: number;
   profit_pending: number;
   profit_processing: number;
+  profit_cancelled?: number;
 }
 
 interface ChartPoint {
@@ -211,6 +212,10 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                       <div className="flex justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400"><Truck className="h-3 w-3" /> Diproses</span>
                         <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_processing)}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-red-500 dark:text-red-400"><XCircle className="h-3 w-3" /> Gagal / Batal</span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_cancelled ?? 0)}</span>
                       </div>
                     </div>
                   </div>

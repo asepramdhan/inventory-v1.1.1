@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { Head, router } from '@inertiajs/react';
-import { Calendar, Clock, DollarSign, Percent, ShoppingBag, TrendingUp, Truck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Calendar, Clock, DollarSign, Percent, ShoppingBag, TrendingUp, Truck, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
 import MarginAnalysisController from '@/actions/App/Http/Controllers/MarginAnalysisController';
 import Heading from '@/components/heading';
@@ -22,6 +22,7 @@ interface Props {
     average_margin_percentage: number;
     profit_pending: number;
     profit_processing: number;
+    profit_cancelled?: number;
   };
   trendData: Array<{ date: string; omzet: number; net_profit: number }>;
   storePerformance: Array<{ store_name: string; platform: string; omzet: number; net_profit: number; margin_percentage: number }>;
@@ -174,7 +175,12 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
     setStoreId(String(filters.store_id ?? 'all'));
   }, [filters.start_date, filters.end_date, filters.store_id]);
 
+  const isMounted = useRef(false);
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     const delayDebounceFn = setTimeout(() => {
       router.get(
         MarginAnalysisController.index(),
@@ -334,6 +340,13 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
                           Diproses
                         </span>
                         <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_processing)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-red-500 dark:text-red-400">
+                          <XCircle className="h-3 w-3" />
+                          Gagal / Batal
+                        </span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_cancelled ?? 0)}</span>
                       </div>
                     </div>
                   </div>

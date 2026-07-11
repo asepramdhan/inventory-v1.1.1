@@ -4,7 +4,7 @@
 /* eslint-disable curly */
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { Box, DollarSign, FileSpreadsheet, Megaphone, MoreHorizontalIcon, PencilIcon, Percent, Plus, Search, Trash2, Trash2Icon, TrendingUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import AdsAffiliateController from '@/actions/App/Http/Controllers/AdsAffiliateController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -142,7 +142,12 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
     }
   }, [adsExpenses, selectedExpense]);
 
+  const isMounted = useRef(false);
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     const delayDebounceFn = setTimeout(() => {
       router.get(
         AdsAffiliateController.index(),
