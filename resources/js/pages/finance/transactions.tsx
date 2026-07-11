@@ -1181,14 +1181,14 @@ export default function Transactions({ transactions, storesList, productsList, f
 
         {/* ================= KPI CARDS SUMMARY ================= */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 my-2">
-          {/* Card 1: Total Order */}
+          {/* Card 1: Total Produk */}
           <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 rounded-2xl">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-zinc-400 to-zinc-500 opacity-80 group-hover:h-1.5 transition-all duration-200" />
             <CardContent className="p-5 flex items-start justify-between gap-4">
               <div className="space-y-1 min-w-0">
-                <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Total Order</p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countAllOrders} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pesanan</span></p>
-                <p className="text-[10.5px] font-semibold text-zinc-650 dark:text-zinc-400">{countAllItems} Pcs <span className="font-normal text-zinc-400 dark:text-zinc-500">Produk Terdata</span></p>
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Total Produk Terjual</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countAllItems} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pcs</span></p>
+                <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Akumulasi kuantitas produk</p>
               </div>
               <div className="h-10 w-10 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 text-zinc-650 dark:text-zinc-355 border border-zinc-150/50 dark:border-zinc-750/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
                 <ShoppingBag className="h-5 w-5" />
@@ -1202,8 +1202,8 @@ export default function Transactions({ transactions, storesList, productsList, f
             <CardContent className="p-5 flex items-start justify-between gap-4">
               <div className="space-y-1 min-w-0">
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Perlu Dikirim</p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countPendingOrders} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pesanan</span></p>
-                <p className="text-[10.5px] font-semibold text-amber-600 dark:text-amber-400">{countPendingItems} Pcs <span className="font-normal text-zinc-400 dark:text-zinc-500">Menunggu Logistik</span></p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countPendingItems} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pcs</span></p>
+                <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Kuantitas produk belum dikirim</p>
               </div>
               <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-450 border border-amber-100/50 dark:border-amber-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
                 <Package className="h-5 w-5" />
@@ -1217,8 +1217,8 @@ export default function Transactions({ transactions, storesList, productsList, f
             <CardContent className="p-5 flex items-start justify-between gap-4">
               <div className="space-y-1 min-w-0">
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Sedang Dikirim</p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countProcessingOrders} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pesanan</span></p>
-                <p className="text-[10.5px] font-semibold text-blue-600 dark:text-blue-400">{countProcessingItems} Pcs <span className="font-normal text-zinc-400 dark:text-zinc-500">Dalam Perjalanan</span></p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countProcessingItems} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pcs</span></p>
+                <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Kuantitas produk dalam transit</p>
               </div>
               <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-450 border border-blue-100/50 dark:border-blue-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
                 <Truck className="h-5 w-5" />
@@ -1232,8 +1232,8 @@ export default function Transactions({ transactions, storesList, productsList, f
             <CardContent className="p-5 flex items-start justify-between gap-4">
               <div className="space-y-1 min-w-0">
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Selesai</p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countCompletedOrders} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pesanan</span></p>
-                <p className="text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400">{countCompletedItems} Pcs <span className="font-normal text-zinc-400 dark:text-zinc-500">Diterima Pelanggan</span></p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countCompletedItems} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pcs</span></p>
+                <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Kuantitas produk sukses diterima</p>
               </div>
               <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 border border-emerald-100/50 dark:border-emerald-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
                 <CheckCircle className="h-5 w-5" />

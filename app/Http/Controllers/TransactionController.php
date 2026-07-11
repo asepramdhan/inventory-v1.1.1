@@ -104,10 +104,32 @@ class TransactionController extends Controller
             ->has('hpp') // Hanya produk yang sudah diset HPP-nya yang bisa dijual
             ->get(['id', 'name', 'sku', 'price', 'stock']);
 
-        // Hitung jumlah transaksi & total item produk per status untuk badge tabs
+        // Hitung jumlah transaksi & total item produk per status untuk badge tabs (dinamis terfilter)
         $rawCounts = DB::table('transactions')
             ->leftJoin('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
             ->where('transactions.user_id', Auth::user()->id)
+
+            // Filter Pencarian (No Invoice atau Nama Produk di dalam item)
+            ->when($search, function ($query, $search) {
+                return $query->where(function ($q) use ($search) {
+                    $q->where('transactions.invoice_number', 'like', "%{$search}%")
+                        ->orWhere('transaction_items.product_name', 'like', "%{$search}%");
+                });
+            })
+
+            // Filter Berdasarkan Toko
+            ->when($storeId && $storeId !== 'all', function ($query) use ($storeId) {
+                return $query->where('transactions.store_id', $storeId);
+            })
+
+            // Filter Berdasarkan Rentang Tanggal
+            ->when($startDate, function ($query) use ($startDate) {
+                return $query->where('transactions.transaction_date', '>=', $startDate . ' 00:00:00');
+            })
+            ->when($endDate, function ($query) use ($endDate) {
+                return $query->where('transactions.transaction_date', '<=', $endDate . ' 23:59:59');
+            })
+
             ->selectRaw('transactions.status, COUNT(distinct transactions.id) as count, SUM(transaction_items.quantity) as items')
             ->groupBy('transactions.status')
             ->get()
