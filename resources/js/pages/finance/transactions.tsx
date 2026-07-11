@@ -727,19 +727,19 @@ export default function Transactions({ transactions, storesList, productsList, f
       <Head title="Data Transaksi" />
       <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 mb-2">
           <Heading
             title="Riwayat Transaksi"
             description="Manajemen data penjualan semua marketplace."
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-1.5" disabled={shopeeUploadProcessing || uploadProcessing}>
+                <Button variant="outline" className="gap-1.5 w-full sm:w-auto" disabled={shopeeUploadProcessing || uploadProcessing}>
                   {shopeeUploadProcessing || uploadProcessing ? (
                     <>
                       <RefreshCw className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
-                      Proses Impor...
+                      Proses...
                     </>
                   ) : (
                     <>
@@ -812,7 +812,7 @@ export default function Transactions({ transactions, storesList, productsList, f
               setIsCreateSheetOpen(open);
               if (!open) resetForm();
             }}>
-              <Button onClick={() => setIsCreateSheetOpen(true)} className="gap-1.5">
+              <Button onClick={() => setIsCreateSheetOpen(true)} className="gap-1.5 w-full sm:w-auto">
                 <Plus className="h-4 w-4" /> Transaksi Manual
               </Button>
 

@@ -27,7 +27,7 @@ export function FloatingControlGroup() {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-[45] flex flex-col-reverse items-center gap-2 select-none pointer-events-auto">
+        <div className="fixed bottom-20 md:bottom-6 right-6 z-[45] flex flex-col-reverse items-center gap-2 select-none pointer-events-auto">
             {/* Network Status Widget */}
             <div className="shadow-lg rounded-full">
                 <NetworkStatus />

@@ -111,6 +111,20 @@ export default function Product({ products, categoriesList, storesList, filters 
   const [displayPrice, setDisplayPrice] = useState('');
   const [isActive, setIsActive] = useState(true);
 
+  // States for landing page & WhatsApp ads
+  const [landingActive, setLandingActive] = useState(false);
+  const [landingCode, setLandingCode] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [whatsappMessageTemplate, setWhatsappMessageTemplate] = useState('');
+  const [landingDescription, setLandingDescription] = useState('');
+
+  const [copied, setCopied] = useState(false);
+  const handleCopyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // Reset pilihan saat data products berubah
   useEffect(() => {
     setSelectedIds([]);
@@ -119,6 +133,11 @@ export default function Product({ products, categoriesList, storesList, filters 
       // Isi state dengan category_id milik produk yang dipilih (ubah ke string)
       setCategoryId(selectedProduct.category_id?.toString() || '');
       setIsActive(selectedProduct.active === 1 || selectedProduct.active === true);
+      setLandingActive(selectedProduct.landing_active === 1 || selectedProduct.landing_active === true);
+      setLandingCode(selectedProduct.landing_code || '');
+      setWhatsappNumber(selectedProduct.whatsapp_number || '');
+      setWhatsappMessageTemplate(selectedProduct.whatsapp_message_template || '');
+      setLandingDescription(selectedProduct.landing_description || '');
     } else {
       setCategoryId('');
     }
@@ -277,6 +296,11 @@ export default function Product({ products, categoriesList, storesList, filters 
     setEditImagePreview(null);
     setCategoryId('');
     setIsActive(true);
+    setLandingActive(false);
+    setLandingCode('');
+    setWhatsappNumber('');
+    setWhatsappMessageTemplate('');
+    setLandingDescription('');
   };
 
   // Fungsi untuk memformat input secara real-time
@@ -321,13 +345,13 @@ export default function Product({ products, categoriesList, storesList, filters 
       <Head title="Master Produk" />
       <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
         {/* Bungkus Heading dan Button dalam flex container agar sejajar */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 mb-2">
           <Heading
             title="Master Produk"
             description="Kelola data produk untuk semua toko online Anda"
           />
           {/* Tombol Tambah Produk */}
-          <div className="flex flex-wrap gap-2">
+          <div className="w-full sm:w-auto">
             <Sheet
               open={isSheetOpen}
               onOpenChange={(open) => {
@@ -336,7 +360,7 @@ export default function Product({ products, categoriesList, storesList, filters 
               }}
             >
               <SheetTrigger asChild>
-                <Button className="capitalize">
+                <Button className="capitalize w-full sm:w-auto">
                   <Plus className="h-4 w-4" />
                   Tambah Produk
                 </Button>
@@ -541,6 +565,106 @@ export default function Product({ products, categoriesList, storesList, filters 
                           </div>
                           <Switch id="active" checked={isActive} onCheckedChange={setIsActive} />
                           <input type="hidden" name="active" value={isActive ? '1' : '0'} />
+                        </div>
+
+                        {/* Pilihan Landing Page & Iklan WhatsApp */}
+                        <div className="space-y-4 border-t pt-4">
+                          <h4 className="text-xs font-bold text-indigo-650 dark:text-indigo-400 uppercase tracking-wider">Landing Page & Iklan WhatsApp</h4>
+                          
+                          <div className="flex items-center justify-between rounded-lg border p-4 bg-card">
+                            <div className="space-y-0.5">
+                              <Label htmlFor="landing_active" className="text-base">Aktifkan Landing Page Publik</Label>
+                              <p className="text-xs text-muted-foreground">
+                                {landingActive ? 'Produk akan dapat diakses publik untuk iklan' : 'Landing page dinonaktifkan'}
+                              </p>
+                            </div>
+                            <Switch id="landing_active" checked={landingActive} onCheckedChange={setLandingActive} />
+                            <input type="hidden" name="landing_active" value={landingActive ? '1' : '0'} />
+                          </div>
+
+                          {landingActive && (
+                            <div className="space-y-4 border rounded-lg p-4 bg-muted/10 animate-in fade-in slide-in-from-top-1 duration-200">
+                              <div className="grid gap-2">
+                                <Label htmlFor="landing_code">Kode Unik URL (Optional)</Label>
+                                <Input
+                                  id="landing_code"
+                                  name="landing_code"
+                                  value={landingCode}
+                                  onChange={(e) => setLandingCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                                  placeholder="Contoh: baju-kucing (otomatis acak jika kosong)"
+                                  className="text-xs rounded-lg bg-background"
+                                />
+                                <span className="text-[10px] text-muted-foreground">Alamat URL produk: {window.location.origin}/p/{"{kode}"}</span>
+                                <InputError message={errors.landing_code} />
+                              </div>
+
+                              <div className="grid gap-2">
+                                <Label htmlFor="whatsapp_number">Nomor WhatsApp Checkout</Label>
+                                <Input
+                                  id="whatsapp_number"
+                                  name="whatsapp_number"
+                                  value={whatsappNumber}
+                                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                                  placeholder="Contoh: 08123456789 atau 628123456789"
+                                  className="text-xs rounded-lg bg-background"
+                                  required={landingActive}
+                                />
+                                <InputError message={errors.whatsapp_number} />
+                              </div>
+
+                              <div className="grid gap-2">
+                                <div className="flex justify-between items-center">
+                                  <Label htmlFor="whatsapp_message_template">Template Pesan WhatsApp (Optional)</Label>
+                                  <button
+                                    type="button"
+                                    onClick={() => setWhatsappMessageTemplate("Halo Admin, saya tertarik untuk membeli produk {product_name} ({sku}) seharga {price}. Apakah stoknya masih ada?")}
+                                    className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                                  >
+                                    Auto-Generate
+                                  </button>
+                                </div>
+                                <textarea
+                                  id="whatsapp_message_template"
+                                  name="whatsapp_message_template"
+                                  value={whatsappMessageTemplate}
+                                  onChange={(e) => setWhatsappMessageTemplate(e.target.value)}
+                                  rows={4}
+                                  placeholder="Gunakan tag {product_name}, {sku}, {price} jika diperlukan.&#10;Contoh: Halo Admin, saya ingin pesan {product_name} ({sku}) seharga {price}."
+                                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                />
+                                <InputError message={errors.whatsapp_message_template} />
+                              </div>
+
+                              <div className="grid gap-2">
+                                <div className="flex justify-between items-center">
+                                  <Label htmlFor="landing_description">Deskripsi Detail Landing Page (Optional)</Label>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentName = (document.getElementById('name') as HTMLInputElement)?.value || 'Produk';
+                                      const currentPrice = displayPrice ? `Rp ${displayPrice}` : 'Harga Spesial';
+                                      setLandingDescription(
+                                        `🔥 PENAWARAN KHUSUS HARI INI: ${currentName}! 🔥\n\nDapatkan produk terbaik kami sekarang dengan harga spesial hanya ${currentPrice}!\n\n✨ Kenapa harus beli di toko kami?\n1. Jaminan produk 100% original berkualitas tinggi.\n2. Proses pengemasan cepat dan aman.\n3. Layanan garansi retur jika barang tidak sesuai.\n\n⚡ Stok sangat terbatas! Amankan pesanan Anda sekarang juga dengan mengeklik tombol WhatsApp di bawah sebelum kehabisan!`
+                                      );
+                                    }}
+                                    className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                                  >
+                                    Auto-Generate
+                                  </button>
+                                </div>
+                                <textarea
+                                  id="landing_description"
+                                  name="landing_description"
+                                  value={landingDescription}
+                                  onChange={(e) => setLandingDescription(e.target.value)}
+                                  rows={4}
+                                  placeholder="Jika kosong, akan menggunakan deskripsi katalog utama."
+                                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                />
+                                <InputError message={errors.landing_description} />
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                       </div>
@@ -776,7 +900,23 @@ export default function Product({ products, categoriesList, storesList, filters 
                                                 </div>
                                               </TableCell>
                                               <TableCell className="font-medium">{product.sku}</TableCell>
-                                              <TableCell>{product.name}</TableCell>
+                                              <TableCell>
+                                                <div className="flex flex-col gap-1 min-w-[150px]">
+                                                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">{product.name}</span>
+                                                  {product.landing_active && (
+                                                    <a
+                                                      href={`/p/${product.landing_code}`}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline w-fit flex items-center gap-1 font-bold"
+                                                      onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                                      Lihat Landing Page
+                                                    </a>
+                                                  )}
+                                                </div>
+                                              </TableCell>
                                               <TableCell>
                                                 <Badge className="bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
                                                   {product.category?.name || 'Tanpa Kategori'}
@@ -814,6 +954,11 @@ export default function Product({ products, categoriesList, storesList, filters 
                                                           setEditImagePreview(null);
                                                           setRawPrice(product.price.toString());
                                                           setDisplayPrice(new Intl.NumberFormat('id-ID').format(product.price));
+                                                          setLandingActive(!!product.landing_active);
+                                                          setLandingCode(product.landing_code || '');
+                                                          setWhatsappNumber(product.whatsapp_number || '');
+                                                          setWhatsappMessageTemplate(product.whatsapp_message_template || '');
+                                                          setLandingDescription(product.landing_description || '');
                                                           setIsSheetOpenEdit(true);
                                                         }}
                                                       >
@@ -998,9 +1143,21 @@ export default function Product({ products, categoriesList, storesList, filters 
                                               </TableCell>
                                               <TableCell className="font-medium font-mono text-xs">{product.sku}</TableCell>
                                               <TableCell>
-                                                <div className="flex flex-col">
-                                                  <span className="font-medium">{product.name}</span>
+                                                <div className="flex flex-col gap-0.5">
+                                                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">{product.name}</span>
                                                   <span className="text-[10px] text-muted-foreground">{product.category?.name || 'Tanpa Kategori'}</span>
+                                                  {product.landing_active && (
+                                                    <a
+                                                      href={`/p/${product.landing_code}`}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-[10px] text-indigo-650 dark:text-indigo-400 hover:underline w-fit flex items-center gap-1 font-bold mt-1"
+                                                      onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                                      Lihat Landing Page
+                                                    </a>
+                                                  )}
                                                 </div>
                                               </TableCell>
                                               <TableCell>
@@ -1251,6 +1408,53 @@ export default function Product({ products, categoriesList, storesList, filters 
                         <span className="text-muted-foreground italic text-xs">Tidak ada deskripsi untuk produk ini.</span>
                       )}
                     </p>
+                  </div>
+
+                  {/* Informasi Landing Page & Iklan WhatsApp */}
+                  <div className="flex flex-col gap-2 border-b pb-3 dark:border-sidebar-border">
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Landing Page & WhatsApp Ads</span>
+                    {selectedProduct.landing_active ? (
+                      <div className="space-y-2 mt-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Landing Page Publik Aktif</span>
+                        </div>
+                        <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="text-[10px] text-zinc-400 font-mono block">LINK IKLAN</span>
+                            <a
+                              href={`/p/${selectedProduct.landing_code}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-bold text-indigo-650 dark:text-indigo-400 hover:underline truncate block"
+                            >
+                              {window.location.origin}/p/{selectedProduct.landing_code}
+                            </a>
+                          </div>
+                          <Button
+                            size="sm"
+                            type="button"
+                            onClick={() => handleCopyLink(`${window.location.origin}/p/${selectedProduct.landing_code}`)}
+                            className="h-8 text-xs font-bold shrink-0 bg-indigo-50 hover:bg-indigo-100 text-indigo-755 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900 border border-indigo-200/10 rounded-lg"
+                          >
+                            {copied ? 'Tersalin!' : 'Salin Link'}
+                          </Button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-[10px] text-muted-foreground block">WHATSAPP RECEIVER</span>
+                            <span className="font-semibold text-foreground">{selectedProduct.whatsapp_number || '-'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-muted-foreground block">KODE UNIK</span>
+                            <span className="font-mono font-semibold text-foreground">{selectedProduct.landing_code}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic mt-0.5">Landing page publik dinonaktifkan untuk produk ini.</span>
+                    )}
                   </div>
 
                   {/* Grid Waktu (Created & Updated) */}
@@ -1513,6 +1717,113 @@ export default function Product({ products, categoriesList, storesList, filters 
                     </div>
                     <Switch id="active" checked={isActive} onCheckedChange={setIsActive} />
                     <input type="hidden" name="active" value={isActive ? '1' : '0'} />
+                  </div>
+
+                  {/* Pilihan Landing Page & Iklan WhatsApp Edit */}
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="text-xs font-bold text-indigo-650 dark:text-indigo-400 uppercase tracking-wider">Landing Page & Iklan WhatsApp</h4>
+                    
+                    <div className="flex items-center justify-between rounded-lg border p-4 bg-card">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="landing_active_edit" className="text-base">Aktifkan Landing Page Publik</Label>
+                        <p className="text-xs text-muted-foreground">
+                          {landingActive ? 'Produk akan dapat diakses publik untuk iklan' : 'Landing page dinonaktifkan'}
+                        </p>
+                      </div>
+                      <Switch id="landing_active_edit" checked={landingActive} onCheckedChange={setLandingActive} />
+                      <input type="hidden" name="landing_active" value={landingActive ? '1' : '0'} />
+                    </div>
+
+                    {landingActive && (
+                      <div className="space-y-4 border rounded-lg p-4 bg-muted/10 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="grid gap-2">
+                          <Label htmlFor="landing_code_edit">Kode Unik URL (Optional)</Label>
+                          <Input
+                            id="landing_code_edit"
+                            name="landing_code"
+                            value={landingCode}
+                            onChange={(e) => setLandingCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                            placeholder="Contoh: baju-kucing (otomatis acak jika kosong)"
+                            className="text-xs rounded-lg bg-background"
+                          />
+                          {selectedProduct?.landing_code && (
+                            <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                              <span>Alamat URL produk:</span>
+                              <a href={`/p/${selectedProduct.landing_code}`} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                                {window.location.origin}/p/{selectedProduct.landing_code}
+                              </a>
+                            </div>
+                          )}
+                          <InputError message={errors.landing_code} />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="whatsapp_number_edit">Nomor WhatsApp Checkout</Label>
+                          <Input
+                            id="whatsapp_number_edit"
+                            name="whatsapp_number"
+                            value={whatsappNumber}
+                            onChange={(e) => setWhatsappNumber(e.target.value)}
+                            placeholder="Contoh: 08123456789 atau 628123456789"
+                            className="text-xs rounded-lg bg-background"
+                            required={landingActive}
+                          />
+                          <InputError message={errors.whatsapp_number} />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <div className="flex justify-between items-center">
+                            <Label htmlFor="whatsapp_message_template_edit">Template Pesan WhatsApp (Optional)</Label>
+                            <button
+                              type="button"
+                              onClick={() => setWhatsappMessageTemplate("Halo Admin, saya tertarik untuk membeli produk {product_name} ({sku}) seharga {price}. Apakah stoknya masih ada?")}
+                              className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                            >
+                              Auto-Generate
+                            </button>
+                          </div>
+                          <textarea
+                            id="whatsapp_message_template_edit"
+                            name="whatsapp_message_template"
+                            value={whatsappMessageTemplate}
+                            onChange={(e) => setWhatsappMessageTemplate(e.target.value)}
+                            rows={4}
+                            placeholder="Gunakan tag {product_name}, {sku}, {price} jika diperlukan.&#10;Contoh: Halo Admin, saya ingin pesan {product_name} ({sku}) seharga {price}."
+                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          />
+                          <InputError message={errors.whatsapp_message_template} />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <div className="flex justify-between items-center">
+                            <Label htmlFor="landing_description_edit">Deskripsi Detail Landing Page (Optional)</Label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentName = selectedProduct?.name || 'Produk';
+                                const currentPrice = displayPrice ? `Rp ${displayPrice}` : 'Harga Spesial';
+                                setLandingDescription(
+                                  `🔥 PENAWARAN KHUSUS HARI INI: ${currentName}! 🔥\n\nDapatkan produk terbaik kami sekarang dengan harga spesial hanya ${currentPrice}!\n\n✨ Kenapa harus beli di toko kami?\n1. Jaminan produk 100% original berkualitas tinggi.\n2. Proses pengemasan cepat dan aman.\n3. Layanan garansi retur jika barang tidak sesuai.\n\n⚡ Stok sangat terbatas! Amankan pesanan Anda sekarang juga dengan mengeklik tombol WhatsApp di bawah sebelum kehabisan!`
+                                );
+                              }}
+                              className="text-[10px] text-indigo-650 dark:text-indigo-400 hover:underline font-semibold"
+                            >
+                              Auto-Generate
+                            </button>
+                          </div>
+                          <textarea
+                            id="landing_description_edit"
+                            name="landing_description"
+                            value={landingDescription}
+                            onChange={(e) => setLandingDescription(e.target.value)}
+                            rows={4}
+                            placeholder="Jika kosong, akan menggunakan deskripsi katalog utama."
+                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          />
+                          <InputError message={errors.landing_description} />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                 </div>
@@ -1809,7 +2120,7 @@ function InlineStockUpdater({ product }: { product: any }) {
     e.preventDefault();
     setLoading(true);
 
-    router.put(`/master-data/product/${product.id}/update-stock`, {
+    router.put(`/operational/product/${product.id}/update-stock`, {
       stock: parseInt(stockVal) || 0
     }, {
       preserveScroll: true,

@@ -329,7 +329,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
       <div className="flex flex-col gap-4 p-4">
 
         {/* HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4 mb-2">
           <Heading
             title="Pemasukan Stok Produsen"
             description="Catat nota kedatangan barang konveksi/produsen dengan sistem tagihan mingguan."
@@ -337,7 +337,7 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
 
           <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <SheetTrigger asChild>
-              <Button onClick={handleOpenCreateModal} className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs gap-1.5 self-start sm:self-auto shadow-sm">
+              <Button onClick={handleOpenCreateModal} className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs gap-1.5 w-full sm:w-auto shadow-sm">
                 <Plus className="h-4 w-4" /> Catat Nota Masuk
               </Button>
             </SheetTrigger>

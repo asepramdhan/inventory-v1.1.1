@@ -233,20 +233,20 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
 
         <div className="flex flex-col lg:flex-row items-center gap-4 w-full bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm">
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80 rounded-xl px-3 h-10">
+            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-800/80 rounded-xl px-3 h-10 w-full sm:w-auto justify-between sm:justify-start">
               <Calendar className="h-4 w-4 text-zinc-400 shrink-0" />
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-xs outline-none text-zinc-700 dark:text-zinc-200 w-[120px]"
+                className="bg-transparent text-xs outline-none text-zinc-700 dark:text-zinc-200 w-full sm:w-[120px] text-center sm:text-left"
               />
-              <span className="text-xs text-zinc-400">s/d</span>
+              <span className="text-xs text-zinc-400 shrink-0">s/d</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-xs outline-none text-zinc-700 dark:text-zinc-200 w-[120px]"
+                className="bg-transparent text-xs outline-none text-zinc-700 dark:text-zinc-200 w-full sm:w-[120px] text-center sm:text-left"
               />
             </div>
             <Select value={storeId} onValueChange={setStoreId}>

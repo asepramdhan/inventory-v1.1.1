@@ -454,10 +454,10 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
             description="Jurnal pencatatan riwayat arus uang masuk dan keluar pada kas/rekening Anda."
           />
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
             <Sheet open={isAccountOpen} onOpenChange={setIsAccountOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" className="gap-1.5">
+                <Button variant="outline" className="gap-1.5 w-full sm:w-auto">
                   <Landmark className="h-4 w-4 text-blue-500" />
                   Tambah Akun
                 </Button>
@@ -529,7 +529,7 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
             {/* SHEET FORM TAMBAH MUTASI MANUAL */}
             <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <SheetTrigger asChild>
-                <Button className="bg-primary text-primary-foreground shadow">
+                <Button className="bg-primary text-primary-foreground shadow gap-1.5 w-full sm:w-auto">
                   <Plus className="h-4 w-4" />
                   Catat Mutasi Kas
                 </Button>

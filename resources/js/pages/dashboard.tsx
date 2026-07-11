@@ -1,5 +1,5 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { AlertCircle, ArrowRight, CheckCircle2, Clock, DollarSign, Package, ShoppingBag, TrendingUp, Truck, Wallet, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -8,6 +8,9 @@ import ProductController from '@/actions/App/Http/Controllers/ProductController'
 import Heading from '@/components/heading';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface Summary {
   omzet: number;
@@ -326,9 +329,7 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                               <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Sisa stok gudang</p>
                             </div>
                           </div>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 border ${item.stock === 0 ? 'bg-red-500/10 text-red-600 border-red-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`}>
-                            {item.stock} pcs
-                          </span>
+                          <DashboardStockUpdater item={item} />
                         </div>
                       ))
                     )}
@@ -459,3 +460,79 @@ Dashboard.layout = {
     { title: 'Dashboard', href: DashboardController.index() },
   ],
 };
+
+function DashboardStockUpdater({ item }: { item: StokTipisItem }) {
+  const [open, setOpen] = useState(false);
+  const [stockVal, setStockVal] = useState(item.stock?.toString() || '0');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setStockVal(item.stock?.toString() || '0');
+  }, [item.stock]);
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    router.put(
+      `/operational/product/${item.id}/update-stock`,
+      {
+        stock: parseInt(stockVal) || 0,
+      },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          setOpen(false);
+        },
+        onFinish: () => setLoading(false),
+      }
+    );
+  };
+
+  const isOutOfStock = item.stock === 0;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          className={`cursor-pointer px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 border transition-all duration-200 hover:scale-105 ${
+            isOutOfStock
+              ? 'bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20'
+              : 'bg-amber-500/10 text-amber-605 border-amber-500/20 hover:bg-amber-500/20'
+          }`}
+        >
+          {item.stock} pcs
+        </div>
+      </PopoverTrigger>
+
+      <PopoverContent
+        className="w-56 p-3 z-50 shadow-xl border border-zinc-200 dark:border-zinc-800 rounded-xl"
+        onClick={(e) => e.stopPropagation()}
+        align="end"
+      >
+        <form onSubmit={handleSave} className="space-y-3">
+          <div className="space-y-1">
+            <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Pembaruan Stok Cepat</h4>
+            <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-150 truncate max-w-[190px]">{item.name}</p>
+          </div>
+
+          <div className="flex gap-2 items-center">
+            <Input
+              type="number"
+              value={stockVal}
+              onChange={(e) => setStockVal(e.target.value)}
+              className="h-8 text-xs rounded-lg"
+              min="0"
+              required
+              disabled={loading}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <Button size="sm" className="h-8 px-3 rounded-lg text-xs font-bold bg-indigo-650 hover:bg-indigo-600 text-white" type="submit" disabled={loading}>
+              {loading ? '...' : 'Simpan'}
+            </Button>
+          </div>
+        </form>
+      </PopoverContent>
+    </Popover>
+  );
+}

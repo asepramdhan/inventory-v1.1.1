@@ -15,7 +15,32 @@ class Product extends Model
         return [
             'price' => 'decimal:2',
             'active' => 'boolean',
+            'landing_active' => 'boolean',
         ];
+    }
+
+    protected static function booted()
+    {
+        static::creating(function ($product) {
+            if ($product->landing_active && empty($product->landing_code)) {
+                $product->landing_code = static::generateUniqueLandingCode();
+            }
+        });
+
+        static::updating(function ($product) {
+            if ($product->landing_active && empty($product->landing_code)) {
+                $product->landing_code = static::generateUniqueLandingCode();
+            }
+        });
+    }
+
+    public static function generateUniqueLandingCode(): string
+    {
+        do {
+            $code = strtolower(\Illuminate\Support\Str::random(8));
+        } while (static::where('landing_code', $code)->exists());
+
+        return $code;
     }
 
     // relasi ke category

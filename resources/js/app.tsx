@@ -13,6 +13,7 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'welcome':
+            case name.startsWith('public/'):
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
@@ -38,3 +39,12 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+// Register PWA Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then((reg) => console.log('Service Worker registered successfully:', reg.scope))
+            .catch((err) => console.error('Service Worker registration failed:', err));
+    });
+}

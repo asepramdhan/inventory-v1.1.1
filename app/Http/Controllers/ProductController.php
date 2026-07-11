@@ -99,6 +99,11 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'active'      => 'required|boolean',
+            'landing_active' => 'required|boolean',
+            'landing_code' => 'nullable|string|max:50|unique:products,landing_code',
+            'whatsapp_number' => 'nullable|string|max:50',
+            'whatsapp_message_template' => 'nullable|string',
+            'landing_description' => 'nullable|string',
         ]);
 
         // Logika Upload Gambar
@@ -147,6 +152,11 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'active'      => 'required|boolean',
+            'landing_active' => 'required|boolean',
+            'landing_code' => 'nullable|string|max:50|unique:products,landing_code,' . $id,
+            'whatsapp_number' => 'nullable|string|max:50',
+            'whatsapp_message_template' => 'nullable|string',
+            'landing_description' => 'nullable|string',
         ]);
 
         $product = Product::where('id', $id)
