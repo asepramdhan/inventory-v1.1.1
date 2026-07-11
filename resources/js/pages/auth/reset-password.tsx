@@ -33,7 +33,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                                 name="email"
                                 autoComplete="email"
                                 value={email}
-                                className="mt-1 block w-full"
+                                className="rounded-xl h-10 border-zinc-255 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                                 readOnly
                             />
                             <InputError
@@ -43,30 +43,30 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password">Password Baru</Label>
                             <PasswordInput
                                 id="password"
                                 name="password"
                                 autoComplete="new-password"
-                                className="mt-1 block w-full"
                                 autoFocus
-                                placeholder="Password"
+                                placeholder="Password Baru"
                                 passwordrules={passwordRules}
+                                className="rounded-xl h-10 border-zinc-255 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                             />
                             <InputError message={errors.password} />
                         </div>
 
                         <div className="grid gap-2">
                             <Label htmlFor="password_confirmation">
-                                Confirm password
+                                Konfirmasi Password Baru
                             </Label>
                             <PasswordInput
                                 id="password_confirmation"
                                 name="password_confirmation"
                                 autoComplete="new-password"
-                                className="mt-1 block w-full"
-                                placeholder="Confirm password"
+                                placeholder="Konfirmasi Password Baru"
                                 passwordrules={passwordRules}
+                                className="rounded-xl h-10 border-zinc-255 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                             />
                             <InputError
                                 message={errors.password_confirmation}
@@ -76,12 +76,12 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
 
                         <Button
                             type="submit"
-                            className="mt-4 w-full"
+                            className="mt-4 w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md shadow-indigo-600/15"
                             disabled={processing}
                             data-test="reset-password-button"
                         >
-                            {processing && <Spinner />}
-                            Reset password
+                            {processing && <Spinner className="size-4 text-white" />}
+                            Reset Password
                         </Button>
                     </div>
                 )}

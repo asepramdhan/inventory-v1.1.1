@@ -43,6 +43,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                     tabIndex={1}
                                     autoComplete="email"
                                     placeholder="email@example.com"
+                                    className="rounded-xl h-10 border-zinc-250 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                                 />
                                 <InputError message={errors.email} />
                             </div>
@@ -53,7 +54,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                     {canResetPassword && (
                                         <TextLink
                                             href={request()}
-                                            className="ml-auto text-sm"
+                                            className="ml-auto text-xs text-indigo-600 hover:text-indigo-500 font-semibold"
                                             tabIndex={5}
                                         >
                                             Lupa kata sandi?
@@ -67,6 +68,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                     tabIndex={2}
                                     autoComplete="current-password"
                                     placeholder="Kata Sandi"
+                                    className="rounded-xl h-10 border-zinc-250 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                                 />
                                 <InputError message={errors.password} />
                             </div>
@@ -76,25 +78,26 @@ export default function Login({ status, canResetPassword }: Props) {
                                     id="remember"
                                     name="remember"
                                     tabIndex={3}
+                                    className="rounded-md border-zinc-300 dark:border-zinc-700 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-605"
                                 />
-                                <Label htmlFor="remember">Ingat saya</Label>
+                                <Label htmlFor="remember" className="text-sm font-medium">Ingat saya</Label>
                             </div>
 
                             <Button
                                 type="submit"
-                                className="mt-4 w-full"
+                                className="mt-4 w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md shadow-indigo-600/15"
                                 tabIndex={4}
                                 disabled={processing}
                                 data-test="login-button"
                             >
-                                {processing && <Spinner />}
+                                {processing && <Spinner className="size-4 text-white" />}
                                 Masuk
                             </Button>
                         </div>
 
                         <div className="text-center text-sm text-muted-foreground">
                             Belum punya akun?{' '}
-                            <TextLink href={register()} tabIndex={5}>
+                            <TextLink href={register()} tabIndex={5} className="text-indigo-600 hover:text-indigo-500 font-bold">
                                 Daftar
                             </TextLink>
                         </div>

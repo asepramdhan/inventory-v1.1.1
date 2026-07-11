@@ -33,6 +33,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     autoComplete="off"
                                     autoFocus
                                     placeholder="email@example.com"
+                                    className="rounded-xl h-10 border-zinc-255 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                                 />
 
                                 <InputError message={errors.email} />
@@ -40,14 +41,14 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
                             <div className="my-6 flex items-center justify-start">
                                 <Button
-                                    className="w-full"
+                                    className="w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md shadow-indigo-600/15"
                                     disabled={processing}
                                     data-test="email-password-reset-link-button"
                                 >
                                     {processing && (
-                                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                                        <LoaderCircle className="h-4 w-4 animate-spin text-white" />
                                     )}
-                                    Kirim link reset kata sandi
+                                    Kirim Link Reset Kata Sandi
                                 </Button>
                             </div>
                         </>
@@ -56,7 +57,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
                 <div className="space-x-1 text-center text-sm text-muted-foreground">
                     <span>Atau, kembali ke</span>
-                    <TextLink href={login()}>Masuk</TextLink>
+                    <TextLink href={login()} className="text-indigo-600 hover:text-indigo-500 font-bold">Masuk</TextLink>
                 </div>
             </div>
         </>

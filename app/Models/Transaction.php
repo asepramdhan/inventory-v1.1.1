@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use App\Models\OperationalSupply;
 
 #[Guarded(['id'])]
 class Transaction extends Model
@@ -130,6 +131,29 @@ class Transaction extends Model
                         $oldMutation->delete();
                     }
                 });
+            }
+        });
+
+        static::created(function ($transaction) {
+            if ($transaction->status !== 'cancelled') {
+                OperationalSupply::deductForTransaction($transaction->user_id, $transaction->invoice_number);
+            }
+        });
+
+        static::updating(function ($transaction) {
+            $oldStatus = $transaction->getOriginal('status');
+            $newStatus = $transaction->status;
+
+            if ($oldStatus === 'cancelled' && $newStatus !== 'cancelled') {
+                OperationalSupply::deductForTransaction($transaction->user_id, $transaction->invoice_number);
+            } elseif ($oldStatus !== 'cancelled' && $newStatus === 'cancelled') {
+                OperationalSupply::refundForTransaction($transaction->user_id, $transaction->invoice_number);
+            }
+        });
+
+        static::deleting(function ($transaction) {
+            if ($transaction->status !== 'cancelled') {
+                OperationalSupply::refundForTransaction($transaction->user_id, $transaction->invoice_number);
             }
         });
     }

@@ -37,6 +37,7 @@ export default function Register({ passwordRules }: Props) {
                                     autoComplete="name"
                                     name="name"
                                     placeholder="Nama Lengkap"
+                                    className="rounded-xl h-10 border-zinc-255 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                                 />
                                 <InputError
                                     message={errors.name}
@@ -54,6 +55,7 @@ export default function Register({ passwordRules }: Props) {
                                     autoComplete="email"
                                     name="email"
                                     placeholder="email@example.com"
+                                    className="rounded-xl h-10 border-zinc-255 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                                 />
                                 <InputError message={errors.email} />
                             </div>
@@ -68,6 +70,7 @@ export default function Register({ passwordRules }: Props) {
                                     name="password"
                                     placeholder="Kata Sandi"
                                     passwordrules={passwordRules}
+                                    className="rounded-xl h-10 border-zinc-255 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                                 />
                                 <InputError message={errors.password} />
                             </div>
@@ -84,6 +87,7 @@ export default function Register({ passwordRules }: Props) {
                                     name="password_confirmation"
                                     placeholder="Konfirmasi Kata Sandi"
                                     passwordrules={passwordRules}
+                                    className="rounded-xl h-10 border-zinc-255 dark:border-zinc-800 dark:bg-zinc-950/40 bg-white/40 focus-visible:ring-indigo-500"
                                 />
                                 <InputError
                                     message={errors.password_confirmation}
@@ -92,18 +96,19 @@ export default function Register({ passwordRules }: Props) {
 
                             <Button
                                 type="submit"
-                                className="mt-2 w-full"
+                                className="mt-2 w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md shadow-indigo-600/15"
                                 tabIndex={5}
+                                disabled={processing}
                                 data-test="register-user-button"
                             >
-                                {processing && <Spinner />}
+                                {processing && <Spinner className="size-4 text-white" />}
                                 Daftar Sekarang
                             </Button>
                         </div>
 
                         <div className="text-center text-sm text-muted-foreground">
                             Sudah punya akun?{' '}
-                            <TextLink href={login()} tabIndex={6}>
+                            <TextLink href={login()} tabIndex={6} className="text-indigo-600 hover:text-indigo-500 font-bold">
                                 Masuk
                             </TextLink>
                         </div>

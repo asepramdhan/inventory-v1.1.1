@@ -6,6 +6,7 @@ import { Form, Head, router } from '@inertiajs/react';
 import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload, Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
+import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -1822,7 +1823,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                                       e.stopPropagation();
                                       setIsSheetOpen(false); // Tutup sheet detail terlebih dahulu
                                       const searchQuery = item.product.sku || item.product.name;
-                                      router.get('/products', { search: searchQuery });
+                                      router.get(ProductController.index(), { search: searchQuery });
                                     }}
                                     className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
                                   >

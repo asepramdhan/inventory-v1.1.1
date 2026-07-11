@@ -7,8 +7,8 @@ use App\Http\Controllers\FinancialMutationController;
 use App\Http\Controllers\MarginAnalysisController;
 use App\Http\Controllers\ProducerController;
 use App\Http\Controllers\ProducerStockController;
+use App\Http\Controllers\OperationalSupplyController;
 use App\Http\Controllers\ProductController;
-use App\Http\Controllers\ProductHppController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
@@ -41,17 +41,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/finance/mutations/accounts/{id}/default', [FinancialMutationController::class, 'setDefaultAccount'])->name('mutations.accounts.default');
     Route::delete('/finance/mutations/{id}', [FinancialMutationController::class, 'destroy'])->name('mutations.destroy');
 
-    // Menu Stok & Pemasukan
+    // Menu Stok & Pemasukan (Operational)
     Route::get('/operational/producer-stocks', [ProducerStockController::class, 'index'])->name('producer-stocks.index');
     Route::post('/operational/producer-stocks', [ProducerStockController::class, 'store'])->name('producer-stocks.store');
     Route::post('/operational/producer-stocks/{id}/pay', [ProducerStockController::class, 'payInvoice'])->name('producer-stocks.pay');
     Route::get('/operational/producer-stocks/generate-number', [ProducerStockController::class, 'generateInvoiceNumber']);
     Route::put('/operational/producer-stocks/{id}/update-note', [ProducerStockController::class, 'updateNote']);
 
-    Route::resource('products', ProductController::class);
-    Route::put('/master-data/product/{product}/update-stock', [ProductController::class, 'updateStock']);
-    Route::get('/master-data/product/export', [ProductController::class, 'export'])->name('products.export');
-    Route::post('/master-data/product/bulk-delete', [ProductController::class, 'bulkDestroy'])->name('products.bulk-destroy');
+    Route::resource('operational/products', ProductController::class)->names('products');
+    Route::put('/operational/product/{product}/update-stock', [ProductController::class, 'updateStock']);
+    Route::get('/operational/product/export', [ProductController::class, 'export'])->name('products.export');
+    Route::post('/operational/product/bulk-delete', [ProductController::class, 'bulkDestroy'])->name('products.bulk-destroy');
+    Route::post('/operational/product-hpp/save', [ProductController::class, 'saveHpp'])->name('product-hpp.save');
+    Route::get('/operational/product-hpp/export', [ProductController::class, 'exportHpp'])->name('product-hpp.export');
+
+    Route::get('/operational/supplies', [OperationalSupplyController::class, 'index'])->name('supplies.index');
+    Route::post('/operational/supplies', [OperationalSupplyController::class, 'store'])->name('supplies.store');
+    Route::put('/operational/supplies/{id}', [OperationalSupplyController::class, 'update'])->name('supplies.update');
+    Route::delete('/operational/supplies/{id}', [OperationalSupplyController::class, 'destroy'])->name('supplies.destroy');
+    Route::put('/operational/supplies/{id}/update-stock', [OperationalSupplyController::class, 'updateStock'])->name('supplies.update-stock');
 
     // Menu Master Data
     Route::get('/master-data/producers', [ProducerController::class, 'index'])->name('producers.index');
@@ -59,12 +67,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/master-data/producers/{id}', [ProducerController::class, 'update'])->name('producers.update');
     Route::delete('/master-data/producers/{id}', [ProducerController::class, 'destroy'])->name('producers.destroy');
 
-    Route::get('/master-data/product-hpp', [ProductHppController::class, 'index'])->name('product-hpp.index');
-    Route::post('/master-data/product-hpp/save', [ProductHppController::class, 'save'])->name('product-hpp.save');
-    Route::resource('categories', CategoryController::class);
+    Route::resource('master-data/categories', CategoryController::class)->names('categories');
     Route::get('/master-data/category/export', [CategoryController::class, 'export'])->name('categories.export');
     Route::post('/master-data/category/bulk-delete', [CategoryController::class, 'bulkDestroy'])->name('categories.bulk-destroy');
-    Route::resource('stores', StoreController::class);
+    Route::resource('master-data/stores', StoreController::class)->names('stores');
     Route::get('/master-data/store/export', [StoreController::class, 'export'])->name('stores.export');
     Route::post('/master-data/store/bulk-delete', [StoreController::class, 'bulkDestroy'])->name('stores.bulk-destroy');
 });
