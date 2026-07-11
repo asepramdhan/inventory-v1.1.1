@@ -61,10 +61,11 @@ class TransactionController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        // Hitung jumlah transaksi per toko per status untuk indicator cards
-        $storeStatusCounts = Transaction::where('user_id', Auth::user()->id)
-            ->selectRaw('store_id, status, COUNT(*) as count')
-            ->groupBy('store_id', 'status')
+        // Hitung jumlah transaksi & total item per toko per status untuk indicator cards & summary table
+        $storeStatusCounts = Transaction::where('transactions.user_id', Auth::user()->id)
+            ->leftJoin('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
+            ->selectRaw('transactions.store_id, transactions.status, COUNT(distinct transactions.id) as count, SUM(transaction_items.quantity) as items')
+            ->groupBy('transactions.store_id', 'transactions.status')
             ->get()
             ->groupBy('store_id');
 
@@ -74,11 +75,24 @@ class TransactionController extends Controller
             ->map(function ($store) use ($storeStatusCounts) {
                 $counts = $storeStatusCounts->get($store->id);
                 
-                $store->transactions_count = $counts ? $counts->sum('count') : 0;
-                $store->pending_count = $counts ? ($counts->where('status', 'pending')->first()->count ?? 0) : 0;
-                $store->processing_count = $counts ? ($counts->where('status', 'processing')->first()->count ?? 0) : 0;
-                $store->completed_count = $counts ? ($counts->where('status', 'completed')->first()->count ?? 0) : 0;
-                $store->cancelled_count = $counts ? ($counts->where('status', 'cancelled')->first()->count ?? 0) : 0;
+                $store->transactions_count = $counts ? (int) $counts->sum('count') : 0;
+                $store->items_count = $counts ? (int) $counts->sum('items') : 0;
+
+                $pendingRow = $counts ? $counts->where('status', 'pending')->first() : null;
+                $store->pending_count = $pendingRow ? (int) $pendingRow->count : 0;
+                $store->pending_items = $pendingRow ? (int) $pendingRow->items : 0;
+
+                $processingRow = $counts ? $counts->where('status', 'processing')->first() : null;
+                $store->processing_count = $processingRow ? (int) $processingRow->count : 0;
+                $store->processing_items = $processingRow ? (int) $processingRow->items : 0;
+
+                $completedRow = $counts ? $counts->where('status', 'completed')->first() : null;
+                $store->completed_count = $completedRow ? (int) $completedRow->count : 0;
+                $store->completed_items = $completedRow ? (int) $completedRow->items : 0;
+
+                $cancelledRow = $counts ? $counts->where('status', 'cancelled')->first() : null;
+                $store->cancelled_count = $cancelledRow ? (int) $cancelledRow->count : 0;
+                $store->cancelled_items = $cancelledRow ? (int) $cancelledRow->items : 0;
                 
                 return $store;
             });
@@ -90,24 +104,43 @@ class TransactionController extends Controller
             ->has('hpp') // Hanya produk yang sudah diset HPP-nya yang bisa dijual
             ->get(['id', 'name', 'sku', 'price', 'stock']);
 
-        // Hitung jumlah transaksi per status untuk badge tabs
-        $statusCounts = Transaction::where('user_id', Auth::user()->id)
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status')
-            ->toArray();
+        // Hitung jumlah transaksi & total item produk per status untuk badge tabs
+        $rawCounts = DB::table('transactions')
+            ->leftJoin('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
+            ->where('transactions.user_id', Auth::user()->id)
+            ->selectRaw('transactions.status, COUNT(distinct transactions.id) as count, SUM(transaction_items.quantity) as items')
+            ->groupBy('transactions.status')
+            ->get()
+            ->keyBy('status');
+
+        $statusCounts = [
+            'all' => [
+                'count' => (int) $rawCounts->sum('count'),
+                'items' => (int) $rawCounts->sum('items'),
+            ],
+            'pending' => [
+                'count' => (int) ($rawCounts->get('pending')->count ?? 0),
+                'items' => (int) ($rawCounts->get('pending')->items ?? 0),
+            ],
+            'processing' => [
+                'count' => (int) ($rawCounts->get('processing')->count ?? 0),
+                'items' => (int) ($rawCounts->get('processing')->items ?? 0),
+            ],
+            'completed' => [
+                'count' => (int) ($rawCounts->get('completed')->count ?? 0),
+                'items' => (int) ($rawCounts->get('completed')->items ?? 0),
+            ],
+            'cancelled' => [
+                'count' => (int) ($rawCounts->get('cancelled')->count ?? 0),
+                'items' => (int) ($rawCounts->get('cancelled')->items ?? 0),
+            ],
+        ];
 
         return Inertia::render('finance/transactions', [
             'transactions' => $transactions,
             'storesList' => $storesList,
             'productsList' => $productsList,
-            'statusCounts' => [
-                'all' => Transaction::where('user_id', Auth::user()->id)->count(),
-                'pending' => $statusCounts['pending'] ?? 0,
-                'processing' => $statusCounts['processing'] ?? 0,
-                'completed' => $statusCounts['completed'] ?? 0,
-                'cancelled' => $statusCounts['cancelled'] ?? 0,
-            ],
+            'statusCounts' => $statusCounts,
             'filters' => [
                 'search' => $search ?? '',
                 'store_id' => $storeId ?? 'all',

@@ -11,6 +11,7 @@ import InputError from '@/components/input-error';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
@@ -92,6 +93,7 @@ function TransactionsTableSkeleton() {
               <TableHead className="text-xs">Gambar</TableHead>
               <TableHead className="text-xs">Tanggal Transaksi</TableHead>
               <TableHead className="text-xs">No. Pesanan</TableHead>
+              <TableHead className="text-xs">Produk</TableHead>
               <TableHead className="text-xs">Toko / Platform</TableHead>
               <TableHead className="text-xs">Total Bayar</TableHead>
               <TableHead className="text-xs">Biaya Admin</TableHead>
@@ -112,10 +114,16 @@ function TransactionsTableSkeleton() {
                     <div className="h-2.5 bg-zinc-100 dark:bg-zinc-800 rounded w-24" />
                   </div>
                 </TableCell>
-                <TableCell>
+                 <TableCell>
                   <div className="flex items-center gap-1.5">
                     <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-28" />
                     <div className="h-5 w-5 bg-zinc-100 dark:bg-zinc-800 rounded" />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-32" />
+                    <div className="h-2.5 bg-zinc-100 dark:bg-zinc-850 rounded w-20" />
                   </div>
                 </TableCell>
                 <TableCell>
@@ -663,11 +671,20 @@ export default function Transactions({ transactions, storesList, productsList, f
   const transactionList = Array.isArray(transactions) ? transactions : (transactions?.data || []);
 
   // Gunakan statusCounts dari backend untuk badge tabs (total data, bukan filtered)
-  const countAll = statusCounts?.all ?? 0;
-  const countPending = statusCounts?.pending ?? 0;
-  const countProcessing = statusCounts?.processing ?? 0;
-  const countCompleted = statusCounts?.completed ?? 0;
-  const countCancelled = statusCounts?.cancelled ?? 0;
+  const countAllOrders = statusCounts?.all?.count ?? 0;
+  const countAllItems = statusCounts?.all?.items ?? 0;
+
+  const countPendingOrders = statusCounts?.pending?.count ?? 0;
+  const countPendingItems = statusCounts?.pending?.items ?? 0;
+
+  const countProcessingOrders = statusCounts?.processing?.count ?? 0;
+  const countProcessingItems = statusCounts?.processing?.items ?? 0;
+
+  const countCompletedOrders = statusCounts?.completed?.count ?? 0;
+  const countCompletedItems = statusCounts?.completed?.items ?? 0;
+
+  const countCancelledOrders = statusCounts?.cancelled?.count ?? 0;
+  const countCancelledItems = statusCounts?.cancelled?.items ?? 0;
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
@@ -1162,7 +1179,68 @@ export default function Transactions({ transactions, storesList, productsList, f
           </div>
         </div>
 
+        {/* ================= KPI CARDS SUMMARY ================= */}
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 my-2">
+          {/* Card 1: Total Order */}
+          <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 rounded-2xl">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-zinc-400 to-zinc-500 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+            <CardContent className="p-5 flex items-start justify-between gap-4">
+              <div className="space-y-1 min-w-0">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Total Order</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countAllOrders} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pesanan</span></p>
+                <p className="text-[10.5px] font-semibold text-zinc-650 dark:text-zinc-400">{countAllItems} Pcs <span className="font-normal text-zinc-400 dark:text-zinc-500">Produk Terdata</span></p>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 text-zinc-650 dark:text-zinc-355 border border-zinc-150/50 dark:border-zinc-750/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* Card 2: Perlu Dikirim */}
+          <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 rounded-2xl">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-amber-500 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+            <CardContent className="p-5 flex items-start justify-between gap-4">
+              <div className="space-y-1 min-w-0">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Perlu Dikirim</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countPendingOrders} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pesanan</span></p>
+                <p className="text-[10.5px] font-semibold text-amber-600 dark:text-amber-400">{countPendingItems} Pcs <span className="font-normal text-zinc-400 dark:text-zinc-500">Menunggu Logistik</span></p>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-450 border border-amber-100/50 dark:border-amber-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
+                <Package className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Dikirim */}
+          <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 rounded-2xl">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-400 to-blue-500 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+            <CardContent className="p-5 flex items-start justify-between gap-4">
+              <div className="space-y-1 min-w-0">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Sedang Dikirim</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countProcessingOrders} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pesanan</span></p>
+                <p className="text-[10.5px] font-semibold text-blue-600 dark:text-blue-400">{countProcessingItems} Pcs <span className="font-normal text-zinc-400 dark:text-zinc-500">Dalam Perjalanan</span></p>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-450 border border-blue-100/50 dark:border-blue-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
+                <Truck className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 4: Selesai */}
+          <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 rounded-2xl">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-500 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+            <CardContent className="p-5 flex items-start justify-between gap-4">
+              <div className="space-y-1 min-w-0">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Selesai</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{countCompletedOrders} <span className="text-xs font-normal text-zinc-450 dark:text-zinc-500">Pesanan</span></p>
+                <p className="text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400">{countCompletedItems} Pcs <span className="font-normal text-zinc-400 dark:text-zinc-500">Diterima Pelanggan</span></p>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 border border-emerald-100/50 dark:border-emerald-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
+                <CheckCircle className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* ================= TABS FILTER BARU ================= */}
         <div className="flex w-full justify-center my-4 overflow-x-auto no-scrollbar">
@@ -1177,7 +1255,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 <ShoppingBag className="h-3.5 w-3.5 text-zinc-500" />
                 Semua
                 <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-bold bg-zinc-200/60 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-full">
-                  {countAll}
+                  {countAllOrders}
                 </Badge>
               </TabsTrigger>
 
@@ -1185,7 +1263,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 <Package className="h-3.5 w-3.5 text-amber-500" />
                 Perlu Dikirim
                 <Badge className="px-2 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">
-                  {countPending}
+                  {countPendingOrders}
                 </Badge>
               </TabsTrigger>
 
@@ -1193,7 +1271,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 <Truck className="h-3.5 w-3.5 text-blue-500" />
                 Dikirim
                 <Badge className="px-2 py-0.5 text-[10px] font-bold bg-blue-500 text-white rounded-full">
-                  {countProcessing}
+                  {countProcessingOrders}
                 </Badge>
               </TabsTrigger>
 
@@ -1201,7 +1279,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
                 Selesai
                 <Badge className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500 text-white rounded-full">
-                  {countCompleted}
+                  {countCompletedOrders}
                 </Badge>
               </TabsTrigger>
 
@@ -1209,7 +1287,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 <XCircle className="h-3.5 w-3.5 text-red-500" />
                 Gagal / Batal
                 <Badge variant="destructive" className="px-2 py-0.5 text-[10px] font-bold rounded-full">
-                  {countCancelled}
+                  {countCancelledOrders}
                 </Badge>
               </TabsTrigger>
 
@@ -1305,6 +1383,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                     <TableHead className="text-xs">Gambar</TableHead>
                     <TableHead className="text-xs">Tanggal Transaksi</TableHead>
                     <TableHead className="text-xs">No. Pesanan</TableHead>
+                    <TableHead className="text-xs">Produk</TableHead>
                     <TableHead className="text-xs">Toko / Platform</TableHead>
                     <TableHead className="text-xs">Total Bayar</TableHead>
                     <TableHead className="text-xs">Biaya Admin</TableHead>
@@ -1315,7 +1394,7 @@ export default function Transactions({ transactions, storesList, productsList, f
                 <TableBody>
                   {transactions.data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
+                      <TableCell colSpan={10} className="text-center py-8">
                         <Empty>
                           <EmptyHeader>
                             <EmptyMedia variant="icon"><ShoppingBag /></EmptyMedia>
@@ -1326,121 +1405,162 @@ export default function Transactions({ transactions, storesList, productsList, f
                       </TableCell>
                     </TableRow>
                   ) : (
-                    transactions.data.map((tx: any, index: number) => {
-                      const isSelected = selectedIds.includes(tx.id);
-                      const firstProductImage = tx.items?.[0]?.product?.image;
+                    (() => {
+                      const rows: any[] = [];
+                      transactions.data.forEach((tx: any) => {
+                        const items = tx.items || [];
+                        if (items.length === 0) {
+                          rows.push({ tx, item: null, key: `tx-${tx.id}` });
+                        } else {
+                          items.forEach((item: any, idx: number) => {
+                            rows.push({ tx, item, key: `tx-${tx.id}-item-${item.id || idx}` });
+                          });
+                        }
+                      });
 
-                      return (
-                        <TableRow
-                          key={tx.id}
-                          className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
-                          onClick={() => {
-                            setSelectedTransaction(tx);
-                            setIsSheetOpen(true);
-                          }}
-                        >
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
-                              aria-label={`Select row ${tx.invoice_number}`}
-                            />
-                          </TableCell>
+                      return rows.map(({ key, tx, item }: any) => {
+                        const isSelected = selectedIds.includes(tx.id);
+                        const productImage = item?.product?.image;
 
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            {firstProductImage ? (
-                              <HoverCard openDelay={0} closeDelay={0}>
-                                <HoverCardTrigger asChild>
-                                  <div className="w-12 h-12 rounded-sm overflow-hidden border bg-muted flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
-                                    <img src={firstProductImage} alt="Product Preview" className="w-full h-full object-cover" />
-                                  </div>
-                                </HoverCardTrigger>
-                                <HoverCardContent side="right" align="center" sideOffset={12} className="w-48 p-1.5 bg-background border shadow-xl rounded-lg pointer-events-none">
-                                  <div className="w-full aspect-square overflow-hidden rounded-sm">
-                                    <img src={firstProductImage} alt="Preview Besar" className="w-full h-full object-cover" />
-                                  </div>
-                                </HoverCardContent>
-                              </HoverCard>
-                            ) : (
-                              <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border text-muted-foreground/60">
-                                <Box className="h-4 w-4" />
-                              </div>
-                            )}
-                          </TableCell>
-
-                          <TableCell>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-medium text-xs text-foreground">
-                                {formatDateTime(tx.transaction_date).dateStr}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground italic">
-                                Pukul {formatDateTime(tx.transaction_date).timeStr} WIB
-                              </span>
-                            </div>
-                          </TableCell>
-
-                          <TableCell className="font-mono text-xs font-semibold text-foreground">
-                            <div className="flex items-center">
-                              <span>{tx.invoice_number}</span>
-                              <CopyButton value={tx.invoice_number} />
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium text-xs">{tx.store?.name}</span>
-                              <span className="text-[10px] text-muted-foreground uppercase">{tx.store?.platform}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-bold text-xs">
-                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(tx.grand_total)}
-                          </TableCell>
-                          <TableCell className="text-xs text-destructive font-medium">
-                            -{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(tx.marketplace_admin_fee)}
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger className="focus:outline-none select-none hover:opacity-80 active:scale-95 transition-all duration-150 cursor-pointer">
-                                {getStatusBadge(tx.status)}
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-44 rounded-xl shadow-lg z-[50]">
-                                <DropdownMenuItem
-                                  onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'processing' }, { preserveScroll: true })}
-                                  className="gap-2 cursor-pointer text-xs"
-                                >
-                                  <span className="h-2 w-2 rounded-full bg-blue-500" /> Diproses (Dikirim)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'completed' }, { preserveScroll: true })}
-                                  className="gap-2 cursor-pointer text-xs"
-                                >
-                                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Selesai (Completed)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'pending' }, { preserveScroll: true })}
-                                  className="gap-2 cursor-pointer text-xs"
-                                >
-                                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Menunggu (Pending)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'cancelled' }, { preserveScroll: true })}
-                                  className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive"
-                                >
-                                  <span className="h-2 w-2 rounded-full bg-red-500" /> Dibatalkan
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="size-8" onClick={() => {
+                        return (
+                          <TableRow
+                            key={key}
+                            className={`cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 ${isSelected ? 'bg-zinc-50/60 dark:bg-zinc-800/40' : ''}`}
+                            onClick={() => {
                               setSelectedTransaction(tx);
                               setIsSheetOpen(true);
-                            }}>
-                              <EyeIcon className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
+                            }}
+                          >
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
+                                aria-label={`Select row ${tx.invoice_number}`}
+                              />
+                            </TableCell>
+
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {productImage ? (
+                                <HoverCard openDelay={0} closeDelay={0}>
+                                  <HoverCardTrigger asChild>
+                                    <div className="w-12 h-12 rounded-sm overflow-hidden border bg-muted flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                                      <img src={productImage} alt="Product Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                  </HoverCardTrigger>
+                                  <HoverCardContent side="right" align="center" sideOffset={12} className="w-48 p-1.5 bg-background border shadow-xl rounded-lg pointer-events-none">
+                                    <div className="w-full aspect-square overflow-hidden rounded-sm">
+                                      <img src={productImage} alt="Preview Besar" className="w-full h-full object-cover" />
+                                    </div>
+                                  </HoverCardContent>
+                                </HoverCard>
+                              ) : (
+                                <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border text-muted-foreground/60">
+                                  <Box className="h-4 w-4" />
+                                </div>
+                              )}
+                            </TableCell>
+
+                            <TableCell>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-medium text-xs text-foreground">
+                                  {formatDateTime(tx.transaction_date).dateStr}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground italic">
+                                  Pukul {formatDateTime(tx.transaction_date).timeStr} WIB
+                                </span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="font-mono text-xs font-semibold text-foreground">
+                              <div className="flex items-center">
+                                <span>{tx.invoice_number}</span>
+                                <CopyButton value={tx.invoice_number} />
+                              </div>
+                            </TableCell>
+
+                            <TableCell>
+                              <div className="flex flex-col max-w-[200px]">
+                                <span className="font-bold text-xs text-zinc-900 dark:text-zinc-100 truncate">
+                                  {item ? item.product_name : '-'}
+                                </span>
+                                {item && (
+                                  <span className="text-[10px] font-semibold text-zinc-550 dark:text-zinc-400">
+                                    SKU: {item.product_sku || item.product?.sku || '-'} | Qty: {item.quantity}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium text-xs">{tx.store?.name}</span>
+                                <span className="text-[10px] text-muted-foreground uppercase">{tx.store?.platform}</span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="font-bold text-xs">
+                              {item ? (
+                                <>
+                                  <div>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.selling_price * item.quantity)}</div>
+                                  <div className="text-[10px] font-normal text-muted-foreground">
+                                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.selling_price)} x{item.quantity}
+                                  </div>
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
+
+                            <TableCell className="text-xs text-destructive font-medium">
+                              -{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(tx.marketplace_admin_fee)}
+                            </TableCell>
+
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger className="focus:outline-none select-none hover:opacity-80 active:scale-95 transition-all duration-150 cursor-pointer">
+                                  {getStatusBadge(tx.status)}
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-44 rounded-xl shadow-lg z-[50]">
+                                  <DropdownMenuItem
+                                    onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'processing' }, { preserveScroll: true })}
+                                    className="gap-2 cursor-pointer text-xs"
+                                  >
+                                    <span className="h-2 w-2 rounded-full bg-blue-500" /> Diproses (Dikirim)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'completed' }, { preserveScroll: true })}
+                                    className="gap-2 cursor-pointer text-xs"
+                                  >
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> Selesai (Completed)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'pending' }, { preserveScroll: true })}
+                                    className="gap-2 cursor-pointer text-xs"
+                                  >
+                                    <span className="h-2 w-2 rounded-full bg-amber-500" /> Menunggu (Pending)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => router.patch(`/finance/transactions/${tx.id}/status`, { status: 'cancelled' }, { preserveScroll: true })}
+                                    className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive"
+                                  >
+                                    <span className="h-2 w-2 rounded-full bg-red-500" /> Dibatalkan
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="icon" className="size-8" onClick={() => {
+                                setSelectedTransaction(tx);
+                                setIsSheetOpen(true);
+                              }}>
+                                <EyeIcon className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()
                   )}
                 </TableBody>
               </Table>
@@ -1513,11 +1633,11 @@ export default function Transactions({ transactions, storesList, productsList, f
                       TOTAL
                     </span>
                   </td>
-                  <td className="p-3 text-center font-mono font-bold text-zinc-900 dark:text-zinc-100">{countAll}</td>
-                  <td className="p-3 text-center font-mono text-amber-600 dark:text-amber-400">{countPending}</td>
-                  <td className="p-3 text-center font-mono text-blue-600 dark:text-blue-400">{countProcessing}</td>
-                  <td className="p-3 text-center font-mono text-emerald-600 dark:text-emerald-400">{countCompleted}</td>
-                  <td className="p-3 text-center font-mono text-red-600 dark:text-red-400">{countCancelled}</td>
+                  <td className="p-3 text-center font-mono font-bold text-zinc-900 dark:text-zinc-100">{countAllOrders}</td>
+                  <td className="p-3 text-center font-mono text-amber-600 dark:text-amber-400">{countPendingOrders}</td>
+                  <td className="p-3 text-center font-mono text-blue-600 dark:text-blue-400">{countProcessingOrders}</td>
+                  <td className="p-3 text-center font-mono text-emerald-600 dark:text-emerald-400">{countCompletedOrders}</td>
+                  <td className="p-3 text-center font-mono text-red-600 dark:text-red-400">{countCancelledOrders}</td>
                 </tr>
 
                 {/* Rows: Each Store */}
