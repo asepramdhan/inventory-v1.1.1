@@ -90,6 +90,11 @@ const masterDataItems: NavItem[] = [
         href: StoreController.index(),
         icon: Store,
     },
+    {
+        title: 'Daftar Pelanggan',
+        href: '/master-data/customers',
+        icon: Users,
+    },
 ];
 
 // const footerNavItems: NavItem[] = [

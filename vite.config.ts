@@ -28,4 +28,25 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+    build: {
+        chunkSizeWarningLimit: 1000,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('react')) {
+                            return 'vendor-react';
+                        }
+                        if (id.includes('lucide-react')) {
+                            return 'vendor-lucide';
+                        }
+                        if (id.includes('recharts') || id.includes('d3')) {
+                            return 'vendor-charts';
+                        }
+                        return 'vendor';
+                    }
+                },
+            },
+        },
+    },
 });

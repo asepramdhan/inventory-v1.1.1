@@ -841,14 +841,14 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="flex overflow-x-auto gap-4 pb-3 pt-1 w-full scrollbar-thin snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
             {accounts && accounts.map((acc: Account) => {
               const isActive = acc.is_active == true || acc.is_active == 1;
               const isDefault = acc.is_default == true || acc.is_default == 1;
               const isEditing = editingAccountId === acc.id;
 
               return (
-                <div key={acc.id} className={`group/card relative p-5 rounded-2xl border bg-white dark:bg-zinc-900/50 text-card-foreground shadow-sm flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 ${!isActive ? 'opacity-50 bg-zinc-105/40 dark:bg-zinc-800/20' : ''} ${isDefault ? 'border-emerald-500/80 shadow-emerald-500/5 dark:border-emerald-500/40 ring-1 ring-emerald-500/30' : 'border-zinc-200/50 dark:border-zinc-800/80'} ${isEditing ? 'ring-2 ring-primary/40 border-primary/50' : ''}`} >
+                <div key={acc.id} className={`group/card relative p-5 rounded-2xl border bg-white dark:bg-zinc-900/50 text-card-foreground shadow-sm flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 w-[280px] sm:w-[300px] shrink-0 snap-start ${!isActive ? 'opacity-50 bg-zinc-105/40 dark:bg-zinc-800/20' : ''} ${isDefault ? 'border-emerald-500/80 shadow-emerald-500/5 dark:border-emerald-500/40 ring-1 ring-emerald-500/30' : 'border-zinc-200/50 dark:border-zinc-800/80'} ${isEditing ? 'ring-2 ring-primary/40 border-primary/50' : ''}`} >
 
                   {/* Label Indikator Status */}
                   <div className="absolute top-4 right-4 flex items-center gap-1.5">

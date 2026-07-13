@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdsAffiliateController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancialMutationController;
 use App\Http\Controllers\MarginAnalysisController;
@@ -74,6 +75,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('master-data/stores', StoreController::class)->names('stores');
     Route::get('/master-data/store/export', [StoreController::class, 'export'])->name('stores.export');
     Route::post('/master-data/store/bulk-delete', [StoreController::class, 'bulkDestroy'])->name('stores.bulk-destroy');
+    Route::resource('master-data/customers', CustomerController::class)->names('customers');
 });
 
 Route::middleware(['auth', 'verified'])->prefix('finance/ads-affiliate')->name('ads-affiliate.')->group(function () {

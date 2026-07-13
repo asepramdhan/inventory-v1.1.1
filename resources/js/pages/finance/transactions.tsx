@@ -158,7 +158,7 @@ function TransactionsTableSkeleton() {
   );
 }
 
-export default function Transactions({ transactions, storesList, productsList, filters, statusCounts }: any) {
+export default function Transactions({ transactions, storesList, productsList, customersList = [], filters, statusCounts }: any) {
   // --- TAMBAHKAN STATE & EFFECT SKELETON DI SINI ---
   const [isLoading, setIsLoading] = useState(true);
 
@@ -349,6 +349,7 @@ export default function Transactions({ transactions, storesList, productsList, f
   ]);
 
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [customerId, setCustomerId] = useState<string>('');
 
   const handleBarcodeScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -656,6 +657,7 @@ export default function Transactions({ transactions, storesList, productsList, f
     setRawAffiliate('');
     setDisplayAffiliate('');
     setBarcodeInput('');
+    setCustomerId('');
   };
 
   const formatDateTime = (dateString: string) => {
@@ -945,8 +947,26 @@ export default function Transactions({ transactions, storesList, productsList, f
                             onChange={(e) => handleAffiliateChange(e.target.value)}
                             className="bg-background"
                           />
-                          <input type="hidden" name="affiliate_fee" value={rawAffiliate} />
-                          <InputError message={errors.affiliate_fee} />
+                        </div>
+
+                        {/* Hubungkan Pelanggan */}
+                        <div className="grid gap-1.5">
+                          <Label htmlFor="customer_id">Hubungkan Pelanggan <span className="text-muted-foreground text-[10px]">(Opsional)</span></Label>
+                          <Select value={customerId} onValueChange={setCustomerId}>
+                            <SelectTrigger id="customer_id_trigger" className="w-full bg-background">
+                              <SelectValue placeholder="Pilih Pelanggan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">--- Tanpa Pelanggan ---</SelectItem>
+                              {customersList?.map((c: any) => (
+                                <SelectItem key={c.id} value={c.id.toString()}>
+                                  {c.name} {c.username ? `(@${c.username})` : ''} - {c.platform}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <input type="hidden" name="customer_id" value={customerId === 'none' ? '' : customerId} />
+                          <InputError message={errors.customer_id} />
                         </div>
 
                         {/* Bagian Entri Produk Bersifat Dinamis */}

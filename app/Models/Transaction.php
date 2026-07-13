@@ -195,4 +195,10 @@ class Transaction extends Model
     {
         return $this->hasMany(TransactionItem::class);
     }
+
+    // Relasi ke Pelanggan (Customer CRM)
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
 }

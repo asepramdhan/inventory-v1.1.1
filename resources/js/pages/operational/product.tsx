@@ -899,23 +899,57 @@ export default function Product({ products, categoriesList, storesList, filters 
                                                   </span>
                                                 </div>
                                               </TableCell>
-                                              <TableCell className="font-medium">{product.sku}</TableCell>
+                                              <TableCell className="font-medium">
+                                                <HoverCard openDelay={150} closeDelay={100}>
+                                                  <HoverCardTrigger asChild>
+                                                    <div className="max-w-[100px] truncate cursor-help" title={product.sku}>
+                                                      {product.sku}
+                                                    </div>
+                                                  </HoverCardTrigger>
+                                                  <HoverCardContent side="top" align="center" className="w-64 p-3 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border border-zinc-200/60 dark:border-zinc-800/60 shadow-xl rounded-xl space-y-1.5 z-50" onClick={(e) => e.stopPropagation()}>
+                                                    <span className="text-[9px] uppercase font-bold tracking-wider text-zinc-400 block">SKU Lengkap</span>
+                                                    <span className="font-mono font-semibold text-xs text-zinc-800 dark:text-zinc-100 break-all select-all">{product.sku}</span>
+                                                  </HoverCardContent>
+                                                </HoverCard>
+                                              </TableCell>
                                               <TableCell>
-                                                <div className="flex flex-col gap-1 min-w-[150px]">
-                                                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">{product.name}</span>
-                                                  {product.landing_active && (
-                                                    <a
-                                                      href={`/p/${product.landing_code}`}
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                      className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline w-fit flex items-center gap-1 font-bold"
-                                                      onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                                                      Lihat Landing Page
-                                                    </a>
-                                                  )}
-                                                </div>
+                                                <HoverCard openDelay={150} closeDelay={100}>
+                                                  <HoverCardTrigger asChild>
+                                                    <div className="flex flex-col gap-1 min-w-[150px] max-w-[280px] sm:max-w-[320px] cursor-help">
+                                                      <span className="font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-relaxed">
+                                                        {product.name}
+                                                      </span>
+                                                      {product.landing_active && (
+                                                        <a
+                                                          href={`/p/${product.landing_code}`}
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                          className="text-[10px] text-indigo-650 dark:text-indigo-400 hover:underline w-fit flex items-center gap-1 font-bold"
+                                                          onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                                          Lihat Landing Page
+                                                        </a>
+                                                      )}
+                                                    </div>
+                                                  </HoverCardTrigger>
+                                                  <HoverCardContent side="top" align="start" className="w-80 p-4 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border border-zinc-200/60 dark:border-zinc-800/60 shadow-xl rounded-2xl space-y-3 z-50" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="space-y-1">
+                                                      <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Nama Lengkap Produk</span>
+                                                      <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100 leading-normal">{product.name}</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/60 text-xs">
+                                                      <div>
+                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">SKU</span>
+                                                        <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300 break-all">{product.sku}</span>
+                                                      </div>
+                                                      <div>
+                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Kategori</span>
+                                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">{product.category?.name || 'Tanpa Kategori'}</span>
+                                                      </div>
+                                                    </div>
+                                                  </HoverCardContent>
+                                                </HoverCard>
                                               </TableCell>
                                               <TableCell>
                                                 <Badge className="bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
@@ -1141,24 +1175,58 @@ export default function Product({ products, categoriesList, storesList, filters 
                                                   </span>
                                                 </div>
                                               </TableCell>
-                                              <TableCell className="font-medium font-mono text-xs">{product.sku}</TableCell>
+                                              <TableCell className="font-medium font-mono text-xs">
+                                                <HoverCard openDelay={150} closeDelay={100}>
+                                                  <HoverCardTrigger asChild>
+                                                    <div className="max-w-[100px] truncate cursor-help" title={product.sku}>
+                                                      {product.sku}
+                                                    </div>
+                                                  </HoverCardTrigger>
+                                                  <HoverCardContent side="top" align="center" className="w-64 p-3 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border border-zinc-200/60 dark:border-zinc-800/60 shadow-xl rounded-xl space-y-1.5 z-50" onClick={(e) => e.stopPropagation()}>
+                                                    <span className="text-[9px] uppercase font-bold tracking-wider text-zinc-400 block">SKU Lengkap</span>
+                                                    <span className="font-mono font-semibold text-xs text-zinc-800 dark:text-zinc-100 break-all select-all">{product.sku}</span>
+                                                  </HoverCardContent>
+                                                </HoverCard>
+                                              </TableCell>
                                               <TableCell>
-                                                <div className="flex flex-col gap-0.5">
-                                                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">{product.name}</span>
-                                                  <span className="text-[10px] text-muted-foreground">{product.category?.name || 'Tanpa Kategori'}</span>
-                                                  {product.landing_active && (
-                                                    <a
-                                                      href={`/p/${product.landing_code}`}
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                      className="text-[10px] text-indigo-650 dark:text-indigo-400 hover:underline w-fit flex items-center gap-1 font-bold mt-1"
-                                                      onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                                                      Lihat Landing Page
-                                                    </a>
-                                                  )}
-                                                </div>
+                                                <HoverCard openDelay={150} closeDelay={100}>
+                                                  <HoverCardTrigger asChild>
+                                                    <div className="flex flex-col gap-0.5 min-w-[150px] max-w-[280px] sm:max-w-[320px] cursor-help">
+                                                      <span className="font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-relaxed">
+                                                        {product.name}
+                                                      </span>
+                                                      <span className="text-[10px] text-muted-foreground">{product.category?.name || 'Tanpa Kategori'}</span>
+                                                      {product.landing_active && (
+                                                        <a
+                                                          href={`/p/${product.landing_code}`}
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                          className="text-[10px] text-indigo-650 dark:text-indigo-400 hover:underline w-fit flex items-center gap-1 font-bold mt-1"
+                                                          onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                                          Lihat Landing Page
+                                                        </a>
+                                                      )}
+                                                    </div>
+                                                  </HoverCardTrigger>
+                                                  <HoverCardContent side="top" align="start" className="w-80 p-4 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border border-zinc-200/60 dark:border-zinc-800/60 shadow-xl rounded-2xl space-y-3 z-50" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="space-y-1">
+                                                      <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Nama Lengkap Produk</span>
+                                                      <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100 leading-normal">{product.name}</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/60 text-xs">
+                                                      <div>
+                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">SKU</span>
+                                                        <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300 break-all">{product.sku}</span>
+                                                      </div>
+                                                      <div>
+                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Kategori</span>
+                                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">{product.category?.name || 'Tanpa Kategori'}</span>
+                                                      </div>
+                                                    </div>
+                                                  </HoverCardContent>
+                                                </HoverCard>
                                               </TableCell>
                                               <TableCell>
                                                 <span className='font-semibold text-foreground'>

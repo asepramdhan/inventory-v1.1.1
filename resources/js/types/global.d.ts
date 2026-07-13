@@ -13,6 +13,14 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
+            notifications?: Array<{
+                id: string;
+                type: 'product' | 'supply';
+                title: string;
+                message: string;
+                link: string;
+                severity: 'warning' | 'critical';
+            }>;
             [key: string]: unknown;
         };
     }

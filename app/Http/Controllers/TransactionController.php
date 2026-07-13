@@ -162,6 +162,7 @@ class TransactionController extends Controller
             'transactions' => $transactions,
             'storesList' => $storesList,
             'productsList' => $productsList,
+            'customersList' => \App\Models\Customer::where('user_id', Auth::user()->id)->orderBy('name', 'asc')->get(['id', 'name', 'username', 'phone', 'platform']),
             'statusCounts' => $statusCounts,
             'filters' => [
                 'search' => $search ?? '',
@@ -178,6 +179,7 @@ class TransactionController extends Controller
     {
         $request->validate([
             'store_id' => 'required|exists:stores,id',
+            'customer_id' => 'nullable|exists:customers,id',
             'invoice_number' => 'required|string|unique:transactions,invoice_number',
             'status' => 'required|string|in:pending,processing,completed,cancelled',
             'transaction_date' => 'required|date',
@@ -209,6 +211,7 @@ class TransactionController extends Controller
             $transaction = Transaction::create([
                 'user_id' => Auth::user()->id,
                 'store_id' => $request->store_id,
+                'customer_id' => $request->customer_id,
                 'invoice_number' => $request->invoice_number,
                 'status' => $request->status,
                 'subtotal' => 0,
@@ -627,6 +630,10 @@ class TransactionController extends Controller
             $quantityIndex = null;
             $subtotalIndex = null;
             $orderDateIndex = null;
+            $usernameIndex = null;
+            $nameIndex = null;
+            $phoneIndex = null;
+            $addressIndex = null;
 
             foreach ($headerRow as $index => $headerValue) {
                 $cleanHeader = trim($headerValue);
@@ -644,6 +651,14 @@ class TransactionController extends Controller
                     $subtotalIndex = $index;
                 } elseif ($cleanHeader === 'Waktu Pesanan Dibuat') {
                     $orderDateIndex = $index;
+                } elseif ($cleanHeader === 'Username Pembeli') {
+                    $usernameIndex = $index;
+                } elseif ($cleanHeader === 'Nama Penerima') {
+                    $nameIndex = $index;
+                } elseif ($cleanHeader === 'No. Telepon') {
+                    $phoneIndex = $index;
+                } elseif ($cleanHeader === 'Alamat Pengiriman') {
+                    $addressIndex = $index;
                 }
             }
 
@@ -662,7 +677,7 @@ class TransactionController extends Controller
             $skippedCount = 0;
             $errorMessages = [];
 
-            DB::transaction(function () use ($rows, $invoiceIndex, $statusIndex, $skuIndex, $priceIndex, $quantityIndex, $subtotalIndex, $orderDateIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
+            DB::transaction(function () use ($rows, $invoiceIndex, $statusIndex, $skuIndex, $priceIndex, $quantityIndex, $subtotalIndex, $orderDateIndex, $usernameIndex, $nameIndex, $phoneIndex, $addressIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
 
                 $ordersByInvoice = [];
 
@@ -683,6 +698,10 @@ class TransactionController extends Controller
                         $ordersByInvoice[$invoiceNumber] = [
                             'status' => $shopeeStatus,
                             'order_date' => $orderDateStr,
+                            'customer_username' => $usernameIndex !== null ? trim($rows[$i][$usernameIndex] ?? '') : null,
+                            'customer_name' => $nameIndex !== null ? trim($rows[$i][$nameIndex] ?? '') : null,
+                            'customer_phone' => $phoneIndex !== null ? trim($rows[$i][$phoneIndex] ?? '') : null,
+                            'customer_address' => $addressIndex !== null ? trim($rows[$i][$addressIndex] ?? '') : null,
                             'items' => []
                         ];
                     }
@@ -759,13 +778,48 @@ class TransactionController extends Controller
                         continue;
                     }
 
+                    // --- OTOMATIS SIMPAN & AUTO-MATCHING DATA PELANGGAN ---
+                    $customerId = null;
+                    $custName = $orderData['customer_name'] ?: ($orderData['customer_username'] ?: 'Pelanggan Shopee');
+
+                    // Cari apakah pelanggan ini sudah ada berdasarkan username atau telepon,
+                    // agar data sensor (masked) tidak membuat duplikasi record jika nilainya persis sama.
+                    $custQuery = \App\Models\Customer::where('user_id', $userId);
+                    
+                    if (!empty($orderData['customer_username'])) {
+                        $custQuery->where('username', $orderData['customer_username']);
+                    } elseif (!empty($orderData['customer_phone'])) {
+                        $custQuery->where('phone', $orderData['customer_phone']);
+                    } else {
+                        $custQuery->where('name', $custName);
+                    }
+
+                    $customer = $custQuery->first();
+
+                    if (!$customer) {
+                        $customer = \App\Models\Customer::create([
+                            'user_id' => $userId,
+                            'name' => $custName,
+                            'username' => $orderData['customer_username'] ?: null,
+                            'phone' => $orderData['customer_phone'] ?: null,
+                            'address' => $orderData['customer_address'] ?: null,
+                            'platform' => 'shopee',
+                        ]);
+                    } else {
+                        // Jika sudah ada tapi alamatnya kosong, bantu update dengan alamat terbaru
+                        if (empty($customer->address) && !empty($orderData['customer_address'])) {
+                            $customer->update(['address' => $orderData['customer_address']]);
+                        }
+                    }
+                    $customerId = $customer->id;
+                    // ----------------------------------------------------------------------
+
                     // Parse order date from Excel (format: YYYY-MM-DD HH:MM)
                     $transactionDate = now();
                     if (!empty($orderData['order_date'])) {
                         try {
                             $transactionDate = \Carbon\Carbon::parse($orderData['order_date']);
                         } catch (\Exception $e) {
-                            // If parsing fails, use current time
                             $transactionDate = now();
                         }
                     }
@@ -773,6 +827,7 @@ class TransactionController extends Controller
                     $transaction = Transaction::create([
                         'user_id' => $userId,
                         'store_id' => $storeId,
+                        'customer_id' => $customerId, // Tautkan customer
                         'invoice_number' => $invoiceNumber,
                         'status' => $mappedStatus,
                         'subtotal' => $subtotal,
