@@ -155,6 +155,26 @@ class Transaction extends Model
             if ($transaction->status !== 'cancelled') {
                 OperationalSupply::refundForTransaction($transaction->user_id, $transaction->invoice_number);
             }
+
+            // Jika transaksi dihapus dan statusnya completed, hapus mutasi kas otomatisnya
+            if ($transaction->status === 'completed') {
+                DB::transaction(function () use ($transaction) {
+                    $refNumber = $transaction->invoice_number ?? $transaction->id;
+                    $oldMutation = FinancialMutation::where('user_id', $transaction->user_id)
+                        ->where('reference_number', $refNumber)
+                        ->where('type', 'income')
+                        ->first();
+
+                    if ($oldMutation) {
+                        $account = FinancialAccount::find($oldMutation->financial_account_id);
+                        if ($account) {
+                            $account->current_balance -= $oldMutation->amount;
+                            $account->save();
+                        }
+                        $oldMutation->delete();
+                    }
+                });
+            }
         });
     }
 
