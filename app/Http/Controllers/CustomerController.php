@@ -55,6 +55,8 @@ class CustomerController extends Controller
             'phone' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'platform' => 'required|string|max:255',
+            'biteship_area_id' => 'nullable|string|max:255',
+            'biteship_area_name' => 'nullable|string|max:255',
         ]);
 
         Customer::create($validated + ['user_id' => Auth::id()]);
@@ -77,6 +79,8 @@ class CustomerController extends Controller
             'phone' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'platform' => 'required|string|max:255',
+            'biteship_area_id' => 'nullable|string|max:255',
+            'biteship_area_name' => 'nullable|string|max:255',
         ]);
 
         $customer->update($validated);

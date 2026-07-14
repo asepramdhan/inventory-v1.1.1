@@ -3,7 +3,7 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 /* eslint-disable curly */
 import { Form, Head, router } from '@inertiajs/react';
-import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload, Info } from 'lucide-react';
+import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload, Info, FileText, MessageCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
@@ -351,6 +351,188 @@ export default function Transactions({ transactions, storesList, productsList, c
   const [barcodeInput, setBarcodeInput] = useState('');
   const [customerId, setCustomerId] = useState<string>('');
 
+  // Biteship Shipping States for Creation Form
+  const [shippingCost, setShippingCost] = useState<number>(0);
+  const [courierCompany, setCourierCompany] = useState<string>('');
+  const [courierType, setCourierType] = useState<string>('');
+  const [availableCouriers, setAvailableCouriers] = useState<any[]>([]);
+  const [isLoadingRates, setIsLoadingRates] = useState<boolean>(false);
+
+  // Autocomplete states for Transaction Form destination area
+  const [txBiteshipAreaId, setTxBiteshipAreaId] = useState('');
+  const [txBiteshipAreaName, setTxBiteshipAreaName] = useState('');
+  const [txAreaSearchQuery, setTxAreaSearchQuery] = useState('');
+  const [txSearchResults, setTxSearchResults] = useState<any[]>([]);
+  const [isSearchingTxAreas, setIsSearchingTxAreas] = useState(false);
+
+  // Debounced subdistrict search for Transaction Form
+  useEffect(() => {
+    if (txAreaSearchQuery.length < 3) {
+      setTxSearchResults([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingTxAreas(true);
+      try {
+        const response = await fetch(`/api/biteship/search-areas?query=${encodeURIComponent(txAreaSearchQuery)}`);
+        const data = await response.json();
+        setTxSearchResults(data.areas || []);
+      } catch (err) {
+        console.error('Error fetching areas', err);
+      } finally {
+        setIsSearchingTxAreas(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [txAreaSearchQuery]);
+
+  // Automatically sync/update Biteship Area if the selected customer changes
+  useEffect(() => {
+    if (customerId && customerId !== 'none') {
+      const selectedCust = customersList.find((c: any) => c.id.toString() === customerId);
+      if (selectedCust && selectedCust.biteship_area_id) {
+        setTxBiteshipAreaId(selectedCust.biteship_area_id);
+        setTxBiteshipAreaName(selectedCust.biteship_area_name || '');
+      } else {
+        setTxBiteshipAreaId('');
+        setTxBiteshipAreaName('');
+      }
+    } else {
+      setTxBiteshipAreaId('');
+      setTxBiteshipAreaName('');
+    }
+    setAvailableCouriers([]);
+    setShippingCost(0);
+    setCourierCompany('');
+    setCourierType('');
+    setTxAreaSearchQuery('');
+  }, [customerId]);
+
+  // Biteship Shipping States for Selected Transaction Detail Sheet
+  const [detailCourierCompany, setDetailCourierCompany] = useState('');
+  const [detailCourierType, setDetailCourierType] = useState('');
+  const [detailShippingCost, setDetailShippingCost] = useState<number>(0);
+  const [detailAvailableCouriers, setDetailAvailableCouriers] = useState<any[]>([]);
+  const [isDetailLoadingRates, setIsDetailLoadingRates] = useState(false);
+  const [trackingDetails, setTrackingDetails] = useState<any>(null);
+  const [isLoadingTracking, setIsLoadingTracking] = useState(false);
+
+  // Fetch Shipping Rates for Create Form
+  const fetchShippingRates = async (areaId: string, itemsVal: any[]) => {
+    if (!areaId) {
+      alert('Harap cari dan pilih wilayah Kecamatan / Kelurahan tujuan pengiriman terlebih dahulu.');
+      setAvailableCouriers([]);
+      setShippingCost(0);
+      setCourierCompany('');
+      setCourierType('');
+      return;
+    }
+
+    // Check if items are filled
+    const validItems = itemsVal.filter(item => item.product_id && item.quantity > 0);
+    if (validItems.length === 0) {
+      alert('Harap pilih minimal satu produk dan tentukan jumlah kuantitasnya.');
+      setAvailableCouriers([]);
+      return;
+    }
+
+    setIsLoadingRates(true);
+    try {
+      const response = await fetch('/api/biteship/rates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+        },
+        body: JSON.stringify({
+          destination_area_id: areaId,
+          items: validItems.map(item => ({
+            product_id: parseInt(item.product_id),
+            quantity: parseInt(item.quantity)
+          }))
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableCouriers(data.pricing || []);
+      } else {
+        alert('Gagal mendapatkan tarif ongkir dari Biteship.');
+      }
+    } catch (err) {
+      console.error('Error fetching rates', err);
+      alert('Terjadi kesalahan koneksi saat menghubungi Biteship.');
+    } finally {
+      setIsLoadingRates(false);
+    }
+  };
+
+  // Fetch Shipping Rates for Details Sheet
+  const fetchDetailShippingRates = async () => {
+    if (!selectedTransaction || !selectedTransaction.customer?.biteship_area_id) return;
+    
+    setIsDetailLoadingRates(true);
+    try {
+      const response = await fetch('/api/biteship/rates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+        },
+        body: JSON.stringify({
+          destination_area_id: selectedTransaction.customer.biteship_area_id,
+          items: selectedTransaction.items.map((item: any) => ({
+            product_id: item.product_id,
+            quantity: item.quantity
+          }))
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDetailAvailableCouriers(data.pricing || []);
+      } else {
+        alert('Gagal mengambil tarif ongkir Biteship.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Terjadi kesalahan saat menghubungi API Biteship.');
+    } finally {
+      setIsDetailLoadingRates(false);
+    }
+  };
+
+  // Fetch Live Tracking Status
+  const fetchTrackingDetails = async () => {
+    if (!selectedTransaction) return;
+    setIsLoadingTracking(true);
+    try {
+      const response = await fetch(`/api/biteship/transactions/${selectedTransaction.id}/track`);
+      if (response.ok) {
+        const data = await response.json();
+        setTrackingDetails(data);
+      } else {
+        alert('Gagal mengambil data pelacakan.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Terjadi kesalahan saat melacak paket.');
+    } finally {
+      setIsLoadingTracking(false);
+    }
+  };
+
+  // Reset detail shipping rates when transaction shifts
+  useEffect(() => {
+    setDetailCourierCompany('');
+    setDetailCourierType('');
+    setDetailShippingCost(0);
+    setDetailAvailableCouriers([]);
+    setTrackingDetails(null);
+  }, [selectedTransaction]);
+
   const handleBarcodeScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -658,6 +840,10 @@ export default function Transactions({ transactions, storesList, productsList, c
     setDisplayAffiliate('');
     setBarcodeInput('');
     setCustomerId('');
+    setShippingCost(0);
+    setCourierCompany('');
+    setCourierType('');
+    setAvailableCouriers([]);
   };
 
   const formatDateTime = (dateString: string) => {
@@ -722,7 +908,7 @@ export default function Transactions({ transactions, storesList, productsList, c
   }, 0);
 
   const liveDiscount = Number(rawDiscount) || 0;
-  const liveGrandTotal = Math.max(0, liveSubtotal - liveDiscount);
+  const liveGrandTotal = Math.max(0, liveSubtotal - liveDiscount + (Number(shippingCost) || 0));
 
   return (
     <>
@@ -969,6 +1155,124 @@ export default function Transactions({ transactions, storesList, productsList, c
                           <InputError message={errors.customer_id} />
                         </div>
 
+                        {/* Biteship Shipping Rates Calculation & Selector */}
+                        {customerId && customerId !== 'none' && (
+                          <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-4 bg-zinc-50/50 dark:bg-zinc-950/20 space-y-3">
+                            <div className="flex items-center justify-between border-b pb-2 border-zinc-200/40 dark:border-zinc-800/40">
+                              <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Pengiriman Biteship</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => fetchShippingRates(txBiteshipAreaId, items)}
+                                disabled={isLoadingRates || !txBiteshipAreaId}
+                                className="h-7 text-[11px]"
+                              >
+                                {isLoadingRates ? 'Menghitung...' : 'Cek Tarif Ongkir'}
+                              </Button>
+                            </div>
+
+                            {/* Autocomplete Kecamatan/Kelurahan */}
+                            <div className="grid gap-2 relative">
+                              <Label className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">Wilayah Kecamatan/Kelurahan Tujuan</Label>
+                              {txBiteshipAreaName ? (
+                                <div className="flex items-center justify-between p-2.5 rounded-lg border bg-background text-xs">
+                                  <span className="font-medium text-foreground truncate max-w-[80%]">{txBiteshipAreaName}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setTxBiteshipAreaId('');
+                                      setTxBiteshipAreaName('');
+                                      setTxAreaSearchQuery('');
+                                    }}
+                                    className="h-7 px-2 text-xs text-red-500 hover:text-red-650 rounded-md"
+                                  >
+                                    Ganti
+                                  </Button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                    <Input
+                                      type="text"
+                                      placeholder="Cari kecamatan tujuan (misal: Kebayoran Lama)..."
+                                      value={txAreaSearchQuery}
+                                      onChange={(e) => setTxAreaSearchQuery(e.target.value)}
+                                      className="pl-9 text-xs rounded-xl bg-background"
+                                    />
+                                  </div>
+                                  {isSearchingTxAreas && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-xl shadow-lg z-50 p-3 text-xs text-center text-zinc-500 animate-pulse">
+                                      Mencari wilayah...
+                                    </div>
+                                  )}
+                                  {!isSearchingTxAreas && txSearchResults.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto divide-y divide-zinc-150 dark:divide-zinc-800">
+                                      {txSearchResults.map((area: any) => (
+                                        <div
+                                          key={area.id}
+                                          onClick={() => {
+                                            setTxBiteshipAreaId(area.id);
+                                            setTxBiteshipAreaName(`${area.name}, ${area.administrative_division_level_2_name}, ${area.administrative_division_level_1_name}`);
+                                            setTxSearchResults([]);
+                                            setTxAreaSearchQuery('');
+                                          }}
+                                          className="p-2.5 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer text-left text-zinc-700 dark:text-zinc-300 transition-colors"
+                                        >
+                                          {area.name}, {area.administrative_division_level_2_name}, {area.administrative_division_level_1_name}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            {txBiteshipAreaId && availableCouriers.length > 0 ? (
+                              <div className="grid gap-2 max-h-40 overflow-y-auto pr-1 pt-2 border-t border-dashed">
+                                {availableCouriers.map((courier: any, idx: number) => {
+                                  const isSelected = courierCompany === courier.courier_code && courierType === courier.courier_service;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      onClick={() => {
+                                        setCourierCompany(courier.courier_code);
+                                        setCourierType(courier.courier_service);
+                                        setShippingCost(courier.price);
+                                      }}
+                                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors text-xs ${
+                                        isSelected
+                                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 font-semibold'
+                                          : 'hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40 text-zinc-700 dark:text-zinc-300'
+                                      }`}
+                                    >
+                                      <div className="flex flex-col text-left">
+                                        <span className="capitalize">{courier.courier_name} ({courier.courier_service})</span>
+                                        <span className="text-[10px] text-zinc-400">Estimasi: {courier.duration || '-'}</span>
+                                      </div>
+                                      <span className="font-bold">Rp {courier.price.toLocaleString('id-ID')}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : txBiteshipAreaId ? (
+                              <p className="text-[10px] text-zinc-400 italic">
+                                Klik "Cek Tarif Ongkir" untuk memuat opsi kurir pengiriman dari Biteship.
+                              </p>
+                            ) : (
+                              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                Silakan cari dan tentukan wilayah kecamatan tujuan di atas terlebih dahulu.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        <input type="hidden" name="courier_company" value={courierCompany} />
+                        <input type="hidden" name="courier_type" value={courierType} />
+                        <input type="hidden" name="shipping_cost" value={shippingCost} />
+
                         {/* Bagian Entri Produk Bersifat Dinamis */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between border-b pb-2">
@@ -1159,6 +1463,12 @@ export default function Transactions({ transactions, storesList, productsList, c
                             <span>Potongan Diskon:</span>
                             <span className="text-destructive font-semibold">-{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(liveDiscount)}</span>
                           </div>
+                          {shippingCost > 0 && (
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>Ongkos Kirim ({courierCompany.toUpperCase()} - {courierType.toUpperCase()}):</span>
+                              <span className="text-foreground font-semibold">+{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(shippingCost)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between font-extrabold text-sm border-t border-dashed mt-2 pt-2">
                             <span className="text-foreground">Grand Total Payout:</span>
                             <span className="text-emerald-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(liveGrandTotal)}</span>
@@ -1799,6 +2109,221 @@ export default function Transactions({ transactions, storesList, productsList, c
                   </div>
                   <div><span className="text-[10px] uppercase tracking-wider text-muted-foreground block">Status Riil</span><div>{getStatusBadge(selectedTransaction.status)}</div></div>
                 </div>
+
+                {/* Biteship Shipping Integration Section */}
+                {selectedTransaction.store?.platform === 'manual' && (
+                  <div className="border border-indigo-100 dark:border-indigo-950 p-4 rounded-xl bg-indigo-50/20 dark:bg-indigo-950/10 space-y-3">
+                    <div className="flex items-center justify-between border-b pb-2 border-indigo-150/40 dark:border-indigo-900/40">
+                      <span className="text-xs font-bold text-indigo-755 dark:text-indigo-300 flex items-center gap-1.5">
+                        <Truck className="h-4 w-4" />
+                        Layanan Pengiriman (Biteship)
+                      </span>
+                      {selectedTransaction.waybill_number && (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                          Resi Terbit
+                        </Badge>
+                      )}
+                    </div>
+
+                    {selectedTransaction.waybill_number ? (
+                      <div className="space-y-3.5 text-xs text-left">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-[10px] text-zinc-400 block uppercase">Kurir / Layanan</span>
+                            <span className="font-semibold capitalize text-foreground">
+                              {selectedTransaction.courier_name} ({selectedTransaction.courier_service})
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-zinc-400 block uppercase">No. Resi (Waybill)</span>
+                            <span className="font-mono font-semibold text-foreground flex items-center gap-1">
+                              {selectedTransaction.waybill_number}
+                              <CopyButton value={selectedTransaction.waybill_number} />
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-[10px] text-zinc-400 block uppercase">Ongkir Biteship</span>
+                            <span className="font-semibold text-foreground">
+                              Rp {parseFloat(selectedTransaction.shipping_cost || 0).toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-zinc-400 block uppercase">Status Pengiriman</span>
+                            <span className="font-semibold text-indigo-650 dark:text-indigo-400 uppercase">
+                              {selectedTransaction.shipping_status || 'Diproses'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Aksi Label dan WhatsApp Lacak */}
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {selectedTransaction.shipping_label_url && (
+                            <Button
+                              type="button"
+                              onClick={() => window.open(selectedTransaction.shipping_label_url, '_blank')}
+                              className="h-8 text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg px-3 flex items-center gap-1.5"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              Cetak Label PDF
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const phone = selectedTransaction.customer?.phone;
+                              if (!phone) {
+                                alert('Pelanggan tidak memiliki nomor telepon terdaftar.');
+                                return;
+                              }
+                              const formattedPhone = phone.startsWith('0') ? '62' + phone.slice(1) : phone;
+                              const message = `Halo ${selectedTransaction.customer.name}, pesanan Kakak dengan invoice ${selectedTransaction.invoice_number} sedang dikirim menggunakan ${selectedTransaction.courier_name.toUpperCase()} (${selectedTransaction.courier_service.toUpperCase()}) dengan nomor resi: ${selectedTransaction.waybill_number}. Lacak paket di: https://biteship.com/id/tracking/${selectedTransaction.waybill_number}`;
+                              window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
+                            }}
+                            className="h-8 text-xs rounded-lg px-3 border-emerald-650/30 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 flex items-center gap-1"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                            Kirim Resi ke WA
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={fetchTrackingDetails}
+                            disabled={isLoadingTracking}
+                            className="h-8 text-xs rounded-lg px-3 border-indigo-650/30 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/20"
+                          >
+                            {isLoadingTracking ? 'Memuat...' : 'Lacak Paket'}
+                          </Button>
+                        </div>
+
+                        {/* Live Tracking Timeline */}
+                        {trackingDetails && (
+                          <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-xl p-3 bg-zinc-50/50 dark:bg-zinc-950/20 text-xs space-y-2 mt-2 animate-in slide-in-from-top-1 w-full">
+                            <span className="font-semibold text-foreground block">Riwayat Pengiriman:</span>
+                            <div className="space-y-3 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-indigo-100 dark:before:bg-indigo-950 pl-5">
+                              {trackingDetails.history && trackingDetails.history.length > 0 ? (
+                                trackingDetails.history.map((hist: any, hIdx: number) => (
+                                  <div key={hIdx} className="relative space-y-0.5">
+                                    <span className="absolute -left-[17px] top-1.5 h-2 w-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50 dark:ring-indigo-950/50" />
+                                    <p className="font-semibold text-zinc-800 dark:text-zinc-200 capitalize">{hist.status} - {hist.note}</p>
+                                    <p className="text-[10px] text-zinc-400 italic">
+                                      {formatDateTime(hist.updated_at).dateStr} {formatDateTime(hist.updated_at).timeStr}
+                                    </p>
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-[10px] text-zinc-400 italic">Belum ada riwayat update dari kurir.</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3 text-left">
+                        <p className="text-xs text-zinc-500">
+                          Pemesanan pickup Biteship belum dilakukan untuk order manual ini. Pastikan customer terhubung dan data alamat lengkap serta kelurahan sudah diset.
+                        </p>
+
+                        <div className="border rounded-xl p-3 bg-zinc-50/50 dark:bg-zinc-800/20 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">Pilihan Kurir & Tarif</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={fetchDetailShippingRates}
+                              disabled={isDetailLoadingRates}
+                              className="h-7 text-[11px]"
+                            >
+                              {isDetailLoadingRates ? 'Menghitung...' : 'Cek Tarif Kurir'}
+                            </Button>
+                          </div>
+
+                          {detailAvailableCouriers.length > 0 ? (
+                            <div className="grid gap-1.5 max-h-40 overflow-y-auto pr-1">
+                              {detailAvailableCouriers.map((courier: any, idx: number) => {
+                                const isSelected = detailCourierCompany === courier.courier_code && detailCourierType === courier.courier_service;
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={() => {
+                                      setDetailCourierCompany(courier.courier_code);
+                                      setDetailCourierType(courier.courier_service);
+                                      setDetailShippingCost(courier.price);
+                                    }}
+                                    className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-colors text-xs ${
+                                      isSelected
+                                        ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 font-semibold'
+                                        : 'hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40 text-zinc-700 dark:text-zinc-300'
+                                    }`}
+                                  >
+                                    <div className="flex flex-col text-left">
+                                      <span className="capitalize">{courier.courier_name} ({courier.courier_service})</span>
+                                      <span className="text-[10px] text-zinc-400">Estimasi: {courier.duration || '-'}</span>
+                                    </div>
+                                    <span className="font-bold">Rp {courier.price.toLocaleString('id-ID')}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-zinc-400 italic">
+                              Klik "Cek Tarif Kurir" untuk memuat opsi pengiriman dari Biteship.
+                            </p>
+                          )}
+                        </div>
+
+                        {detailCourierCompany && (
+                          <div className="flex flex-col gap-2 pt-2 border-t border-dashed">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Kurir Terpilih:</span>
+                              <span className="font-bold text-indigo-600 capitalize">{detailCourierCompany} ({detailCourierType})</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Ongkir:</span>
+                              <span className="font-bold text-foreground">Rp {detailShippingCost.toLocaleString('id-ID')}</span>
+                            </div>
+
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                if (!selectedTransaction.customer?.biteship_area_id) {
+                                  alert('Customer belum memiliki wilayah Kecamatan/Kelurahan Biteship di profilnya. Edit profil customer terlebih dahulu.');
+                                  return;
+                                }
+                                if (!confirm('Apakah Anda yakin ingin memesan kurir pengiriman Biteship untuk transaksi ini? Saldo deposit Biteship Anda akan terpotong secara otomatis.')) {
+                                  return;
+                                }
+
+                                router.post(`/api/biteship/transactions/${selectedTransaction.id}/book`, {
+                                  courier_company: detailCourierCompany,
+                                  courier_type: detailCourierType,
+                                  shipping_cost: detailShippingCost
+                                }, {
+                                  preserveScroll: true,
+                                  onSuccess: () => {
+                                    alert('Berhasil melakukan booking shipment ke Biteship! Nomor resi dan label PDF telah diterbitkan.');
+                                    setIsSheetOpen(false);
+                                  },
+                                  onError: (errors: any) => {
+                                    alert(errors.error || 'Gagal melakukan booking shipment ke Biteship.');
+                                  }
+                                });
+                              }}
+                              className="w-full h-10 text-xs font-bold bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center gap-1.5 mt-1"
+                            >
+                              <Truck className="h-4 w-4" />
+                              Konfirmasi & Pesan Pickup Sekarang
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid gap-1.5">
                   <Label className="text-[10px] uppercase font-bold text-muted-foreground">Perbarui Status Transaksi Ini</Label>

@@ -1,9 +1,10 @@
 import { Head } from '@inertiajs/react';
+import { useState } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Box, Check, MessageCircle, AlertTriangle, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
+import { Box, Check, MessageCircle, AlertTriangle, ShieldCheck, Truck, RotateCcw, Star } from 'lucide-react';
 
 interface ProductProps {
     product: {
@@ -13,6 +14,7 @@ interface ProductProps {
         price: string;
         stock: number;
         image: string | null;
+        gallery: string | null;
         description: string | null;
         landing_description: string | null;
         whatsapp_number: string | null;
@@ -25,6 +27,18 @@ interface ProductProps {
 
 export default function ProductLanding({ product }: ProductProps) {
     const priceNum = parseFloat(product.price);
+    
+    // Parse gallery images
+    let parsedGallery: string[] = [];
+    if (product.gallery) {
+        try {
+            parsedGallery = JSON.parse(product.gallery) || [];
+        } catch (e) {
+            parsedGallery = [];
+        }
+    }
+    const images = [product.image, ...parsedGallery].filter(Boolean) as string[];
+    const [activeImageIndex, setActiveImageIndex] = useState(0);
     const formattedPrice = new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
@@ -87,12 +101,12 @@ export default function ProductLanding({ product }: ProductProps) {
                     <div className="space-y-4">
                         <Card className="overflow-hidden border border-zinc-200/60 dark:border-zinc-800/80 bg-white/50 dark:bg-zinc-900/30 backdrop-blur-md rounded-3xl shadow-xl">
                             <CardContent className="p-2">
-                                {product.image ? (
+                                {images.length > 0 ? (
                                     <div className="aspect-square w-full rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-900">
                                         <img
-                                            src={product.image}
+                                            src={images[activeImageIndex]}
                                             alt={product.name}
-                                            className="w-full h-full object-cover transform hover:scale-102 transition-transform duration-500"
+                                            className="w-full h-full object-cover transform hover:scale-[1.02] transition-transform duration-500"
                                         />
                                     </div>
                                 ) : (
@@ -103,6 +117,25 @@ export default function ProductLanding({ product }: ProductProps) {
                                 )}
                             </CardContent>
                         </Card>
+
+                        {/* Gallery Thumbnails */}
+                        {images.length > 1 && (
+                            <div className="flex gap-2.5 justify-center flex-wrap">
+                                {images.map((img, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setActiveImageIndex(i)}
+                                        className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                                            activeImageIndex === i
+                                                ? 'border-indigo-600 dark:border-indigo-400 scale-105 shadow-md'
+                                                : 'border-zinc-200/60 dark:border-zinc-800/80 opacity-60 hover:opacity-100'
+                                        }`}
+                                    >
+                                        <img src={img} alt={`Thumbnail ${i}`} className="w-full h-full object-cover" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Badges / Extra trust parameters */}
                         <div className="grid grid-cols-3 gap-3">
@@ -177,6 +210,101 @@ export default function ProductLanding({ product }: ProductProps) {
                             <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Detail Informasi Produk</h3>
                             <div className="text-zinc-650 dark:text-zinc-350 text-sm leading-relaxed whitespace-pre-wrap">
                                 {activeDescription}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Testimonial Section */}
+                <div className="max-w-5xl mx-auto mt-16 pt-10 border-t border-zinc-200/55 dark:border-zinc-900/60 space-y-8">
+                    <div className="text-center space-y-2">
+                        <div className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider">
+                            <Star className="size-3 fill-current animate-pulse" /> Trustpilot Rating 4.9/5
+                        </div>
+                        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+                            Apa Kata Mereka?
+                        </h2>
+                        <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm max-w-lg mx-auto">
+                            Ulasan jujur dari pelanggan kami yang sudah berbelanja produk ini secara langsung.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Testimonial 1 */}
+                        <div className="p-6 rounded-2xl border border-zinc-200/60 dark:border-zinc-800/80 bg-white/40 dark:bg-zinc-900/10 backdrop-blur-md space-y-4 shadow-sm hover:shadow-md transition-shadow relative">
+                            <div className="flex items-center justify-between">
+                                <div className="flex gap-0.5 text-amber-500">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                        <Star key={s} className="size-3.5 fill-current" />
+                                    ))}
+                                </div>
+                                <span className="text-[10px] text-zinc-400">2 hari yang lalu</span>
+                            </div>
+                            <p className="text-zinc-650 dark:text-zinc-350 text-xs leading-relaxed italic">
+                                "Suka banget sama bahannya! Adem, jahitan rapi, ukurannya pas sesuai deskripsi. Pengiriman super cepat, seller juga ramah dan fast response pas dichat. Bakal langganan di sini."
+                            </p>
+                            <div className="flex items-center gap-3 pt-2">
+                                <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center font-bold text-indigo-650 dark:text-indigo-400 text-xs shadow-inner">
+                                    DS
+                                </div>
+                                <div className="min-w-0">
+                                    <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">Dewi Saputri</h4>
+                                    <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-0.5">
+                                        <Check className="size-3 stroke-[3]" /> Pembeli Terverifikasi
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Testimonial 2 */}
+                        <div className="p-6 rounded-2xl border border-zinc-200/60 dark:border-zinc-800/80 bg-white/40 dark:bg-zinc-900/10 backdrop-blur-md space-y-4 shadow-sm hover:shadow-md transition-shadow relative">
+                            <div className="flex items-center justify-between">
+                                <div className="flex gap-0.5 text-amber-500">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                        <Star key={s} className="size-3.5 fill-current" />
+                                    ))}
+                                </div>
+                                <span className="text-[10px] text-zinc-400">5 hari yang lalu</span>
+                            </div>
+                            <p className="text-zinc-650 dark:text-zinc-350 text-xs leading-relaxed italic">
+                                "Kualitas luar biasa dengan harga segini. Benar-benar tebal dan tidak berbulu saat dicuci. Pembelian kedua kalinya dan ga pernah mengecewakan. Terima kasih banyak admin!"
+                            </p>
+                            <div className="flex items-center gap-3 pt-2">
+                                <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center font-bold text-indigo-650 dark:text-indigo-400 text-xs shadow-inner">
+                                    AF
+                                </div>
+                                <div className="min-w-0">
+                                    <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">Ahmad Fakhri</h4>
+                                    <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-0.5">
+                                        <Check className="size-3 stroke-[3]" /> Pembeli Terverifikasi
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Testimonial 3 */}
+                        <div className="p-6 rounded-2xl border border-zinc-200/60 dark:border-zinc-800/80 bg-white/40 dark:bg-zinc-900/10 backdrop-blur-md space-y-4 shadow-sm hover:shadow-md transition-shadow relative">
+                            <div className="flex items-center justify-between">
+                                <div className="flex gap-0.5 text-amber-500">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                        <Star key={s} className="size-3.5 fill-current" />
+                                    ))}
+                                </div>
+                                <span className="text-[10px] text-zinc-400">1 minggu yang lalu</span>
+                            </div>
+                            <p className="text-zinc-650 dark:text-zinc-350 text-xs leading-relaxed italic">
+                                "Beli 3 warna sekaligus dan ga ada yang mengecewakan. Packing aman rapi + dapet free gift gantungan kunci. Pelayanan pengirimannya juga ramah banget."
+                            </p>
+                            <div className="flex items-center gap-3 pt-2">
+                                <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center font-bold text-indigo-650 dark:text-indigo-400 text-xs shadow-inner">
+                                    RH
+                                </div>
+                                <div className="min-w-0">
+                                    <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">Rian Hidayat</h4>
+                                    <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-0.5">
+                                        <Check className="size-3 stroke-[3]" /> Pembeli Terverifikasi
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

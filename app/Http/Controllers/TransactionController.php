@@ -189,6 +189,9 @@ class TransactionController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.selling_price' => 'required|numeric|min:0',
+            'courier_company' => 'nullable|string|max:255',
+            'courier_type' => 'nullable|string|max:255',
+            'shipping_cost' => 'nullable|numeric|min:0',
         ]);
 
         // Cek ketersediaan seluruh stok item sebelum menulis ke database
@@ -220,6 +223,9 @@ class TransactionController extends Controller
                 'grand_total' => 0,
                 'marketplace_admin_fee' => 0,
                 'transaction_date' => $request->transaction_date,
+                'courier_name' => $request->courier_company,
+                'courier_service' => $request->courier_type,
+                'shipping_cost' => $request->shipping_cost ?? 0,
             ]);
 
             $subtotal = 0;
@@ -251,7 +257,7 @@ class TransactionController extends Controller
             }
 
             // 3. Hitung Ulang Grand Total & Biaya Admin Toko Otomatis
-            $grandTotal = $subtotal - ($request->discount ?? 0);
+            $grandTotal = $subtotal - ($request->discount ?? 0) + ($request->shipping_cost ?? 0);
             $adminFee = ($grandTotal * floatval($store->admin_fee) / 100) + floatval($store->processing_fee);
 
             // 4. Update Final Data Finansial

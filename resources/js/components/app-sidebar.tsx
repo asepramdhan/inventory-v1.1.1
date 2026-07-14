@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ArrowRightLeft, Box, ChartBar, ClipboardList, DollarSign, LayoutGrid, Megaphone, PackagePlus, ShoppingBagIcon, Store, Tags, Users } from 'lucide-react';
+import { ArrowRightLeft, Box, ChartBar, ClipboardList, Database, DollarSign, LayoutGrid, Megaphone, PackagePlus, ShoppingBagIcon, Store, Tags, Users } from 'lucide-react';
 import AdsAffiliateController from '@/actions/App/Http/Controllers/AdsAffiliateController';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
 import FinancialMutationController from '@/actions/App/Http/Controllers/FinancialMutationController';
@@ -54,6 +54,11 @@ const analysisItems: NavItem[] = [
         href: FinancialMutationController.index(),
         icon: ArrowRightLeft,
     },
+    {
+        title: 'Laporan Laba Rugi',
+        href: '/finance/profit-loss',
+        icon: DollarSign,
+    },
 ];
 
 const oprationItems: NavItem[] = [
@@ -94,6 +99,11 @@ const masterDataItems: NavItem[] = [
         title: 'Daftar Pelanggan',
         href: '/master-data/customers',
         icon: Users,
+    },
+    {
+        title: 'Backup Database',
+        href: '/master-data/backups',
+        icon: Database,
     },
 ];
 

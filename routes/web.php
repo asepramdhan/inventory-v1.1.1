@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdsAffiliateController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\BiteshipController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancialMutationController;
 use App\Http\Controllers\MarginAnalysisController;
@@ -12,6 +13,8 @@ use App\Http\Controllers\OperationalSupplyController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\BackupController;
+use App\Http\Controllers\ProfitLossController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -42,6 +45,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/finance/mutations/accounts/{id}/toggle', [FinancialMutationController::class, 'toggleAccountStatus'])->name('mutations.accounts.toggle');
     Route::patch('/finance/mutations/accounts/{id}/default', [FinancialMutationController::class, 'setDefaultAccount'])->name('mutations.accounts.default');
     Route::delete('/finance/mutations/{id}', [FinancialMutationController::class, 'destroy'])->name('mutations.destroy');
+
+    // Menu Keuangan - Laporan Laba Rugi
+    Route::get('/finance/profit-loss', [ProfitLossController::class, 'index'])->name('profit-loss.index');
+    Route::get('/finance/profit-loss/export', [ProfitLossController::class, 'exportExcel'])->name('profit-loss.export');
 
     // Menu Stok & Pemasukan (Operational)
     Route::get('/operational/producer-stocks', [ProducerStockController::class, 'index'])->name('producer-stocks.index');
@@ -76,6 +83,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/master-data/store/export', [StoreController::class, 'export'])->name('stores.export');
     Route::post('/master-data/store/bulk-delete', [StoreController::class, 'bulkDestroy'])->name('stores.bulk-destroy');
     Route::resource('master-data/customers', CustomerController::class)->names('customers');
+
+    // Biteship API Routes
+    Route::get('/api/biteship/search-areas', [BiteshipController::class, 'searchAreas'])->name('biteship.search-areas');
+    Route::post('/api/biteship/rates', [BiteshipController::class, 'getRates'])->name('biteship.rates');
+    Route::post('/api/biteship/transactions/{id}/book', [BiteshipController::class, 'bookShipment'])->name('biteship.book-shipment');
+    Route::get('/api/biteship/transactions/{id}/track', [BiteshipController::class, 'trackShipment'])->name('biteship.track-shipment');
+
+    // Menu Backup & Restore Database
+    Route::get('/master-data/backups', [BackupController::class, 'index'])->name('backups.index');
+    Route::post('/master-data/backups/create', [BackupController::class, 'create'])->name('backups.create');
+    Route::get('/master-data/backups/{filename}/download', [BackupController::class, 'download'])->name('backups.download');
+    Route::post('/master-data/backups/{filename}/restore', [BackupController::class, 'restore'])->name('backups.restore');
+    Route::post('/master-data/backups/upload-restore', [BackupController::class, 'uploadAndRestore'])->name('backups.upload-restore');
+    Route::delete('/master-data/backups/{filename}', [BackupController::class, 'destroy'])->name('backups.destroy');
 });
 
 Route::middleware(['auth', 'verified'])->prefix('finance/ads-affiliate')->name('ads-affiliate.')->group(function () {

@@ -72,6 +72,11 @@ export default function Customers({ customers, filters }: any) {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [platform, setPlatform] = useState('manual');
+  const [biteshipAreaId, setBiteshipAreaId] = useState('');
+  const [biteshipAreaName, setBiteshipAreaName] = useState('');
+  const [areaSearchQuery, setAreaSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchingAreas, setIsSearchingAreas] = useState(false);
   
   const [errors, setErrors] = useState<any>({});
   const [processing, setProcessing] = useState(false);
@@ -108,12 +113,38 @@ export default function Customers({ customers, filters }: any) {
     return () => clearTimeout(delayDebounce);
   }, [search, platformFilter]);
 
+  useEffect(() => {
+    if (areaSearchQuery.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingAreas(true);
+      try {
+        const response = await fetch(`/api/biteship/search-areas?query=${encodeURIComponent(areaSearchQuery)}`);
+        const data = await response.json();
+        setSearchResults(data.areas || []);
+      } catch (err) {
+        console.error('Error fetching areas', err);
+      } finally {
+        setIsSearchingAreas(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [areaSearchQuery]);
+
   const resetForm = () => {
     setName('');
     setUsername('');
     setPhone('');
     setAddress('');
     setPlatform('manual');
+    setBiteshipAreaId('');
+    setBiteshipAreaName('');
+    setAreaSearchQuery('');
+    setSearchResults([]);
     setErrors({});
   };
 
@@ -128,6 +159,8 @@ export default function Customers({ customers, filters }: any) {
       phone: phone || null,
       address: address || null,
       platform,
+      biteship_area_id: biteshipAreaId || null,
+      biteship_area_name: biteshipAreaName || null,
     }, {
       preserveScroll: true,
       onSuccess: () => {
@@ -153,6 +186,8 @@ export default function Customers({ customers, filters }: any) {
       phone: phone || null,
       address: address || null,
       platform,
+      biteship_area_id: biteshipAreaId || null,
+      biteship_area_name: biteshipAreaName || null,
     }, {
       preserveScroll: true,
       onSuccess: () => {
@@ -183,6 +218,8 @@ export default function Customers({ customers, filters }: any) {
     setPhone(cust.phone || '');
     setAddress(cust.address || '');
     setPlatform(cust.platform);
+    setBiteshipAreaId(cust.biteship_area_id || '');
+    setBiteshipAreaName(cust.biteship_area_name || '');
     setIsSheetOpenEdit(true);
   };
 
@@ -270,6 +307,69 @@ export default function Customers({ customers, filters }: any) {
                       className="flex min-h-[90px] w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     />
                     <InputError message={errors.address} />
+                  </div>
+
+                  {/* Wilayah / Kecamatan (Biteship Autocomplete) */}
+                  <div className="grid gap-2.5 relative">
+                    <Label htmlFor="area_search">Kecamatan / Kelurahan (Untuk Ongkos Kirim)</Label>
+                    {biteshipAreaName ? (
+                      <div className="flex items-center justify-between p-2.5 rounded-xl border bg-zinc-50/50 dark:bg-zinc-800/20 text-xs">
+                        <span className="font-medium text-foreground">{biteshipAreaName}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setBiteshipAreaId('');
+                            setBiteshipAreaName('');
+                            setAreaSearchQuery('');
+                          }}
+                          className="h-7 px-2.5 text-xs text-red-500 hover:text-red-650 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                        >
+                          Ganti
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                          <Input
+                            id="area_search"
+                            type="text"
+                            placeholder="Cari kecamatan (misal: Kebayoran Lama)..."
+                            value={areaSearchQuery}
+                            onChange={(e) => setAreaSearchQuery(e.target.value)}
+                            className="pl-9 text-xs rounded-xl bg-background"
+                          />
+                        </div>
+                        {isSearchingAreas && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-xl shadow-lg z-50 p-3 text-xs text-center text-zinc-500 animate-pulse">
+                            Mencari wilayah...
+                          </div>
+                        )}
+                        {!isSearchingAreas && searchResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto divide-y divide-zinc-150 dark:divide-zinc-800">
+                            {searchResults.map((area: any) => (
+                              <div
+                                key={area.id}
+                                onClick={() => {
+                                  setBiteshipAreaId(area.id);
+                                  setBiteshipAreaName(`${area.name}, ${area.administrative_division_level_2_name}, ${area.administrative_division_level_1_name}`);
+                                  setSearchResults([]);
+                                  setAreaSearchQuery('');
+                                }}
+                                className="p-2.5 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer text-left text-zinc-700 dark:text-zinc-300 transition-colors"
+                              >
+                                {area.name}, {area.administrative_division_level_2_name}, {area.administrative_division_level_1_name}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <input type="hidden" name="biteship_area_id" value={biteshipAreaId} />
+                    <input type="hidden" name="biteship_area_name" value={biteshipAreaName} />
+                    <InputError message={errors.biteship_area_id} />
                   </div>
                 </div>
                 <SheetFooter className="p-6 border-t bg-background mt-auto flex-row gap-2 sm:justify-end">
@@ -573,6 +673,69 @@ export default function Customers({ customers, filters }: any) {
                 />
                 <InputError message={errors.address} />
               </div>
+
+              {/* Wilayah / Kecamatan (Biteship Autocomplete) */}
+              <div className="grid gap-2.5 relative">
+                <Label htmlFor="edit_area_search">Kecamatan / Kelurahan (Untuk Ongkos Kirim)</Label>
+                {biteshipAreaName ? (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl border bg-zinc-50/50 dark:bg-zinc-800/20 text-xs">
+                    <span className="font-medium text-foreground">{biteshipAreaName}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setBiteshipAreaId('');
+                        setBiteshipAreaName('');
+                        setAreaSearchQuery('');
+                      }}
+                      className="h-7 px-2.5 text-xs text-red-500 hover:text-red-650 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                    >
+                      Ganti
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        id="edit_area_search"
+                        type="text"
+                        placeholder="Cari kecamatan (misal: Kebayoran Lama)..."
+                        value={areaSearchQuery}
+                        onChange={(e) => setAreaSearchQuery(e.target.value)}
+                        className="pl-9 text-xs rounded-xl bg-background"
+                      />
+                    </div>
+                    {isSearchingAreas && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-xl shadow-lg z-50 p-3 text-xs text-center text-zinc-500 animate-pulse">
+                        Mencari wilayah...
+                      </div>
+                    )}
+                    {!isSearchingAreas && searchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto divide-y divide-zinc-150 dark:divide-zinc-800">
+                        {searchResults.map((area: any) => (
+                          <div
+                            key={area.id}
+                            onClick={() => {
+                              setBiteshipAreaId(area.id);
+                              setBiteshipAreaName(`${area.name}, ${area.administrative_division_level_2_name}, ${area.administrative_division_level_1_name}`);
+                              setSearchResults([]);
+                              setAreaSearchQuery('');
+                            }}
+                            className="p-2.5 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer text-left text-zinc-700 dark:text-zinc-300 transition-colors"
+                          >
+                            {area.name}, {area.administrative_division_level_2_name}, {area.administrative_division_level_1_name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+                <input type="hidden" name="biteship_area_id" value={biteshipAreaId} />
+                <input type="hidden" name="biteship_area_name" value={biteshipAreaName} />
+                <InputError message={errors.biteship_area_id} />
+              </div>
             </div>
             <SheetFooter className="p-6 border-t bg-background mt-auto flex-row gap-2 sm:justify-end">
               <Button type="submit" disabled={processing} className="flex-1 sm:flex-none rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -651,6 +814,19 @@ export default function Customers({ customers, filters }: any) {
                   )}
                 </div>
               </div>
+
+              {/* Wilayah Pengiriman Biteship */}
+              {selectedCustomer.biteship_area_name && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5" />
+                    Wilayah Kecamatan/Kelurahan
+                  </h4>
+                  <div className="bg-zinc-50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-200/50 dark:border-zinc-800/80 text-xs text-zinc-700 dark:text-zinc-300 font-medium">
+                    {selectedCustomer.biteship_area_name}
+                  </div>
+                </div>
+              )}
 
               {/* Kontak */}
               <div className="space-y-2">

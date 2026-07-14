@@ -22,6 +22,7 @@ class Transaction extends Model
             'grand_total' => 'decimal:2',
             'marketplace_admin_fee' => 'decimal:2',
             'affiliate_fee' => 'decimal:2',
+            'shipping_cost' => 'decimal:2',
         ];
     }
 

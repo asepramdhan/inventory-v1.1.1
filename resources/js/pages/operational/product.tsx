@@ -71,6 +71,8 @@ export default function Product({ products, categoriesList, storesList, filters 
   // State untuk menyimpan URL preview gambar sementara
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+  const [editGalleryPreviews, setEditGalleryPreviews] = useState<string[]>([]);
 
   // State Pencarian, Pilihan Checkbox, & Data Produk Terpilih
   const [submitAction, setSubmitAction] = useState<'save' | 'save_and_add'>('save');
@@ -249,6 +251,26 @@ export default function Product({ products, categoriesList, storesList, filters 
     }
   };
 
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const urls = Array.from(files).slice(0, 3).map(file => URL.createObjectURL(file));
+      setGalleryPreviews(urls);
+    } else {
+      setGalleryPreviews([]);
+    }
+  };
+
+  const handleEditGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const urls = Array.from(files).slice(0, 3).map(file => URL.createObjectURL(file));
+      setEditGalleryPreviews(urls);
+    } else {
+      setEditGalleryPreviews([]);
+    }
+  };
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const allIds = products.data.map((store: any) => store.id);
@@ -294,6 +316,8 @@ export default function Product({ products, categoriesList, storesList, filters 
     setSelectedProduct(null);
     setImagePreview(null);
     setEditImagePreview(null);
+    setGalleryPreviews([]);
+    setEditGalleryPreviews([]);
     setCategoryId('');
     setIsActive(true);
     setLandingActive(false);
@@ -455,6 +479,32 @@ export default function Product({ products, categoriesList, storesList, filters 
                           <InputError message={errors.image} />
                         </div>
 
+                        {/* Input Galeri Gambar dengan Live Previews */}
+                        <div className="grid gap-3">
+                          <Label htmlFor="gallery_files">Galeri Foto Produk (Optional, Maks. 3)</Label>
+                          <div className="flex flex-col gap-3">
+                            <Input
+                              id="gallery_files"
+                              type="file"
+                              name="gallery_files[]"
+                              accept="image/*"
+                              multiple
+                              onChange={handleGalleryChange}
+                              className="text-xs rounded-lg bg-background"
+                            />
+                            {galleryPreviews.length > 0 && (
+                              <div className="flex gap-2 mt-1">
+                                {galleryPreviews.map((url, i) => (
+                                  <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border bg-background">
+                                    <img src={url} alt={`Gallery Preview ${i}`} className="w-full h-full object-cover" />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <p className="text-[10px] text-muted-foreground">Pilih beberapa foto tambahan untuk dipajang sebagai galeri slider di landing page iklan.</p>
+                          </div>
+                        </div>
+
                         {/* Input SKU */}
                         <div className="grid gap-3">
                           <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
@@ -511,8 +561,8 @@ export default function Product({ products, categoriesList, storesList, filters 
                           <InputError message={errors.category_id} />
                         </div>
 
-                        {/* Grid Berdampingan untuk Stok & Harga */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Grid Berdampingan untuk Stok, Harga & Berat */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           {/* Input Jumlah Stok */}
                           <div className="grid gap-3">
                             <Label htmlFor="stock">Jumlah Stok</Label>
@@ -539,6 +589,51 @@ export default function Product({ products, categoriesList, storesList, filters 
                               placeholder="50.000"
                             />
                             <InputError message={errors.price} />
+                          </div>
+
+                          {/* Input Berat */}
+                          <div className="grid gap-3">
+                            <Label htmlFor="weight">Berat (Gram)</Label>
+                            <Input
+                              id="weight"
+                              type="number"
+                              name="weight"
+                              required
+                              min="0"
+                              placeholder="200"
+                            />
+                            <InputError message={errors.weight} />
+                          </div>
+                        </div>
+
+                        {/* Grid Parameter Reorder / Forecast */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="grid gap-3">
+                            <Label htmlFor="lead_time_days">Lead Time Produksi (Hari)</Label>
+                            <Input
+                              id="lead_time_days"
+                              type="number"
+                              name="lead_time_days"
+                              defaultValue={7}
+                              required
+                              min="1; "
+                              placeholder="7"
+                            />
+                            <InputError message={errors.lead_time_days} />
+                          </div>
+
+                          <div className="grid gap-3">
+                            <Label htmlFor="safety_stock_units">Stok Pengaman (Safety Stock)</Label>
+                            <Input
+                              id="safety_stock_units"
+                              type="number"
+                              name="safety_stock_units"
+                              defaultValue={10}
+                              required
+                              min="0"
+                              placeholder="10"
+                            />
+                            <InputError message={errors.safety_stock_units} />
                           </div>
                         </div>
 
@@ -709,6 +804,9 @@ export default function Product({ products, categoriesList, storesList, filters 
             </TabsTrigger>
             <TabsTrigger value="hpp" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
               Harga Pokok Penjualan (HPP)
+            </TabsTrigger>
+            <TabsTrigger value="forecast" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+              Prediksi Restock (ROP)
             </TabsTrigger>
           </TabsList>
 
@@ -1318,6 +1416,165 @@ export default function Product({ products, categoriesList, storesList, filters 
                               </div>
                             )}
                           </TabsContent>
+
+                          {/* TAB CONTENT: FORECAST */}
+                          <TabsContent value="forecast" className="space-y-4 outline-none border-none p-0 m-0">
+                            {isLoading ? (
+                              <ProductTableSkeleton />
+                            ) : (
+                              <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 md:min-h-min shadow-sm">
+                                <div className="p-0">
+                                  <Table>
+                                    <TableCaption className="py-6 text-zinc-400 dark:text-zinc-500">
+                                      Prediksi Reorder Point (ROP) & Estimasi Kebutuhan Stok berdasarkan Kecepatan Jualan Harian (Rata-rata 30 Hari Terakhir).
+                                    </TableCaption>
+                                    <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
+                                      <TableRow>
+                                        <TableHead className="w-[120px] text-xs">SKU</TableHead>
+                                        <TableHead className="text-xs">Nama Produk</TableHead>
+                                        <TableHead className="w-[100px] text-center text-xs">Stok Aktif</TableHead>
+                                        <TableHead className="w-[100px] text-center text-xs">Laju Jual/Hari</TableHead>
+                                        <TableHead className="w-[100px] text-center text-xs">Lead Time</TableHead>
+                                        <TableHead className="w-[100px] text-center text-xs">Safety Stock</TableHead>
+                                        <TableHead className="w-[100px] text-center text-xs">Batas ROP</TableHead>
+                                        <TableHead className="w-[120px] text-center text-xs">Estimasi Sisa</TableHead>
+                                        <TableHead className="w-[120px] text-center text-xs">Rekomendasi Order</TableHead>
+                                        <TableHead className="w-[120px] text-center text-xs">Status</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {products.data.length === 0 ? (
+                                        <TableRow>
+                                          <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                                            <Empty>
+                                              <EmptyHeader>
+                                                <EmptyMedia variant="icon"><Box /></EmptyMedia>
+                                                <EmptyTitle>Belum ada data</EmptyTitle>
+                                                <EmptyDescription>Tidak ada data produk ditemukan.</EmptyDescription>
+                                              </EmptyHeader>
+                                            </Empty>
+                                          </TableCell>
+                                        </TableRow>
+                                      ) : (
+                                        products.data.map((product: any) => {
+                                          const stock = product.stock;
+                                          const rop = product.reorder_point;
+                                          const safetyStock = product.safety_stock_units;
+                                          const ads = product.average_daily_sales;
+                                          
+                                          // Determine status
+                                          let statusLabel = 'Aman';
+                                          let badgeStyle = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+                                          
+                                          if (stock <= safetyStock) {
+                                            statusLabel = 'Kritis / Habis';
+                                            badgeStyle = 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 animate-pulse';
+                                          } else if (stock <= rop) {
+                                            statusLabel = 'Butuh Reorder';
+                                            badgeStyle = 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+                                          }
+                                          
+                                          // Calculate days to out of stock
+                                          const daysToOos = ads > 0 ? (stock / ads) : null;
+                                          const daysToOosStr = daysToOos !== null ? `${Math.floor(daysToOos)} Hari` : '∞ Hari (No Sales)';
+                                          
+                                          // Recommended reorder quantity
+                                          const recommendedQty = ads > 0 ? Math.max(0, Math.ceil((ads * 30) + safetyStock - stock)) : 0;
+                                          
+                                          return (
+                                            <TableRow 
+                                              key={product.id} 
+                                              className="border-b border-zinc-100/50 dark:border-zinc-800/50 hover:bg-muted/40 transition-colors cursor-pointer"
+                                              onClick={() => {
+                                                setSelectedProduct(product);
+                                                setIsActive(!!product.active);
+                                                setEditImagePreview(null);
+                                                setRawPrice(product.price.toString());
+                                                setDisplayPrice(new Intl.NumberFormat('id-ID').format(product.price));
+                                                setLandingActive(!!product.landing_active);
+                                                setLandingCode(product.landing_code || '');
+                                                setWhatsappNumber(product.whatsapp_number || '');
+                                                setWhatsappMessageTemplate(product.whatsapp_message_template || '');
+                                                setLandingDescription(product.landing_description || '');
+                                                setCategoryId(product.category_id?.toString() || '');
+                                                setIsSheetOpenEdit(true);
+                                              }}
+                                            >
+                                              <TableCell className="font-mono text-xs max-w-[120px] truncate text-left" title={product.sku}>
+                                                {product.sku}
+                                              </TableCell>
+                                              <TableCell className="font-semibold text-xs min-w-[150px] max-w-[250px] truncate text-left" title={product.name}>
+                                                {product.name}
+                                              </TableCell>
+                                              <TableCell className="text-center font-bold text-xs">{stock} unit</TableCell>
+                                              <TableCell className="text-center font-semibold text-xs text-indigo-650 dark:text-indigo-400">
+                                                {ads > 0 ? `${ads} unit` : '0 unit'}
+                                              </TableCell>
+                                              <TableCell className="text-center text-xs">{product.lead_time_days} Hari</TableCell>
+                                              <TableCell className="text-center text-xs">{safetyStock} unit</TableCell>
+                                              <TableCell className="text-center font-semibold text-xs text-amber-600">{rop} unit</TableCell>
+                                              <TableCell className="text-center text-xs font-medium">
+                                                <span className={
+                                                  daysToOos !== null && daysToOos <= product.lead_time_days
+                                                    ? 'text-red-500 dark:text-red-400 font-bold'
+                                                    : 'text-zinc-650 dark:text-zinc-400'
+                                                }>
+                                                  {daysToOosStr}
+                                                </span>
+                                              </TableCell>
+                                              <TableCell className="text-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                                {recommendedQty > 0 ? (
+                                                  <Badge className="bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                                    + {recommendedQty} unit
+                                                  </Badge>
+                                                ) : (
+                                                  '-'
+                                                )}
+                                              </TableCell>
+                                              <TableCell className="text-center">
+                                                <Badge className={badgeStyle}>{statusLabel}</Badge>
+                                              </TableCell>
+                                            </TableRow>
+                                          );
+                                        })
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                  
+                                  {products.last_page > 1 && (
+                                    <div className="flex items-center justify-between px-4 py-4 border-t border-zinc-100 dark:border-zinc-800/60">
+                                      <div className="text-xs text-zinc-400 dark:text-zinc-500">
+                                        Menampilkan {products.from ?? 0} sampai {products.to ?? 0} dari {products.total ?? 0} produk
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-xs h-8 rounded-xl"
+                                          disabled={!products.prev_page_url}
+                                          onClick={() => products.prev_page_url && router.get(products.prev_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                                        >
+                                          Sebelumnya
+                                        </Button>
+                                        <div className="text-xs font-semibold text-zinc-650 dark:text-zinc-400 px-1">
+                                          Hal {products.current_page} dari {products.last_page}
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-xs h-8 rounded-xl"
+                                          disabled={!products.next_page_url}
+                                          onClick={() => products.next_page_url && router.get(products.next_page_url, {}, { preserveState: true, replace: true, preserveScroll: true })}
+                                        >
+                                          Selanjutnya
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </TabsContent>
                         </Tabs>
 
                         {/* ================= KOTAK MELAYANG (FLOATING ACTION BAR) ================= */}
@@ -1674,6 +1931,51 @@ export default function Product({ products, categoriesList, storesList, filters 
                     <InputError message={errors.image} />
                   </div>
 
+                  {/* Input Galeri Gambar Edit dengan Live Previews */}
+                  <div className="grid gap-3">
+                    <Label htmlFor="gallery_files_edit">Galeri Foto Produk (Optional, Maks. 3)</Label>
+                    <div className="flex flex-col gap-3">
+                      <Input
+                        id="gallery_files_edit"
+                        type="file"
+                        name="gallery_files[]"
+                        accept="image/*"
+                        multiple
+                        onChange={handleEditGalleryChange}
+                        className="text-xs rounded-lg bg-background"
+                      />
+                      {/* Tampilkan previews baru jika ada */}
+                      {editGalleryPreviews.length > 0 ? (
+                        <div className="flex gap-2 mt-1">
+                          {editGalleryPreviews.map((url, i) => (
+                            <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border bg-background">
+                              <img src={url} alt={`Gallery Preview ${i}`} className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Jika tidak ada preview baru, tampilkan galeri dari database jika ada */
+                        selectedProduct?.gallery && (
+                          <div className="flex gap-2 mt-1">
+                            {(() => {
+                              try {
+                                const urls = JSON.parse(selectedProduct.gallery) || [];
+                                return urls.map((url: string, i: number) => (
+                                  <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border bg-background">
+                                    <img src={url} alt={`Saved Gallery ${i}`} className="w-full h-full object-cover" />
+                                  </div>
+                                ));
+                              } catch(e) {
+                                  return null;
+                              }
+                            })()}
+                          </div>
+                        )
+                      )}
+                      <p className="text-[10px] text-muted-foreground">Pilih beberapa foto tambahan baru untuk menggantikan galeri foto lama.</p>
+                    </div>
+                  </div>
+
                   {/* Input SKU */}
                   <div className="grid gap-3">
                     <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
@@ -1729,8 +2031,8 @@ export default function Product({ products, categoriesList, storesList, filters 
                     <InputError message={errors.category_id} />
                   </div>
 
-                  {/* Grid Berdampingan untuk Stok & Harga */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Grid Berdampingan untuk Stok, Harga & Berat */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Input Jumlah Stok */}
                     <div className="grid gap-3">
                       <Label htmlFor="stock">Jumlah Stok</Label>
@@ -1758,6 +2060,52 @@ export default function Product({ products, categoriesList, storesList, filters 
                         placeholder="50.000"
                       />
                       <InputError message={errors.price} />
+                    </div>
+
+                    {/* Input Berat */}
+                    <div className="grid gap-3">
+                      <Label htmlFor="weight_edit">Berat (Gram)</Label>
+                      <Input
+                        id="weight_edit"
+                        type="number"
+                        name="weight"
+                        defaultValue={selectedProduct?.weight || 0}
+                        required
+                        min="0"
+                        placeholder="200"
+                      />
+                      <InputError message={errors.weight} />
+                    </div>
+                  </div>
+
+                  {/* Grid Parameter Reorder / Forecast Edit */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid gap-3">
+                      <Label htmlFor="lead_time_days_edit">Lead Time Produksi (Hari)</Label>
+                      <Input
+                        id="lead_time_days_edit"
+                        type="number"
+                        name="lead_time_days"
+                        defaultValue={selectedProduct?.lead_time_days ?? 7}
+                        required
+                        min="1"
+                        placeholder="7"
+                      />
+                      <InputError message={errors.lead_time_days} />
+                    </div>
+
+                    <div className="grid gap-3">
+                      <Label htmlFor="safety_stock_units_edit">Stok Pengaman (Safety Stock)</Label>
+                      <Input
+                        id="safety_stock_units_edit"
+                        type="number"
+                        name="safety_stock_units"
+                        defaultValue={selectedProduct?.safety_stock_units ?? 10}
+                        required
+                        min="0"
+                        placeholder="10"
+                      />
+                      <InputError message={errors.safety_stock_units} />
                     </div>
                   </div>
 

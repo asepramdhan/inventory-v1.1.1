@@ -50,13 +50,13 @@ function StoreTableSkeleton() {
           <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30 border-b border-zinc-150 dark:border-zinc-800/50">
             <TableRow>
               <TableHead className="w-[50px]"><div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></TableHead>
-              <TableHead className="w-50 text-xs">Tanggal</TableHead>
-              <TableHead className='w-30 text-xs'>Platform</TableHead>
-              <TableHead className="w-30 text-xs">Nama Toko</TableHead>
-              <TableHead className="w-40 text-center text-xs">Admin (%)</TableHead>
-              <TableHead className='w-35 text-xs'>Proses (Rp)</TableHead>
-              <TableHead className="text-xs">Status</TableHead>
-              <TableHead className="text-right text-xs">Aksi</TableHead>
+              <TableHead className="w-[160px] text-xs">Tanggal</TableHead>
+              <TableHead className="w-[100px] text-xs">Platform</TableHead>
+              <TableHead className="text-xs">Nama Toko</TableHead>
+              <TableHead className="w-[120px] text-center text-xs">Admin (%)</TableHead>
+              <TableHead className="w-[140px] text-xs">Proses (Rp)</TableHead>
+              <TableHead className="w-[120px] text-xs">Status</TableHead>
+              <TableHead className="w-[80px] text-right text-xs">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -715,19 +715,19 @@ export default function Store({ stores, filters }: any) {
 
                   </TableHead>
 
-                  <TableHead className="w-50">Tanggal</TableHead>
+                  <TableHead className="w-[160px]">Tanggal</TableHead>
 
-                  <TableHead className='w-30'>Platform</TableHead>
+                  <TableHead className="w-[100px]">Platform</TableHead>
 
-                  <TableHead className="w-30">Nama Toko</TableHead>
+                  <TableHead>Nama Toko</TableHead>
 
-                  <TableHead className="w-40 text-center">Admin (%)</TableHead>
+                  <TableHead className="w-[120px] text-center">Admin (%)</TableHead>
 
-                  <TableHead className='w-35'>Proses (Rp)</TableHead>
+                  <TableHead className="w-[140px]">Proses (Rp)</TableHead>
 
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[120px]">Status</TableHead>
 
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead className="w-[80px] text-right">Aksi</TableHead>
 
                 </TableRow>
 

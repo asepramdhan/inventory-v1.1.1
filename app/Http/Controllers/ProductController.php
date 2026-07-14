@@ -51,6 +51,29 @@ class ProductController extends Controller
             ->paginate(50)
             ->withQueryString();
 
+        // Calculate 30-day average daily sales (ADS) and Reorder Point (ROP) for forecasting
+        $startDate30DaysAgo = now()->subDays(30)->format('Y-m-d 00:00:00');
+        $sales30Days = \Illuminate\Support\Facades\DB::table('transaction_items')
+            ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')
+            ->whereIn('transaction_items.product_id', $products->pluck('id'))
+            ->where('transactions.status', '!=', 'cancelled')
+            ->whereBetween('transactions.transaction_date', [$startDate30DaysAgo, now()->format('Y-m-d 23:59:59')])
+            ->selectRaw('transaction_items.product_id, SUM(transaction_items.quantity) as total_qty')
+            ->groupBy('transaction_items.product_id')
+            ->pluck('total_qty', 'product_id')
+            ->toArray();
+
+        $products->through(function ($product) use ($sales30Days) {
+            $sales30 = (int) ($sales30Days[$product->id] ?? 0);
+            $avgSales = (float) ($sales30 / 30.0);
+            
+            $product->sales_30_days = $sales30;
+            $product->average_daily_sales = round($avgSales, 2);
+            $product->reorder_point = (int) ceil(($avgSales * $product->lead_time_days) + $product->safety_stock_units);
+            
+            return $product;
+        });
+
         // AMBIL DAFTAR KATEGORI MILIK USER (Kirim ke React Form)
         $categoriesList = Category::where('user_id', Auth::user()->id)
             ->select('id', 'name', 'active')
@@ -97,6 +120,7 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'stock' => 'required|integer|min:0',
             'price' => 'required|numeric|min:0',
+            'weight' => 'required|integer|min:0',
             'description' => 'nullable|string',
             'active'      => 'required|boolean',
             'landing_active' => 'required|boolean',
@@ -104,12 +128,26 @@ class ProductController extends Controller
             'whatsapp_number' => 'nullable|string|max:50',
             'whatsapp_message_template' => 'nullable|string',
             'landing_description' => 'nullable|string',
+            'lead_time_days' => 'required|integer|min:1',
+            'safety_stock_units' => 'required|integer|min:0',
+            'gallery_files' => 'nullable|array',
+            'gallery_files.*' => 'image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         // Logika Upload Gambar
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('products', 'public');
             $validated['image'] = '/storage/' . $path;
+        }
+
+        // Logika Upload Galeri Gambar
+        if ($request->hasFile('gallery_files')) {
+            $galleryPaths = [];
+            foreach ($request->file('gallery_files') as $file) {
+                $path = $file->store('products/gallery', 'public');
+                $galleryPaths[] = '/storage/' . $path;
+            }
+            $validated['gallery'] = json_encode($galleryPaths);
         }
 
         Product::create($validated + ['user_id' => Auth::user()->id]);
@@ -150,6 +188,7 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'stock' => 'required|integer|min:0',
             'price' => 'required|numeric|min:0',
+            'weight' => 'required|integer|min:0',
             'description' => 'nullable|string',
             'active'      => 'required|boolean',
             'landing_active' => 'required|boolean',
@@ -157,6 +196,10 @@ class ProductController extends Controller
             'whatsapp_number' => 'nullable|string|max:50',
             'whatsapp_message_template' => 'nullable|string',
             'landing_description' => 'nullable|string',
+            'lead_time_days' => 'required|integer|min:1',
+            'safety_stock_units' => 'required|integer|min:0',
+            'gallery_files' => 'nullable|array',
+            'gallery_files.*' => 'image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         $product = Product::where('id', $id)
@@ -173,6 +216,24 @@ class ProductController extends Controller
 
             $path = $request->file('image')->store('products', 'public');
             $validated['image'] = '/storage/' . $path;
+        }
+
+        // Logika Update Galeri Gambar
+        if ($request->hasFile('gallery_files')) {
+            // Hapus galeri gambar lama
+            if ($product->gallery) {
+                $oldGallery = json_decode($product->gallery, true) ?? [];
+                foreach ($oldGallery as $oldItem) {
+                    Storage::disk('public')->delete(str_replace('/storage/', '', $oldItem));
+                }
+            }
+
+            $galleryPaths = [];
+            foreach ($request->file('gallery_files') as $file) {
+                $path = $file->store('products/gallery', 'public');
+                $galleryPaths[] = '/storage/' . $path;
+            }
+            $validated['gallery'] = json_encode($galleryPaths);
         }
 
         $product->update($validated);
