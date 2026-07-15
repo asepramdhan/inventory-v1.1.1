@@ -17,7 +17,8 @@ import {
   Users,
   X,
   FileSpreadsheet,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -62,6 +63,8 @@ const commands: CommandItem[] = [
   { id: 'act-new-stock-in', title: 'Catat Faktur / Stok Masuk Produsen', category: 'Aksi Cepat', icon: Plus, url: '/operational/producer-stocks', action: 'create' },
   { id: 'act-new-supply', title: 'Tambah Bahan Operasional Baru', category: 'Aksi Cepat', icon: Plus, url: '/operational/supplies', action: 'create' },
   { id: 'act-run-backup', title: 'Jalankan Backup Database Sekarang', category: 'Aksi Cepat', icon: Database, url: '/master-data/backups', action: 'run' },
+  { id: 'act-import-shopee', title: 'Impor Excel Pesanan Shopee', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-shopee' },
+  { id: 'act-import-status', title: 'Impor Excel Status Pesanan', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-status' },
   { id: 'act-export-profit', title: 'Unduh Excel Laporan Laba Rugi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/profit-loss/export' },
   { id: 'act-export-tx', title: 'Unduh Excel Riwayat Transaksi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/transactions/export' }
 ];

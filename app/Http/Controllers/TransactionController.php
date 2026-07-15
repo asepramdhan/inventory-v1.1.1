@@ -71,6 +71,7 @@ class TransactionController extends Controller
 
         $storesList = Store::where('user_id', Auth::user()->id)
             ->select('id', 'name', 'platform')
+            ->orderBy('name', 'asc')
             ->get()
             ->map(function ($store) use ($storeStatusCounts) {
                 $counts = $storeStatusCounts->get($store->id);

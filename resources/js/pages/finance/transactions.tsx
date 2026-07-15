@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -893,6 +894,7 @@ export default function Transactions({ transactions, storesList, productsList, c
   const [uploadProcessing, setUploadProcessing] = useState(false);
   const [shopeeUploadProcessing, setShopeeUploadProcessing] = useState(false);
   const [shopeeStoreId, setShopeeStoreId] = useState<string>('');
+  const [isImportStoreModalOpen, setIsImportStoreModalOpen] = useState(false);
   const shopeeFileInputRef = useRef<HTMLInputElement>(null);
   const statusFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -969,6 +971,27 @@ export default function Transactions({ transactions, storesList, productsList, c
   const triggerStatusUpload = () => {
     statusFileInputRef.current?.click();
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    if (action === 'import-shopee') {
+      if (storesList && storesList.length > 0) {
+        // Cari toko Shopee pertama, jika tidak ada fallback ke toko pertama di list
+        const shopeeStore = storesList.find((s: any) => s.platform?.toLowerCase() === 'shopee') || storesList[0];
+        setShopeeStoreId((prev: string) => prev || shopeeStore.id.toString());
+        setIsImportStoreModalOpen(true);
+      } else {
+        alert('Buat toko/marketplace terlebih dahulu di Master Data!');
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (action === 'import-status') {
+      setTimeout(() => {
+        statusFileInputRef.current?.click();
+      }, 150);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [storesList]);
 
   const handleAddItem = () => {
     setItems([...items, { product_id: '', quantity: 1, selling_price: '', display_selling_price: '' }]);
@@ -2707,6 +2730,62 @@ export default function Transactions({ transactions, storesList, productsList, c
           </div>
         </div>
       )}
+
+      {/* MODAL DIALOG PILIH TOKO UNTUK IMPOR */}
+      <Dialog open={isImportStoreModalOpen} onOpenChange={setIsImportStoreModalOpen}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+              <Upload className="h-5 w-5 text-indigo-500" />
+              Pilih Toko Tujuan Impor
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Pilih toko asal pesanan Shopee yang akan diimpor dari berkas Excel.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Toko Penerima</Label>
+              <Select value={shopeeStoreId} onValueChange={setShopeeStoreId}>
+                <SelectTrigger className="w-full text-xs">
+                  <SelectValue placeholder="Pilih Toko" />
+                </SelectTrigger>
+                <SelectContent>
+                  {storesList?.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id.toString()}>
+                      {s.name} ({s.platform})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="flex sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportStoreModalOpen(false)}
+              className="text-xs"
+            >
+              Batal
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setIsImportStoreModalOpen(false);
+                setTimeout(() => {
+                  shopeeFileInputRef.current?.click();
+                }, 150);
+              }}
+              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+            >
+              Pilih Berkas Excel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
