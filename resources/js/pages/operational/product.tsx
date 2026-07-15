@@ -108,6 +108,14 @@ export default function Product({ products, categoriesList, storesList, filters 
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsSheetOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // State Form fields
   const [rawPrice, setRawPrice] = useState('');
   const [displayPrice, setDisplayPrice] = useState('');

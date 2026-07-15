@@ -88,6 +88,14 @@ export default function Customers({ customers, filters }: any) {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsSheetOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Debounced search & filter sync
   useEffect(() => {
     if (isFirstMount.current) {

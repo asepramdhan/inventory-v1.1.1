@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Archive, Database, Download, FileArchive, HardDrive, RefreshCw, AlertTriangle, Trash2, Upload, Calendar } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Heading from '@/components/heading';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,14 @@ export default function Backup({ backups, summary, errors }: Props) {
       }
     );
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'run') {
+      handleCreateBackup();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const handleRestoreBackup = () => {
     if (!selectedFilename) return;

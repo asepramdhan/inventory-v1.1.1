@@ -230,6 +230,14 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
 
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsCreateOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
   // -------------------------------------------------
 
   // Inertia Form Handling untuk input mutasi manual

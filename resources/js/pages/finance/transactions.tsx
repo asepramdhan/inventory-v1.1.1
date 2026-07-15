@@ -410,6 +410,186 @@ export default function Transactions({ transactions, storesList, productsList, c
     setTxAreaSearchQuery('');
   }, [customerId]);
 
+  // ==========================================
+  // WHATSAPP ADDRESS PARSER FEATURE
+  // ==========================================
+  const [rawAddressPaste, setRawAddressPaste] = useState('');
+  const [parsedDetails, setParsedDetails] = useState<{
+    name: string;
+    phone: string;
+    address: string;
+    subdistrict: string;
+  } | null>(null);
+  const [isRegisteringCustomer, setIsRegisteringCustomer] = useState(false);
+
+  const handleParseAddress = () => {
+    if (!rawAddressPaste.trim()) {
+      alert('Silakan tempel teks alamat terlebih dahulu.');
+      return;
+    }
+
+    const text = rawAddressPaste;
+    let nameVal = '';
+    let phoneVal = '';
+    let addressVal = '';
+    let subdistrictVal = '';
+
+    const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+
+    // 1. Extract phone number using regex
+    const phoneRegex = /(?:no\.?\s*hp|telp|telepon|hp|phone|wa)\s*:?\s*(08[0-9]{8,12}|62[0-9]{8,12}|\+62[0-9]{8,12})/i;
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(phoneRegex);
+      if (match) {
+        phoneVal = match[1];
+        // Clean up line
+        lines[i] = lines[i].replace(match[0], '').trim();
+        break;
+      }
+    }
+
+    // 2. Try to find labels like "Nama:", "Penerima:", "Kepada:"
+    const nameRegex = /^(?:nama|penerima|kepada|penerima\s*paket|nama\s*penerima|nama\s*lengkap)\s*:?\s*(.+)$/i;
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(nameRegex);
+      if (match) {
+        nameVal = match[1];
+        lines.splice(i, 1);
+        break;
+      }
+    }
+
+    // 3. Try to find labels like "Alamat:", "Address:"
+    const addressRegex = /^(?:alamat|alamat\s*lengkap|jalan|jl\.?)\s*:?\s*(.+)$/i;
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(addressRegex);
+      if (match) {
+        addressVal = match[1];
+        lines.splice(i, 1);
+        break;
+      }
+    }
+
+    // 4. Try to find labels like "Kecamatan:", "Kec:"
+    const subdistrictRegex = /^(?:kecamatan|kec)\s*:?\s*(.+)$/i;
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(subdistrictRegex);
+      if (match) {
+        subdistrictVal = match[1];
+        lines.splice(i, 1);
+        break;
+      }
+    }
+
+    // 5. If name is still empty, look at the first line
+    const remainingLines = lines.filter(line => line.replace(/[^a-zA-Z0-9]/g, '').trim().length > 0);
+    if (!nameVal && remainingLines.length > 0) {
+      const firstLine = remainingLines[0];
+      if (!/\d/.test(firstLine) && firstLine.length < 40) {
+        nameVal = firstLine;
+        remainingLines.shift();
+      }
+    }
+
+    // 6. If address is still empty, merge the remaining lines
+    if (!addressVal && remainingLines.length > 0) {
+      addressVal = remainingLines.join(', ');
+    }
+
+    // 7. Try to detect subdistrict from address text if not extracted explicitly
+    if (!subdistrictVal && addressVal) {
+      const kecMatch = addressVal.match(/(?:kecamatan|kec)\.?\s+([a-zA-Z\s\-]+)/i);
+      if (kecMatch) {
+        subdistrictVal = kecMatch[1].trim();
+      }
+    }
+
+    // Normalize phone number (convert 62 / +62 to 08)
+    if (phoneVal) {
+      phoneVal = phoneVal.replace(/[^0-9]/g, '');
+      if (phoneVal.startsWith('62')) {
+        phoneVal = '0' + phoneVal.slice(2);
+      }
+    }
+
+    // Clean up characters
+    const cleanStr = (s: string) => s.trim().replace(/^[:\s\-–—,]+|[:\s\-–—,]+$/g, '');
+
+    const parsed = {
+      name: cleanStr(nameVal),
+      phone: cleanStr(phoneVal),
+      address: cleanStr(addressVal),
+      subdistrict: cleanStr(subdistrictVal)
+    };
+
+    setParsedDetails(parsed);
+
+    // Auto check if customer already exists in customersList (by phone number matching)
+    if (parsed.phone && customersList) {
+      const match = customersList.find((c: any) => c.phone && c.phone.replace(/[^0-9]/g, '') === parsed.phone.replace(/[^0-9]/g, ''));
+      if (match) {
+        setCustomerId(match.id.toString());
+        toast.success(`Ditemukan pelanggan terdaftar: ${match.name}. Menghubungkan...`);
+        return;
+      }
+    }
+
+    // If subdistrict exists, trigger subdistrict search automatically for Biteship Area selection
+    if (parsed.subdistrict) {
+      setTxAreaSearchQuery(parsed.subdistrict);
+      toast.info(`Mencari kecamatan: "${parsed.subdistrict}" di Biteship...`);
+    }
+  };
+
+  // Find matching customer in React state
+  const detectedCustomer = parsedDetails?.phone
+    ? customersList?.find((c: any) => c.phone && c.phone.replace(/[^0-9]/g, '') === parsedDetails.phone.replace(/[^0-9]/g, ''))
+    : null;
+
+  const handleRegisterCustomerInline = () => {
+    if (!parsedDetails || !parsedDetails.name) return;
+
+    const tempDetails = parsedDetails; // Simpan salinan lokal sebelum state direset
+
+    setIsRegisteringCustomer(true);
+    router.post('/master-data/customers', {
+      name: tempDetails.name,
+      phone: tempDetails.phone || '',
+      address: tempDetails.address || '',
+      platform: 'manual',
+      biteship_area_id: txBiteshipAreaId || '',
+      biteship_area_name: txBiteshipAreaName || ''
+    }, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: (page) => {
+        setIsRegisteringCustomer(false);
+        setRawAddressPaste('');
+        setParsedDetails(null);
+
+        // Cari ID pelanggan yang baru dibuat dari customersList yang sudah di-refresh
+        const freshCustomers = page.props.customersList as any[];
+        if (freshCustomers && tempDetails) {
+          const matched = freshCustomers.find(
+            (c: any) => c.phone && tempDetails.phone && c.phone.replace(/[^0-9]/g, '') === tempDetails.phone.replace(/[^0-9]/g, '')
+          ) || freshCustomers.find(
+            (c: any) => c.name && tempDetails.name && c.name.toLowerCase() === tempDetails.name.toLowerCase()
+          );
+          
+          if (matched) {
+            setCustomerId(matched.id.toString());
+            toast.success(`Pelanggan baru berhasil didaftarkan dan dihubungkan!`);
+          }
+        }
+      },
+      onError: (err) => {
+        setIsRegisteringCustomer(false);
+        const errMsg = Object.values(err).join(', ');
+        alert(`Gagal mendaftarkan pelanggan: ${errMsg}`);
+      }
+    });
+  };
+
   // Biteship Shipping States for Selected Transaction Detail Sheet
   const [detailCourierCompany, setDetailCourierCompany] = useState('');
   const [detailCourierType, setDetailCourierType] = useState('');
@@ -595,6 +775,14 @@ export default function Transactions({ transactions, storesList, productsList, c
       }, 150);
     }
   }, [isCreateSheetOpen]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsCreateSheetOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // Ganti 'openProductDropdown' dengan nama state dropdown produk Anda
   useEffect(() => {
@@ -1133,6 +1321,86 @@ export default function Transactions({ transactions, storesList, productsList, c
                             onChange={(e) => handleAffiliateChange(e.target.value)}
                             className="bg-background"
                           />
+                        </div>
+
+                        {/* Asisten Copy-Paste Alamat WhatsApp */}
+                        <div className="border border-indigo-100 dark:border-indigo-950/60 rounded-xl p-4 bg-indigo-50/20 dark:bg-indigo-950/5 space-y-3">
+                          <Label className="text-xs font-bold text-indigo-650 dark:text-indigo-400 flex items-center gap-1.5">
+                            <MessageCircle className="size-4" /> Asisten Copy-Paste Alamat WhatsApp
+                          </Label>
+                          <textarea
+                            placeholder="Tempel chat alamat pelanggan di sini... Contoh:&#10;Nama: Anita Rahmawati&#10;HP: 081299887766&#10;Alamat: Perumahan Indah Permai Blok B2 No. 5, RT 01/RW 04, Kec. Menteng"
+                            value={rawAddressPaste}
+                            onChange={(e) => setRawAddressPaste(e.target.value)}
+                            className="flex min-h-[80px] w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={handleParseAddress}
+                              className="flex-1 h-8 text-xs bg-indigo-100/70 hover:bg-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-semibold rounded-lg"
+                            >
+                              Urai & Isi Otomatis
+                            </Button>
+                            {rawAddressPaste && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => {
+                                  setRawAddressPaste('');
+                                  setParsedDetails(null);
+                                }}
+                                className="h-8 text-xs text-muted-foreground rounded-lg"
+                              >
+                                Clear
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {parsedDetails && (
+                            <div className="p-3 rounded-lg bg-white dark:bg-zinc-900 border border-dashed border-zinc-200 dark:border-zinc-800 text-xs space-y-2 mt-2">
+                              <p className="font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">Hasil Uraian Alamat</p>
+                              <div className="grid grid-cols-3 gap-1">
+                                <div className="text-muted-foreground">Nama:</div>
+                                <div className="col-span-2 font-medium text-foreground break-words">{parsedDetails.name || '-'}</div>
+                                
+                                <div className="text-muted-foreground">No HP:</div>
+                                <div className="col-span-2 font-semibold font-mono text-foreground break-words">{parsedDetails.phone || '-'}</div>
+                                
+                                <div className="text-muted-foreground">Alamat:</div>
+                                <div className="col-span-2 text-foreground break-words whitespace-pre-wrap">{parsedDetails.address || '-'}</div>
+                                
+                                {parsedDetails.subdistrict && (
+                                  <>
+                                    <div className="text-muted-foreground">Kecamatan:</div>
+                                    <div className="col-span-2 text-indigo-650 dark:text-indigo-400 font-semibold break-words">"{parsedDetails.subdistrict}"</div>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Match detection status */}
+                              {detectedCustomer ? (
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 p-2 rounded-lg text-[11px] font-medium flex items-center gap-1.5 mt-2">
+                                  <Check className="size-3.5 stroke-[3]" /> Terdeteksi pelanggan terdaftar: <strong>{detectedCustomer.name}</strong>
+                                </div>
+                              ) : (
+                                <div className="mt-3 pt-2 border-t border-zinc-150 dark:border-zinc-850 flex flex-col gap-2">
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                    ⚠️ Pelanggan ini belum terdaftar di sistem.
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    onClick={handleRegisterCustomerInline}
+                                    disabled={isRegisteringCustomer || !parsedDetails.name}
+                                    className="w-full h-8 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg"
+                                  >
+                                    {isRegisteringCustomer ? 'Mendaftarkan...' : 'Daftarkan & Hubungkan Pelanggan'}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Hubungkan Pelanggan */}

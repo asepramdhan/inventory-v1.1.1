@@ -5,6 +5,7 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import type { AppLayoutProps } from '@/types';
 import { FloatingControlGroup } from '@/components/floating-control-group';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
+import { CommandPalette } from '@/components/command-palette';
 
 export default function AppSidebarLayout({
     children,
@@ -19,6 +20,7 @@ export default function AppSidebarLayout({
             </AppContent>
             <FloatingControlGroup />
             <MobileBottomNav />
+            <CommandPalette />
         </AppShell>
     );
 }
