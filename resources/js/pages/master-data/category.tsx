@@ -73,6 +73,14 @@ export default function Category({ categories, filters }: any) {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsSheetOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Reset pilihan saat data stores berubah
   useEffect(() => {
     setSelectedIds([]);

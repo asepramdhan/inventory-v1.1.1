@@ -165,6 +165,14 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
 
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsCreateOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
   // -------------------------------------------------
 
   // Helper Formatter Rupiah untuk Tampilan Tabel & Widget

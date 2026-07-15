@@ -15,7 +15,9 @@ import {
   Store,
   Tags,
   Users,
-  X
+  X,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -50,9 +52,18 @@ const commands: CommandItem[] = [
   // --- AKSI CEPAT ---
   { id: 'act-new-tx', title: 'Catat Transaksi Manual Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/transactions', action: 'create', shortcut: 'N' },
   { id: 'act-new-prod', title: 'Tambah Produk Baru', category: 'Aksi Cepat', icon: Plus, url: '/operational/products', action: 'create' },
-  { id: 'act-new-mutation', title: 'Catat Mutasi Kas Masuk / Keluar', category: 'Aksi Cepat', icon: Plus, url: '/finance/mutations', action: 'create' },
-  { id: 'act-new-customer', title: 'Daftarkan Pelanggan Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/customers', action: 'create' },
-  { id: 'act-run-backup', title: 'Jalankan Backup Database Sekarang', category: 'Aksi Cepat', icon: Database, url: '/master-data/backups', action: 'run' }
+  { id: 'act-new-mutation', title: 'Catat Mutasi Kas Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/mutations', action: 'create' },
+  { id: 'act-new-ads', title: 'Catat Biaya Iklan & Affiliate Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/ads-affiliate', action: 'create' },
+  { id: 'act-new-account', title: 'Buat Akun Kas / Bank Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/mutations', action: 'create-account' },
+  { id: 'act-transfer', title: 'Transfer Saldo Antar Rekening/Kas', category: 'Aksi Cepat', icon: ArrowRightLeft, url: '/finance/mutations', action: 'transfer' },
+  { id: 'act-new-category', title: 'Tambah Kategori Produk Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/categories', action: 'create' },
+  { id: 'act-new-store', title: 'Tambah Toko / Marketplace Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/stores', action: 'create' },
+  { id: 'act-new-producer', title: 'Tambah Profil Produsen Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/producers', action: 'create' },
+  { id: 'act-new-stock-in', title: 'Catat Faktur / Stok Masuk Produsen', category: 'Aksi Cepat', icon: Plus, url: '/operational/producer-stocks', action: 'create' },
+  { id: 'act-new-supply', title: 'Tambah Bahan Operasional Baru', category: 'Aksi Cepat', icon: Plus, url: '/operational/supplies', action: 'create' },
+  { id: 'act-run-backup', title: 'Jalankan Backup Database Sekarang', category: 'Aksi Cepat', icon: Database, url: '/master-data/backups', action: 'run' },
+  { id: 'act-export-profit', title: 'Unduh Excel Laporan Laba Rugi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/profit-loss/export' },
+  { id: 'act-export-tx', title: 'Unduh Excel Riwayat Transaksi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/transactions/export' }
 ];
 
 export function CommandPalette() {

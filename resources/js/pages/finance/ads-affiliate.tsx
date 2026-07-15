@@ -127,6 +127,14 @@ export default function AdsAffiliate({ adsExpenses, storesList, filters, summary
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsSheetOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
     setSelectedIds([]);
 
     if (selectedExpense) {

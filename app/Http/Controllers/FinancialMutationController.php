@@ -67,33 +67,7 @@ class FinancialMutationController extends Controller
             ->pluck('count', 'type')
             ->toArray();
 
-        $todayStr = Carbon::now($timezone)->format('Y-m-d');
-        $startOfMonth = Carbon::now($timezone)->startOfMonth()->format('Y-m-d');
-        $endOfMonth = Carbon::now($timezone)->endOfMonth()->format('Y-m-d');
 
-        $excludeCategories = ['Tarik Tunai', 'Transfer Keluar', 'Tarik Saldo', 'Transfer Masuk', 'Pelunasan Produsen'];
-
-        $todayPersonalExpense = FinancialMutation::where('user_id', $userId)
-            ->where('type', 'expense')
-            ->where('date', $todayStr)
-            ->whereNotIn('category', $excludeCategories)
-            ->where('category', 'not like', '%tarik%')
-            ->where('category', 'not like', '%transfer%')
-            ->where('category', 'not like', '%iklan%')
-            ->where('category', 'not like', '%affiliate%')
-            ->where('category', 'not like', '%pelunasan%')
-            ->sum('amount');
-
-        $monthPersonalExpense = FinancialMutation::where('user_id', $userId)
-            ->where('type', 'expense')
-            ->whereBetween('date', [$startOfMonth, $endOfMonth])
-            ->whereNotIn('category', $excludeCategories)
-            ->where('category', 'not like', '%tarik%')
-            ->where('category', 'not like', '%transfer%')
-            ->where('category', 'not like', '%iklan%')
-            ->where('category', 'not like', '%affiliate%')
-            ->where('category', 'not like', '%pelunasan%')
-            ->sum('amount');
 
         // 5. Eksekusi data mutasi dengan Pagination (50 data per halaman)
         $mutations = $query->orderBy('date', 'desc')
@@ -109,8 +83,6 @@ class FinancialMutationController extends Controller
                 'total_expense' => (float)$totalExpense,
                 'total_withdrawal' => (float)$totalWithdrawal,
                 'net_cash_flow' => (float)($totalIncome - $totalExpense),
-                'today_personal_expense' => (float)$todayPersonalExpense,
-                'month_personal_expense' => (float)$monthPersonalExpense,
             ],
             'typeCounts' => [
                 'all' => FinancialMutation::where('user_id', $userId)->whereBetween('date', [$startDate, $endDate])->count(),

@@ -415,6 +415,10 @@ class TransactionController extends Controller
 
     public function importStatusExcel(Request $request)
     {
+        // Tingkatkan execution time & memory limit untuk memproses banyak data
+        set_time_limit(300);
+        ini_set('memory_limit', '512M');
+
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:10240', // Maksimal 10MB
         ]);
@@ -452,47 +456,59 @@ class TransactionController extends Controller
             }
 
             $userId = Auth::user()->id;
-            $updatedCount = 0;
 
-            // 2. Looping data (Mulai dari baris ke-2 / index 1)
+            // 2. Kumpulkan semua nomor invoice terlebih dahulu
+            $invoiceNumbers = [];
             for ($i = 1; $i < count($rows); $i++) {
                 $invoiceNumber = trim($rows[$i][$invoiceIndex] ?? '');
-                $shopeeStatus = trim($rows[$i][$statusIndex] ?? '');
-
-                if (empty($invoiceNumber)) {
-                    continue;
+                if (!empty($invoiceNumber)) {
+                    $invoiceNumbers[] = $invoiceNumber;
                 }
+            }
 
-                // Pemetaan status Shopee ke status sistem database Anda
-                $mappedStatus = null;
-                switch (strtolower($shopeeStatus)) {
-                    case 'selesai':
-                        $mappedStatus = 'completed';
-                        break;
-                    case 'sedang dikirim':
-                    case 'dikirim':
-                        $mappedStatus = 'processing';
-                        break;
-                    case 'batal':
-                        $mappedStatus = 'cancelled';
-                        break;
-                    case 'perlu dikirim':
-                        $mappedStatus = 'pending';
-                        break;
-                }
+            // 3. Ambil data transaksi milik user secara bulk beserta items-nya (1 query saja)
+            $transactions = Transaction::with('items')
+                ->where('user_id', $userId)
+                ->whereIn('invoice_number', $invoiceNumbers)
+                ->get()
+                ->keyBy('invoice_number');
 
-                if ($mappedStatus) {
-                    // PERBAIKAN UTAMA: Ambil objek modelnya dulu (first) daripada langsung query massal (update)
-                    $transaction = Transaction::where('user_id', $userId)
-                        ->where('invoice_number', $invoiceNumber)
-                        ->first();
+            $updatedCount = 0;
 
-                    // Pastikan transaksi ditemukan dan statusnya memang ada perubahan
-                    if ($transaction && $transaction->status !== $mappedStatus) {
-                        $oldStatus = $transaction->status;
+            // 4. Jalankan seluruh proses update dalam SATU transaksi database besar
+            DB::transaction(function () use ($rows, $invoiceIndex, $statusIndex, $transactions, &$updatedCount) {
+                for ($i = 1; $i < count($rows); $i++) {
+                    $invoiceNumber = trim($rows[$i][$invoiceIndex] ?? '');
+                    $shopeeStatus = trim($rows[$i][$statusIndex] ?? '');
 
-                        DB::transaction(function () use ($transaction, $mappedStatus, $oldStatus) {
-                            $transaction->load('items');
+                    if (empty($invoiceNumber)) {
+                        continue;
+                    }
+
+                    // Pemetaan status Shopee
+                    $mappedStatus = null;
+                    switch (strtolower($shopeeStatus)) {
+                        case 'selesai':
+                            $mappedStatus = 'completed';
+                            break;
+                        case 'sedang dikirim':
+                        case 'dikirim':
+                            $mappedStatus = 'processing';
+                            break;
+                        case 'batal':
+                            $mappedStatus = 'cancelled';
+                            break;
+                        case 'perlu dikirim':
+                            $mappedStatus = 'pending';
+                            break;
+                    }
+
+                    if ($mappedStatus) {
+                        $transaction = $transactions->get($invoiceNumber);
+
+                        // Pastikan transaksi ditemukan dan statusnya memang ada perubahan
+                        if ($transaction && $transaction->status !== $mappedStatus) {
+                            $oldStatus = $transaction->status;
 
                             // Sesuaikan stok jika status berubah ke/dari cancelled
                             if ($mappedStatus === 'cancelled' && $oldStatus !== 'cancelled') {
@@ -514,12 +530,12 @@ class TransactionController extends Controller
 
                             // Menggunakan ->save() agar Event booted() di model Transaction terpicu
                             $transaction->save();
-                        });
 
-                        $updatedCount++;
+                            $updatedCount++;
+                        }
                     }
                 }
-            }
+            });
 
             Inertia::flash('toast', ['type' => 'success', 'message' => "Berhasil memperbarui {$updatedCount} status pesanan dari Excel."]);
 

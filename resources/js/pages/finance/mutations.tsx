@@ -178,16 +178,6 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
   const [showBalance, setShowBalance] = useState<boolean>(() => loadShowBalance());
   const [hiddenAccountBalances, setHiddenAccountBalances] = useState<Set<number>>(() => loadHiddenAccountBalances());
 
-  const [dailyBudget, setDailyBudget] = useState<number>(() => {
-    if (typeof window === 'undefined') return 100000;
-    const stored = localStorage.getItem('mutations_daily_budget');
-    return stored ? parseInt(stored, 10) : 100000;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('mutations_daily_budget', dailyBudget.toString());
-  }, [dailyBudget]);
-
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_SHOW_BALANCE, String(showBalance));
   }, [showBalance]);
@@ -231,13 +221,6 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('action') === 'create') {
-      setIsCreateOpen(true);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
   // -------------------------------------------------
 
   // Inertia Form Handling untuk input mutasi manual
@@ -257,29 +240,6 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
     description: '',
   });
 
-  const handleQuickExpense = (category: string, defaultAmount: string, description: string) => {
-    const defaultAcc = accounts.find(a => a.is_default == true || a.is_default == 1)
-      || accounts.find(a => a.type === 'cash')
-      || accounts[0];
-
-    setData({
-      financial_account_id: defaultAcc ? defaultAcc.id.toString() : '',
-      date: (() => {
-        const localDate = new Date();
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, '0');
-        const day = String(localDate.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      })(),
-      type: 'expense',
-      category,
-      amount: defaultAmount,
-      reference_number: '',
-      description,
-    });
-
-    setIsCreateOpen(true);
-  };
 
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<number | null>(null);
@@ -361,6 +321,21 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
       }, 150);
     }
   }, [isTransferOpen]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    if (action === 'create') {
+      setIsCreateOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (action === 'create-account') {
+      setIsAccountOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (action === 'transfer') {
+      setIsTransferOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // Inertia Form untuk Transfer / Penarikan Saldo
   const transferForm = useForm({
@@ -989,112 +964,6 @@ export default function Mutations({ accounts, mutations, summary, typeCounts, fi
           </div>
         </div>
 
-        {/* WIDGET PELACAK JAJAN & ANGGARAN HARIAN */}
-        <Card className="border border-zinc-200/50 dark:border-zinc-800/80 bg-gradient-to-br from-white to-zinc-50/50 dark:from-zinc-900/60 dark:to-zinc-900/10 shadow-sm rounded-2xl overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              {/* Sisi Kiri: Status & Hitungan */}
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400">
-                    <Coins className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Pelacak Jajan & Ops Harian</h3>
-                    <p className="text-xs text-muted-foreground">Monitor pengeluaran pribadi (rokok, makanan, listrik, dll.) hari ini</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {/* Hari Ini */}
-                  <div className="bg-white/50 dark:bg-zinc-900/30 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Hari Ini</span>
-                    <span className="text-base font-black text-zinc-900 dark:text-zinc-50 mt-1 block">
-                      {formatIDR(summary.today_personal_expense ?? 0)}
-                    </span>
-                    {/* Status Badge */}
-                    <div className="mt-1.5 flex">
-                      {(() => {
-                        const todayExp = summary.today_personal_expense ?? 0;
-                        if (todayExp === 0) return <span className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">Belum Jajan 🟢</span>;
-                        if (todayExp < dailyBudget * 0.5) return <span className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">Hemat 🟢</span>;
-                        if (todayExp <= dailyBudget) return <span className="text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold px-2 py-0.5 rounded-full border border-amber-500/20">Wajar 🟡</span>;
-                        return <span className="text-[9px] bg-red-500/10 text-red-650 dark:text-red-400 font-bold px-2 py-0.5 rounded-full border border-red-500/20 flex items-center gap-1">Boros! 🔴</span>;
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Bulan Ini */}
-                  <div className="bg-white/50 dark:bg-zinc-900/30 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Bulan Ini</span>
-                    <span className="text-base font-black text-zinc-900 dark:text-zinc-50 mt-1 block">
-                      {formatIDR(summary.month_personal_expense ?? 0)}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground block mt-1.5">Total pengeluaran harian</span>
-                  </div>
-
-                  {/* Limit Harian */}
-                  <div className="bg-white/50 dark:bg-zinc-900/30 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm col-span-2 sm:col-span-1">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Anggaran Harian</span>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-xs text-muted-foreground">Rp</span>
-                      <input
-                        type="text"
-                        value={formatDisplayRupiah(dailyBudget)}
-                        onChange={(e) => {
-                          const val = cleanRupiahValue(e.target.value);
-                          setDailyBudget(val ? parseInt(val, 10) : 0);
-                        }}
-                        className="bg-transparent text-sm font-black text-zinc-900 dark:text-zinc-50 outline-none border-b border-dashed border-zinc-300 dark:border-zinc-700 w-full focus:border-indigo-500"
-                        placeholder="Limit..."
-                      />
-                    </div>
-                    <span className="text-[9px] text-muted-foreground block mt-1.5">Klik angka untuk edit limit</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sisi Kanan: Tombol Catat Cepat */}
-              <div className="space-y-2 lg:w-[350px] w-full">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Catat Cepat Pengeluaran</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleQuickExpense('Rokok', '30000', 'Beli rokok harian')}
-                    className="h-9 text-xs justify-start gap-2 bg-white dark:bg-zinc-900/40 border-zinc-200/60 hover:bg-indigo-50/20 w-full"
-                  >
-                    🚬 Rokok (30rb)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleQuickExpense('Makanan & Minuman', '25000', 'Beli makan/minum')}
-                    className="h-9 text-xs justify-start gap-2 bg-white dark:bg-zinc-900/40 border-zinc-200/60 hover:bg-indigo-50/20 w-full"
-                  >
-                    🍲 Makan (25rb)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleQuickExpense('Listrik', '100000', 'Bayar token/tagihan listrik')}
-                    className="h-9 text-xs justify-start gap-2 bg-white dark:bg-zinc-900/40 border-zinc-200/60 hover:bg-indigo-50/20 w-full"
-                  >
-                    ⚡ Listrik (100rb)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleQuickExpense('Kuota Internet', '50000', 'Beli paket data/kuota')}
-                    className="h-9 text-xs justify-start gap-2 bg-white dark:bg-zinc-900/40 border-zinc-200/60 hover:bg-indigo-50/20 w-full"
-                  >
-                    📱 Kuota (50rb)
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* SECTION 2: METRICS CASH FLOW ANALYSIS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

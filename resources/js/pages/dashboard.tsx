@@ -1,6 +1,6 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertCircle, ArrowRight, CheckCircle2, Clock, DollarSign, Package, ShoppingBag, TrendingUp, Truck, Wallet, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Clock, DollarSign, Package, ShoppingBag, TrendingUp, Truck, Wallet, XCircle, Coins } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import DashboardController from '@/actions/App/Http/Controllers/DashboardController';
@@ -20,6 +20,8 @@ interface Summary {
   profit_pending: number;
   profit_processing: number;
   profit_cancelled?: number;
+  today_personal_expense?: number;
+  month_personal_expense?: number;
 }
 
 interface ChartPoint {
@@ -164,6 +166,7 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
     return () => clearTimeout(timer);
   }, []);
 
+
   const chartDisplayData = useMemo(
     () => chartData.map((item) => ({ ...item, dateLabel: formatChartDate(item.date) })),
     [chartData]
@@ -187,74 +190,74 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
           <div className="flex flex-col gap-6">
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
-                <CardContent className="p-5 flex items-center justify-between gap-4">
-                  <div className="space-y-1 min-w-0">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Omzet Bulan Ini</p>
-                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.omzet)}</p>
-                    <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Transaksi bruto bulan berjalan</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
-                    <TrendingUp className="h-5 w-5" />
-                  </div>
-                </CardContent>
-              </Card>
+                <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+                  <CardContent className="p-5 flex items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Omzet Bulan Ini</p>
+                      <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.omzet)}</p>
+                      <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Transaksi bruto bulan berjalan</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
+                      <TrendingUp className="h-5 w-5" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 to-orange-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
-                <CardContent className="p-5 flex items-center justify-between gap-4">
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Profit Bersih Bulan Ini</p>
-                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.profit)}</p>
-                    <div className="pt-2 flex flex-col gap-1 text-[10.5px] border-t border-zinc-100 dark:border-zinc-800 border-dashed mt-2">
-                      <div className="flex justify-between gap-2">
-                        <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><Clock className="h-3 w-3" /> Pending</span>
-                        <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_pending)}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400"><Truck className="h-3 w-3" /> Diproses</span>
-                        <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_processing)}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="flex items-center gap-1.5 text-red-500 dark:text-red-400"><XCircle className="h-3 w-3" /> Gagal / Batal</span>
-                        <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_cancelled ?? 0)}</span>
+                <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 to-orange-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+                  <CardContent className="p-5 flex items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Profit Bersih Bulan Ini</p>
+                      <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.profit)}</p>
+                      <div className="pt-2 flex flex-col gap-1 text-[10.5px] border-t border-zinc-100 dark:border-zinc-800 border-dashed mt-2">
+                        <div className="flex justify-between gap-2">
+                          <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><Clock className="h-3 w-3" /> Pending</span>
+                          <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_pending)}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400"><Truck className="h-3 w-3" /> Diproses</span>
+                          <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_processing)}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="flex items-center gap-1.5 text-red-500 dark:text-red-400"><XCircle className="h-3 w-3" /> Gagal / Batal</span>
+                          <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_cancelled ?? 0)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-100/50 dark:border-amber-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
-                    <DollarSign className="h-5 w-5" />
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-100/50 dark:border-amber-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
+                      <DollarSign className="h-5 w-5" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
-                <CardContent className="p-5 flex items-center justify-between gap-4">
-                  <div className="space-y-1 min-w-0">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Saldo Kas Berjalan</p>
-                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.kas)}</p>
-                    <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Total saldo semua rekening aktif</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-100/50 dark:border-purple-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
-                    <Wallet className="h-5 w-5" />
-                  </div>
-                </CardContent>
-              </Card>
+                <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+                  <CardContent className="p-5 flex items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Saldo Kas Berjalan</p>
+                      <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.kas)}</p>
+                      <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Total saldo semua rekening aktif</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-100/50 dark:border-purple-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
+                      <Wallet className="h-5 w-5" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500 to-red-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
-                <CardContent className="p-5 flex items-center justify-between gap-4">
-                  <div className="space-y-1 min-w-0">
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Hutang Produsen</p>
-                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.hutang)}</p>
-                    <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Sisa tagihan produsen belum lunas</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-100/50 dark:border-rose-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
-                    <AlertCircle className="h-5 w-5" />
-                  </div>
-                </CardContent>
-              </Card>
+                <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500 to-red-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
+                  <CardContent className="p-5 flex items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Hutang Produsen</p>
+                      <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.hutang)}</p>
+                      <p className="text-[10.5px] text-zinc-400 dark:text-zinc-500">Sisa tagihan produsen belum lunas</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-100/50 dark:border-rose-500/20 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110">
+                      <AlertCircle className="h-5 w-5" />
+                    </div>
+                  </CardContent>
+                </Card>
             </div>
 
             <div className="grid gap-4 md:grid-cols-7">

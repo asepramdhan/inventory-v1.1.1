@@ -54,6 +54,14 @@ export default function Supplies({ supplies, logs, summary, filters }: { supplie
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'create') {
+      setIsSheetOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Sync filters to search/status changes (Debounce / trigger on search change)
   useEffect(() => {
     if (isFirstMount.current) {
