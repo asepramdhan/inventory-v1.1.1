@@ -33,83 +33,97 @@ const mainNavItems: NavItem[] = [
     }
 ];
 
-const analysisItems: NavItem[] = [
+const transactionGroupItems: NavItem[] = [
     {
-        title: 'Analisa Margin',
-        href: MarginAnalysisController.index(),
+        title: 'Analisa & Keuangan',
+        href: '#',
         icon: ChartBar,
+        items: [
+            {
+                title: 'Analisa Margin',
+                href: MarginAnalysisController.index(),
+            },
+            {
+                title: 'Laporan Laba Rugi',
+                href: '/finance/profit-loss',
+            },
+            {
+                title: 'Mutasi Kas',
+                href: FinancialMutationController.index(),
+            }
+        ]
     },
     {
-        title: 'Transaksi',
-        href: TransactionController.index(),
+        title: 'Penjualan & Gudang',
+        href: '#',
         icon: ShoppingBagIcon,
-    },
-    {
-        title: 'Stasiun Packing',
-        href: '/finance/transactions/packing-station',
-        icon: Camera,
-    },
-    {
-        title: 'Iklan & Affiliasi',
-        href: AdsAffiliateController.index(),
-        icon: Megaphone,
-    },
-    {
-        title: 'Mutasi Kas',
-        href: FinancialMutationController.index(),
-        icon: ArrowRightLeft,
-    },
-    {
-        title: 'Laporan Laba Rugi',
-        href: '/finance/profit-loss',
-        icon: DollarSign,
-    },
+        items: [
+            {
+                title: 'Riwayat Transaksi',
+                href: TransactionController.index(),
+            },
+            {
+                title: 'Stasiun Packing',
+                href: '/finance/transactions/packing-station',
+            },
+            {
+                title: 'Iklan & Affiliasi',
+                href: AdsAffiliateController.index(),
+            }
+        ]
+    }
 ];
 
-const oprationItems: NavItem[] = [
+const inventoryGroupItems: NavItem[] = [
     {
-        title: 'Faktur Produsen',
-        href: ProducerStockController.index(),
-        icon: PackagePlus,
-    },
-    {
-        title: 'Stok & Produk',
-        href: ProductController.index(),
+        title: 'Manajemen Stok',
+        href: '#',
         icon: Box,
-    },
-    {
-        title: 'Bahan Operasional',
-        href: OperationalSupplyController.index(),
-        icon: ClipboardList,
-    },
+        items: [
+            {
+                title: 'Stok & Produk',
+                href: ProductController.index(),
+            },
+            {
+                title: 'Faktur Produsen',
+                href: ProducerStockController.index(),
+            },
+            {
+                title: 'Bahan Operasional',
+                href: OperationalSupplyController.index(),
+            }
+        ]
+    }
 ];
 
-const masterDataItems: NavItem[] = [
+const systemGroupItems: NavItem[] = [
     {
-        title: 'Profil Produsen',
-        href: ProducerController.index(),
-        icon: Users,
-    },
-    {
-        title: 'Kategori Produk',
-        href: CategoryController.index(),
-        icon: Tags,
-    },
-    {
-        title: 'Daftar Toko',
-        href: StoreController.index(),
-        icon: Store,
-    },
-    {
-        title: 'Daftar Pelanggan',
-        href: '/master-data/customers',
-        icon: Users,
-    },
-    {
-        title: 'Backup Database',
-        href: '/master-data/backups',
+        title: 'Master & Sistem',
+        href: '#',
         icon: Database,
-    },
+        items: [
+            {
+                title: 'Daftar Pelanggan',
+                href: '/master-data/customers',
+            },
+            {
+                title: 'Profil Produsen',
+                href: ProducerController.index(),
+            },
+            {
+                title: 'Kategori Produk',
+                href: CategoryController.index(),
+            },
+            {
+                title: 'Daftar Toko',
+                href: StoreController.index(),
+            },
+            {
+                title: 'Backup Database',
+                href: '/master-data/backups',
+            }
+        ]
+    }
 ];
 
 // const footerNavItems: NavItem[] = [
@@ -141,11 +155,10 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="py-2">
-                {/* Panggil NavMain untuk masing-masing grup dan berikan labelnya */}
                 <NavMain items={mainNavItems} label="Utama" />
-                <NavMain items={analysisItems} label="Keuangan & Analisa" />
-                <NavMain items={oprationItems} label="Stok & Pemasukan" />
-                <NavMain items={masterDataItems} label="Master Data" />
+                <NavMain items={transactionGroupItems} label="Keuangan & Analisa" />
+                <NavMain items={inventoryGroupItems} label="Operasional & Stok" />
+                <NavMain items={systemGroupItems} label="Master Data & Sistem" />
             </SidebarContent>
 
             <SidebarFooter>

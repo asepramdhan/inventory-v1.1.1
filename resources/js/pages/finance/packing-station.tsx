@@ -30,6 +30,7 @@ export default function PackingStation() {
   const inputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isMirrored, setIsMirrored] = useState<boolean>(false);
+  const [isFocusLocked, setIsFocusLocked] = useState<boolean>(true);
 
   // Auto-detect front camera for mirroring
   useEffect(() => {
@@ -171,13 +172,14 @@ export default function PackingStation() {
 
   // Keep barcode input focused
   useEffect(() => {
+    if (!isFocusLocked) return;
     const focusTimer = setInterval(() => {
       if (document.activeElement?.tagName !== 'INPUT') {
         inputRef.current?.focus();
       }
     }, 1000);
     return () => clearInterval(focusTimer);
-  }, []);
+  }, [isFocusLocked]);
 
   // Capture canvas frame from video
   const captureFrame = (): Promise<Blob | null> => {
@@ -447,7 +449,7 @@ export default function PackingStation() {
                     placeholder="Scan barcode di sini..."
                     value={barcode}
                     onChange={(e) => setBarcode(e.target.value)}
-                    disabled={isProcessing}
+                    readOnly={isProcessing}
                     className="h-12 text-xs font-mono font-bold tracking-wider rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/20 focus-visible:ring-indigo-500 text-center pr-10 focus:outline-none"
                     autoFocus
                   />
@@ -463,6 +465,29 @@ export default function PackingStation() {
                   Proses Dokumen (Enter)
                 </Button>
               </form>
+
+              {/* Mobile Auto Focus control utilities */}
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 px-1">
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="checkbox" 
+                    id="focus-lock-checkbox"
+                    checked={isFocusLocked}
+                    onChange={(e) => setIsFocusLocked(e.target.checked)}
+                    className="rounded border-zinc-300 dark:border-zinc-800 text-indigo-650 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                  />
+                  <label htmlFor="focus-lock-checkbox" className="cursor-pointer font-semibold select-none">
+                    Kunci Fokus Input (Auto-Focus)
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.focus()}
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline font-extrabold"
+                >
+                  Fokus Manual
+                </button>
+              </div>
 
               {/* Status Alert Banner */}
               {statusMessage && (

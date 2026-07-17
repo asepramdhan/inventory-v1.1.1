@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/finance/transactions/{transaction}/upload-proof', [TransactionController::class, 'uploadProof'])->name('transactions.upload-proof');
     Route::delete('/finance/transactions/{transaction}/delete-proof', [TransactionController::class, 'deleteProof'])->name('transactions.delete-proof');
     Route::get('/finance/transactions/packing-station', [TransactionController::class, 'packingStation'])->name('transactions.packing-station');
+    Route::get('/finance/transactions/search-proof', [TransactionController::class, 'searchProof'])->name('transactions.search-proof');
     Route::post('/finance/transactions/barcode-upload-proof', [TransactionController::class, 'uploadProofByBarcode'])->name('transactions.barcode-upload-proof');
 
     Route::get('/finance/mutations', [FinancialMutationController::class, 'index'])->name('mutations.index');

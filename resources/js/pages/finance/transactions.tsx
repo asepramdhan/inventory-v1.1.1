@@ -933,6 +933,15 @@ export default function Transactions({ transactions, storesList, productsList, c
     window.addEventListener('keydown', handleModalKeyDown);
     return () => window.removeEventListener('keydown', handleModalKeyDown);
   }, [isImportStoreModalOpen, selectedStoreIndex, storesList]);
+
+  // Auto-scroll when selectedStoreIndex changes to keep active item in view
+  useEffect(() => {
+    if (!isImportStoreModalOpen) return;
+    const activeEl = document.getElementById(`store-option-${selectedStoreIndex}`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedStoreIndex, isImportStoreModalOpen]);
   const shopeeFileInputRef = useRef<HTMLInputElement>(null);
   const statusFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -2924,6 +2933,7 @@ export default function Transactions({ transactions, storesList, productsList, c
                 return (
                   <button
                     key={s.id}
+                    id={`store-option-${idx}`}
                     onClick={() => {
                       setShopeeStoreId(s.id.toString());
                       setIsImportStoreModalOpen(false);

@@ -1025,4 +1025,45 @@ class TransactionController extends Controller
             'message' => 'Gagal menerima file gambar.'
         ], 400);
     }
+
+    public function searchProof(Request $request)
+    {
+        $query = $request->query('query');
+        if (empty($query)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan masukkan nomor resi atau pesanan.'
+            ], 400);
+        }
+
+        $transaction = Transaction::where('user_id', \Illuminate\Support\Facades\Auth::user()->id)
+            ->where(function ($q) use ($query) {
+                $q->where('invoice_number', $query)
+                  ->orWhere('waybill_number', $query);
+            })
+            ->with('store')
+            ->first();
+
+        if (!$transaction) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bukti packing tidak ditemukan untuk nomor "' . $query . '".'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'transaction' => [
+                'id' => $transaction->id,
+                'invoice_number' => $transaction->invoice_number,
+                'waybill_number' => $transaction->waybill_number ?? '-',
+                'store_name' => $transaction->store ? $transaction->store->name : 'Toko',
+                'platform' => $transaction->store ? $transaction->store->platform : 'Marketplace',
+                'package_proof' => $transaction->package_proof ? asset('storage/' . $transaction->package_proof) : null,
+                'transaction_date' => $transaction->transaction_date,
+                'grand_total' => $transaction->grand_total,
+                'status' => $transaction->status,
+            ]
+        ]);
+    }
 }
