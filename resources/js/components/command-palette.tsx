@@ -18,7 +18,8 @@ import {
   X,
   FileSpreadsheet,
   Download,
-  Upload
+  Upload,
+  Camera
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -62,9 +63,10 @@ const commands: CommandItem[] = [
   { id: 'act-new-producer', title: 'Tambah Profil Produsen Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/producers', action: 'create' },
   { id: 'act-new-stock-in', title: 'Catat Faktur / Stok Masuk Produsen', category: 'Aksi Cepat', icon: Plus, url: '/operational/producer-stocks', action: 'create' },
   { id: 'act-new-supply', title: 'Tambah Bahan Operasional Baru', category: 'Aksi Cepat', icon: Plus, url: '/operational/supplies', action: 'create' },
-  { id: 'act-run-backup', title: 'Jalankan Backup Database Sekarang', category: 'Aksi Cepat', icon: Database, url: '/master-data/backups', action: 'run' },
-  { id: 'act-import-shopee', title: 'Impor Excel Pesanan Shopee', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-shopee' },
-  { id: 'act-import-status', title: 'Impor Excel Status Pesanan', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-status' },
+  { id: 'act-run-backup', title: 'Jalankan Backup Database Sekarang', category: 'Aksi Cepat', icon: Database, url: '/master-data/backups', action: 'run', shortcut: 'B' },
+  { id: 'act-import-shopee', title: 'Impor Excel Pesanan Shopee', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-shopee', shortcut: 'I' },
+  { id: 'act-import-status', title: 'Impor Excel Status Pesanan', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-status', shortcut: 'U' },
+  { id: 'act-packing-station', title: 'Buka Stasiun Packing Otomatis', category: 'Aksi Cepat', icon: Camera, url: '/finance/transactions/packing-station', shortcut: 'P' },
   { id: 'act-export-profit', title: 'Unduh Excel Laporan Laba Rugi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/profit-loss/export' },
   { id: 'act-export-tx', title: 'Unduh Excel Riwayat Transaksi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/transactions/export' }
 ];
@@ -76,17 +78,44 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Keyboard shortcut listener Ctrl+K
+  // Keyboard shortcut listener Ctrl+K & Global hotkeys (I, U, B, P)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInputActive = target.tagName === 'INPUT' || 
+                            target.tagName === 'TEXTAREA' || 
+                            target.isContentEditable;
+      
+      // Ctrl+K to toggle command palette
       if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setIsOpen((prev) => !prev);
+        return;
+      }
+
+      // Ignore other shortcuts when typing in inputs/textareas
+      if (isInputActive) return;
+
+      // Ignore other shortcuts if the command palette is open
+      if (isOpen) return;
+
+      if (e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        router.visit('/finance/transactions?action=import-shopee');
+      } else if (e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        router.visit('/finance/transactions?action=import-status');
+      } else if (e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        router.visit('/master-data/backups?action=run');
+      } else if (e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        router.visit('/finance/transactions/packing-station');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isOpen]);
 
   // Auto-focus input when opened
   useEffect(() => {

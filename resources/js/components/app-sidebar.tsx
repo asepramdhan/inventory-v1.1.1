@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ArrowRightLeft, Box, ChartBar, ClipboardList, Database, DollarSign, LayoutGrid, Megaphone, PackagePlus, ShoppingBagIcon, Store, Tags, Users } from 'lucide-react';
+import { ArrowRightLeft, Box, ChartBar, ClipboardList, Database, DollarSign, LayoutGrid, Megaphone, PackagePlus, ShoppingBagIcon, Store, Tags, Users, Camera } from 'lucide-react';
 import AdsAffiliateController from '@/actions/App/Http/Controllers/AdsAffiliateController';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
 import FinancialMutationController from '@/actions/App/Http/Controllers/FinancialMutationController';
@@ -43,6 +43,11 @@ const analysisItems: NavItem[] = [
         title: 'Transaksi',
         href: TransactionController.index(),
         icon: ShoppingBagIcon,
+    },
+    {
+        title: 'Stasiun Packing',
+        href: '/finance/transactions/packing-station',
+        icon: Camera,
     },
     {
         title: 'Iklan & Affiliasi',

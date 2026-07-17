@@ -3,7 +3,7 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 /* eslint-disable curly */
 import { Form, Head, router } from '@inertiajs/react';
-import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload, Info, FileText, MessageCircle } from 'lucide-react';
+import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload, Info, FileText, MessageCircle, Store } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -100,6 +100,7 @@ function TransactionsTableSkeleton() {
               <TableHead className="text-xs">Total Bayar</TableHead>
               <TableHead className="text-xs">Biaya Admin</TableHead>
               <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs">Bukti Paket</TableHead>
               <TableHead className="text-xs text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -136,6 +137,7 @@ function TransactionsTableSkeleton() {
                 </TableCell>
                 <TableCell><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-20" /></TableCell>
                 <TableCell><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-16" /></TableCell>
+                <TableCell><div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-16" /></TableCell>
                 <TableCell><div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-16" /></TableCell>
                 <TableCell className="text-right">
                   <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-700 rounded-lg ml-auto" />
@@ -895,6 +897,42 @@ export default function Transactions({ transactions, storesList, productsList, c
   const [shopeeUploadProcessing, setShopeeUploadProcessing] = useState(false);
   const [shopeeStoreId, setShopeeStoreId] = useState<string>('');
   const [isImportStoreModalOpen, setIsImportStoreModalOpen] = useState(false);
+  const [selectedStoreIndex, setSelectedStoreIndex] = useState<number>(0);
+
+  // Reset selectedStoreIndex when modal opens
+  useEffect(() => {
+    if (isImportStoreModalOpen) {
+      setSelectedStoreIndex(0);
+    }
+  }, [isImportStoreModalOpen]);
+
+  // Keyboard navigation for store selection modal
+  useEffect(() => {
+    if (!isImportStoreModalOpen || !storesList || storesList.length === 0) return;
+
+    const handleModalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedStoreIndex((prev) => (prev + 1) % storesList.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedStoreIndex((prev) => (prev - 1 + storesList.length) % storesList.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const activeStore = storesList[selectedStoreIndex];
+        if (activeStore) {
+          setShopeeStoreId(activeStore.id.toString());
+          setIsImportStoreModalOpen(false);
+          setTimeout(() => {
+            shopeeFileInputRef.current?.click();
+          }, 150);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleModalKeyDown);
+    return () => window.removeEventListener('keydown', handleModalKeyDown);
+  }, [isImportStoreModalOpen, selectedStoreIndex, storesList]);
   const shopeeFileInputRef = useRef<HTMLInputElement>(null);
   const statusFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -999,6 +1037,31 @@ export default function Transactions({ transactions, storesList, productsList, c
 
   const handleRemoveItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleUploadProof = (file: File) => {
+    const formData = new FormData();
+    formData.append('package_proof', file);
+    
+    router.post(`/finance/transactions/${selectedTransaction.id}/upload-proof`, formData, {
+      forceFormData: true,
+      onSuccess: () => {
+        toast.success('Bukti packing berhasil diunggah!');
+      },
+      onError: (errors: any) => {
+        toast.error(errors.package_proof || 'Gagal mengunggah bukti.');
+      }
+    });
+  };
+
+  const handleDeleteProof = () => {
+    if (!confirm('Apakah Anda yakin ingin menghapus bukti packing ini?')) return;
+    
+    router.delete(`/finance/transactions/${selectedTransaction.id}/delete-proof`, {
+      onSuccess: () => {
+        toast.success('Bukti packing berhasil dihapus.');
+      }
+    });
   };
 
   const handleDiscountChange = (value: string) => {
@@ -2010,13 +2073,14 @@ export default function Transactions({ transactions, storesList, productsList, c
                     <TableHead className="text-xs">Total Bayar</TableHead>
                     <TableHead className="text-xs">Biaya Admin</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Bukti Paket</TableHead>
                     <TableHead className="text-xs text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {transactions.data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8">
+                      <TableCell colSpan={11} className="text-center py-8">
                         <Empty>
                           <EmptyHeader>
                             <EmptyMedia variant="icon"><ShoppingBag /></EmptyMedia>
@@ -2169,6 +2233,32 @@ export default function Transactions({ transactions, storesList, productsList, c
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
+                            </TableCell>
+
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {tx.package_proof ? (
+                                <div 
+                                  onClick={() => {
+                                    setSelectedTransaction(tx);
+                                    setIsSheetOpen(true);
+                                  }}
+                                  className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold hover:underline cursor-pointer text-xs"
+                                >
+                                  <CheckCircle className="h-4 w-4 shrink-0" />
+                                  <span>Ada Bukti</span>
+                                </div>
+                              ) : (
+                                <div 
+                                  onClick={() => {
+                                    setSelectedTransaction(tx);
+                                    setIsSheetOpen(true);
+                                  }}
+                                  className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500 font-medium hover:text-indigo-650 dark:hover:text-indigo-400 cursor-pointer text-xs"
+                                >
+                                  <XCircle className="h-4 w-4 shrink-0 animate-pulse" />
+                                  <span>Belum Ada</span>
+                                </div>
+                              )}
                             </TableCell>
 
                             <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -2636,6 +2726,88 @@ export default function Transactions({ transactions, storesList, productsList, c
                   </Select>
                 </div>
 
+                {/* BUKTI PACKING / KIRIM PAKET */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Bukti Packing / Kirim Paket</Label>
+                    {selectedTransaction.package_proof && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleDeleteProof}
+                        className="h-6 text-[10px] font-bold text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 px-2 rounded-lg flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="h-3 w-3" /> Hapus Bukti
+                      </Button>
+                    )}
+                  </div>
+
+                  {selectedTransaction.package_proof ? (
+                    <div className="group relative rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden aspect-[4/3] bg-muted shadow-sm hover:shadow-md transition-all duration-300">
+                      <img 
+                        src={`/storage/${selectedTransaction.package_proof}`} 
+                        alt="Bukti Packing" 
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Premium Hover Zoom Overlay */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-all duration-300 backdrop-blur-xs">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="secondary" 
+                              size="sm" 
+                              className="h-8 text-xs font-semibold gap-1 hover:scale-105 transition-transform"
+                            >
+                              <EyeIcon className="h-3.5 w-3.5" />
+                              Perbesar Foto
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-3xl p-1 bg-black border-none rounded-2xl overflow-hidden shadow-2xl">
+                            <div className="relative w-full max-h-[85vh] bg-zinc-950 flex items-center justify-center">
+                              <img 
+                                src={`/storage/${selectedTransaction.package_proof}`} 
+                                alt="Detail Bukti Packing" 
+                                className="max-w-full max-h-[85vh] object-contain"
+                              />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input 
+                        type="file" 
+                        id="proof-upload-input" 
+                        accept="image/png, image/jpeg, image/jpg, image/webp" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleUploadProof(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      <label 
+                        htmlFor="proof-upload-input"
+                        className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-xl cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 transition-all duration-300 text-center space-y-2 group"
+                      >
+                        <div className="h-10 w-10 rounded-full bg-zinc-100 dark:bg-zinc-850 flex items-center justify-center text-zinc-500 dark:text-zinc-400 group-hover:scale-110 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-all duration-300">
+                          <Upload className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            Unggah Bukti Packing
+                          </p>
+                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
+                            Format JPG, PNG, WebP (Maks. 5MB)
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <span className="text-xs font-semibold text-foreground">Daftar Item Dibeli ({selectedTransaction.items?.length || 0})</span>
                   <div className="border rounded-xl overflow-hidden">
@@ -2733,55 +2905,107 @@ export default function Transactions({ transactions, storesList, productsList, c
 
       {/* MODAL DIALOG PILIH TOKO UNTUK IMPOR */}
       <Dialog open={isImportStoreModalOpen} onOpenChange={setIsImportStoreModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl">
+        <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-              <Upload className="h-5 w-5 text-indigo-500" />
+              <Upload className="h-5 w-5 text-indigo-500 animate-pulse" />
               Pilih Toko Tujuan Impor
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Pilih toko asal pesanan Shopee yang akan diimpor dari berkas Excel.
+              Pilih toko asal pesanan Shopee di bawah untuk meluncurkan impor berkas Excel.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">Toko Penerima</Label>
-              <Select value={shopeeStoreId} onValueChange={setShopeeStoreId}>
-                <SelectTrigger className="w-full text-xs">
-                  <SelectValue placeholder="Pilih Toko" />
-                </SelectTrigger>
-                <SelectContent>
-                  {storesList?.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id.toString()}>
-                      {s.name} ({s.platform})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="py-2">
+            <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-1">
+              {storesList?.map((s: any, idx: number) => {
+                const isShopee = s.platform?.toLowerCase() === 'shopee';
+                const isActive = idx === selectedStoreIndex;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      setShopeeStoreId(s.id.toString());
+                      setIsImportStoreModalOpen(false);
+                      setTimeout(() => {
+                        shopeeFileInputRef.current?.click();
+                      }, 150);
+                    }}
+                    className={`group relative flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-300 w-full hover:-translate-y-0.5 active:translate-y-0 ${
+                      isActive 
+                        ? isShopee 
+                          ? 'border-orange-500 bg-orange-50/20 ring-2 ring-orange-500/30 dark:border-orange-500 dark:bg-orange-950/20 shadow-md' 
+                          : 'border-indigo-500 bg-zinc-550/10 ring-2 ring-indigo-550/20 dark:border-indigo-500 dark:bg-zinc-800/30 shadow-md'
+                        : isShopee 
+                          ? 'border-orange-200 bg-orange-50/15 hover:border-orange-500 hover:bg-orange-50/25 dark:border-orange-950/40 dark:bg-orange-950/5 dark:hover:border-orange-500/80 dark:hover:bg-orange-950/15 shadow-sm hover:shadow-md' 
+                          : 'border-zinc-200 bg-zinc-50/20 hover:border-indigo-500 hover:bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-900/10 dark:hover:border-indigo-500 dark:hover:bg-zinc-800/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {/* Platform Icon Badge */}
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-300 ${
+                        isActive
+                          ? isShopee
+                            ? 'bg-orange-500 text-white border-orange-500'
+                            : 'bg-indigo-650 text-white border-indigo-500'
+                          : isShopee
+                            ? 'bg-orange-500/10 text-orange-600 border-orange-200/50 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-900/40 group-hover:scale-105 group-hover:bg-orange-500 group-hover:text-white'
+                            : 'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-400 dark:border-zinc-700/60 group-hover:scale-105 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-500'
+                      }`}>
+                        <Store className="h-5 w-5" />
+                      </div>
+
+                      {/* Store Details */}
+                      <div className="min-w-0 space-y-0.5">
+                        <p className={`text-xs font-black transition-colors truncate ${
+                          isActive
+                            ? isShopee ? 'text-orange-600 dark:text-orange-400' : 'text-indigo-650 dark:text-indigo-400'
+                            : 'text-zinc-900 dark:text-zinc-50 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                        }`}>
+                          {s.name}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
+                          {s.transactions_count ?? 0} Transaksi Terdaftar
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Platform Badge */}
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                        isActive
+                          ? isShopee
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-indigo-650 text-white'
+                          : isShopee
+                            ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20 dark:bg-orange-500/20 dark:text-orange-400'
+                            : 'bg-zinc-100 text-zinc-650 dark:bg-zinc-800 dark:text-zinc-300'
+                      }`}>
+                        {s.platform}
+                      </span>
+                      {/* Chevron Arrow Icon */}
+                      <span className={`transition-all duration-300 font-bold text-sm ${
+                        isActive 
+                          ? isShopee ? 'text-orange-500 scale-110 translate-x-0.5' : 'text-indigo-500 scale-110 translate-x-0.5'
+                          : 'text-zinc-300 dark:text-zinc-750 group-hover:text-indigo-500 group-hover:translate-x-0.5'
+                      }`}>
+                        →
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <DialogFooter className="flex sm:justify-end gap-2">
+          <DialogFooter className="flex sm:justify-end">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setIsImportStoreModalOpen(false)}
-              className="text-xs"
+              className="text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
             >
               Batal
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setIsImportStoreModalOpen(false);
-                setTimeout(() => {
-                  shopeeFileInputRef.current?.click();
-                }, 150);
-              }}
-              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
-            >
-              Pilih Berkas Excel
             </Button>
           </DialogFooter>
         </DialogContent>

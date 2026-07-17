@@ -912,4 +912,117 @@ class TransactionController extends Controller
             throw ValidationException::withMessages(['file' => 'Gagal membaca file Excel: ' . $e->getMessage()]);
         }
     }
+
+    public function uploadProof(Request $request, Transaction $transaction)
+    {
+        if ($transaction->user_id !== Auth::user()->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'package_proof' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120'
+        ]);
+
+        if ($request->hasFile('package_proof')) {
+            if ($transaction->package_proof) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($transaction->package_proof);
+            }
+
+            $path = $request->file('package_proof')->store('package_proofs', 'public');
+            
+            $transaction->update([
+                'package_proof' => $path
+            ]);
+
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => 'Bukti packing paket berhasil diunggah!'
+            ]);
+        }
+
+        return back();
+    }
+
+    public function deleteProof(Transaction $transaction)
+    {
+        if ($transaction->user_id !== Auth::user()->id) {
+            abort(403);
+        }
+
+        if ($transaction->package_proof) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($transaction->package_proof);
+            
+            $transaction->update([
+                'package_proof' => null
+            ]);
+
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => 'Bukti packing berhasil dihapus.'
+            ]);
+        }
+
+        return back();
+    }
+
+    public function packingStation()
+    {
+        return Inertia::render('finance/packing-station');
+    }
+
+    public function uploadProofByBarcode(Request $request)
+    {
+        $request->validate([
+            'barcode' => 'required|string',
+            'package_proof' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120'
+        ]);
+
+        $barcode = $request->input('barcode');
+
+        $transaction = Transaction::where('user_id', Auth::user()->id)
+            ->where(function ($query) use ($barcode) {
+                $query->where('invoice_number', $barcode)
+                      ->orWhere('waybill_number', $barcode);
+            })
+            ->with('store')
+            ->first();
+
+        if (!$transaction) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No. Pesanan atau Resi "' . $barcode . '" tidak ditemukan di database.'
+            ], 404);
+        }
+
+        if ($request->hasFile('package_proof')) {
+            if ($transaction->package_proof) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($transaction->package_proof);
+            }
+
+            $path = $request->file('package_proof')->store('package_proofs', 'public');
+            
+            $transaction->update([
+                'package_proof' => $path
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bukti packing berhasil direkam!',
+                'transaction' => [
+                    'id' => $transaction->id,
+                    'invoice_number' => $transaction->invoice_number,
+                    'waybill_number' => $transaction->waybill_number,
+                    'package_proof' => $path,
+                    'store_name' => $transaction->store ? $transaction->store->name : 'Toko',
+                    'platform' => $transaction->store ? $transaction->store->platform : 'Marketplace',
+                    'updated_at' => $transaction->updated_at->toIso8601String()
+                ]
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal menerima file gambar.'
+        ], 400);
+    }
 }

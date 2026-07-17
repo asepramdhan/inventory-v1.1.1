@@ -36,6 +36,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/finance/transactions/import-shopee', [TransactionController::class, 'importShopeeOrders'])->name('transactions.import-shopee');
     Route::patch('/finance/transactions/bulk-status', [TransactionController::class, 'bulkStatusUpdate'])->name('transactions.bulk-status');
     Route::post('/finance/transactions/bulk-delete', [TransactionController::class, 'bulkDelete'])->name('transactions.bulk-delete');
+    Route::post('/finance/transactions/{transaction}/upload-proof', [TransactionController::class, 'uploadProof'])->name('transactions.upload-proof');
+    Route::delete('/finance/transactions/{transaction}/delete-proof', [TransactionController::class, 'deleteProof'])->name('transactions.delete-proof');
+    Route::get('/finance/transactions/packing-station', [TransactionController::class, 'packingStation'])->name('transactions.packing-station');
+    Route::post('/finance/transactions/barcode-upload-proof', [TransactionController::class, 'uploadProofByBarcode'])->name('transactions.barcode-upload-proof');
 
     Route::get('/finance/mutations', [FinancialMutationController::class, 'index'])->name('mutations.index');
     Route::post('/finance/mutations', [FinancialMutationController::class, 'store'])->name('mutations.store');
