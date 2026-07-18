@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import { useKeepAwake } from 'expo-keep-awake';
 
 interface ScannedPackage {
   id: string;
@@ -35,6 +36,7 @@ interface ScannedPackage {
 }
 
 export default function App() {
+  useKeepAwake();
   const [permission, requestPermission] = useCameraPermissions();
   const [serverUrl, setServerUrl] = useState('');
   const [email, setEmail] = useState('');
@@ -59,9 +61,18 @@ export default function App() {
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [showTips, setShowTips] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [mirrorPreview, setMirrorPreview] = useState(false);
+  const [showManualInput, setShowManualInput] = useState(false);
 
   const cameraRef = useRef<any>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const statusFadeAnim = useRef(new Animated.Value(0)).current;
+  const statusTimeoutRef = useRef<any>(null);
+
+  const translateY = statusFadeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-20, 0]
+  });
 
   // Load saved credentials on startup
   useEffect(() => {
@@ -75,8 +86,10 @@ export default function App() {
         const savedToken = await AsyncStorage.getItem('@auth_token');
         const savedName = await AsyncStorage.getItem('@user_name');
         const savedHistory = await AsyncStorage.getItem('@scan_history');
+        const savedMirror = await AsyncStorage.getItem('@mirror_preview');
 
         if (savedUrl) setServerUrl(savedUrl);
+        if (savedMirror) setMirrorPreview(savedMirror === 'true');
         if (savedToken) {
           setToken(savedToken);
           setScreen('MAIN');
@@ -115,6 +128,41 @@ export default function App() {
     } else {
       Vibration.vibrate([0, 100, 80, 200]);
     }
+  };
+
+  const showStatus = (text: string, type: 'success' | 'error', duration = 4000, keepAlive = false) => {
+    setStatusMsg({ text, type });
+    
+    // Animate fade-in and slide-down (300ms)
+    statusFadeAnim.setValue(0);
+    Animated.timing(statusFadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    if (statusTimeoutRef.current) {
+      clearTimeout(statusTimeoutRef.current);
+    }
+
+    if (!keepAlive) {
+      statusTimeoutRef.current = setTimeout(() => {
+        // Animate fade-out (400ms)
+        Animated.timing(statusFadeAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }).start(() => {
+          setStatusMsg(null);
+        });
+      }, duration);
+    }
+  };
+
+  const toggleMirror = async () => {
+    const nextVal = !mirrorPreview;
+    setMirrorPreview(nextVal);
+    await AsyncStorage.setItem('@mirror_preview', nextVal ? 'true' : 'false');
   };
 
   const fetchStats = async () => {
@@ -280,10 +328,12 @@ export default function App() {
           quality: 0.8,
         });
         photoUri = photo.uri;
+        // Immediate capture success status message (stays until overwrite by upload response)
+        showStatus('📸 Foto berhasil diambil. Mengirim ke server...', 'success', 0, true);
       }
     } catch (err) {
       console.error('Failed to capture frame:', err);
-      setStatusMsg({ text: 'Gagal mengambil gambar dari kamera.', type: 'error' });
+      showStatus('Gagal mengambil gambar dari kamera.', 'error');
       triggerHaptic(false);
       playBeep(false);
       setIsUploading(false);
@@ -312,7 +362,7 @@ export default function App() {
 
       const data = await response.json();
       if (response.ok && data.success) {
-        setStatusMsg({ text: `Sukses menyimpan resi: ${targetBarcode}`, type: 'success' });
+        showStatus(`Sukses menyimpan resi: ${targetBarcode}`, 'success');
         triggerHaptic(true);
         playBeep(true);
         fetchStats();
@@ -332,14 +382,14 @@ export default function App() {
         setHistory(updatedHistory);
         await AsyncStorage.setItem('@scan_history', JSON.stringify(updatedHistory));
       } else {
-        setStatusMsg({ text: data.message || 'Resi tidak ditemukan.', type: 'error' });
+        showStatus(data.message || 'Resi tidak ditemukan.', 'error');
         triggerHaptic(false);
         playBeep(false);
         saveFailedScan(targetBarcode, data.message || 'Resi tidak terdaftar.');
       }
     } catch (err) {
       console.error(err);
-      setStatusMsg({ text: 'Koneksi error, gagal mengunggah.', type: 'error' });
+      showStatus('Koneksi error, gagal mengunggah.', 'error');
       triggerHaptic(false);
       playBeep(false);
       saveFailedScan(targetBarcode, 'Masalah koneksi internet.');
@@ -369,6 +419,12 @@ export default function App() {
   const clearHistory = async () => {
     setHistory([]);
     await AsyncStorage.removeItem('@scan_history');
+  };
+
+  const deleteHistoryItem = async (itemId: string) => {
+    const updated = history.filter((item) => item.id !== itemId);
+    setHistory(updated);
+    await AsyncStorage.setItem('@scan_history', JSON.stringify(updated));
   };
 
   if (!permission) {
@@ -513,7 +569,10 @@ export default function App() {
               {/* Full Screen Camera in the background */}
               <CameraView
                 ref={cameraRef}
-                style={StyleSheet.absoluteFill}
+                style={[
+                  StyleSheet.absoluteFill,
+                  mirrorPreview && { transform: [{ scaleX: -1 }] }
+                ]}
                 facing={facing}
                 enableTorch={flash}
                 barcodeScannerSettings={{
@@ -525,6 +584,42 @@ export default function App() {
 
               {/* Target Reticle box overlay (Middle) */}
               <View style={styles.overlayContainer}>
+                {/* Floating Status Banner */}
+                {statusMsg && (
+                  <Animated.View style={[
+                    styles.floatingStatusBanner, 
+                    statusMsg.type === 'success' ? { backgroundColor: 'rgba(21, 128, 61, 0.95)' } : { backgroundColor: 'rgba(185, 28, 28, 0.95)' },
+                    {
+                      opacity: statusFadeAnim,
+                      transform: [{ translateY }]
+                    }
+                  ]}>
+                    <Text style={styles.floatingStatusText}>{statusMsg.text}</Text>
+                  </Animated.View>
+                )}
+
+                {/* Floating Auto-Foto Toggle */}
+                {/* Floating Auto-Foto Toggle Button */}
+                <TouchableOpacity 
+                  style={[
+                    styles.floatingAutoToggleBtn,
+                    autoCapture ? styles.autoActiveBtn : styles.autoInactiveBtn
+                  ]}
+                  onPress={() => setAutoCapture(!autoCapture)}
+                >
+                  <Ionicons 
+                    name={autoCapture ? "flash" : "flash-outline"} 
+                    size={11} 
+                    color={autoCapture ? "#22c55e" : "#a1a1aa"} 
+                  />
+                  <Text style={[
+                    styles.floatingAutoToggleText,
+                    autoCapture ? { color: '#22c55e' } : { color: '#a1a1aa' }
+                  ]}>
+                    Auto
+                  </Text>
+                </TouchableOpacity>
+
                 <View style={styles.reticleBox} />
                 <Text style={styles.scanInstruction}>Arahkan barcode ke dalam kotak</Text>
                 {showTips && (
@@ -539,7 +634,7 @@ export default function App() {
                 styles.floatingBottomPanel, 
                 { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 10 : 85 }
               ]}>
-                {/* Toolbar: Flash, Flip Camera, Auto-Foto */}
+                {/* Toolbar: Flash, Flip Camera, Mirror, Manual Toggle */}
                 <View style={styles.bottomToolbar}>
                   <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFlash(!flash)}>
                     <Text style={styles.toolbarBtnText}>{flash ? '⚡ Flash On' : '⚡ Flash Off'}</Text>
@@ -549,23 +644,19 @@ export default function App() {
                     <Text style={styles.toolbarBtnText}>🔄 {facing === 'back' ? 'Belakang' : 'Depan'}</Text>
                   </TouchableOpacity>
 
-                  <View style={styles.autoCaptureRow}>
-                    <Text style={styles.autoCaptureText}>Auto-Foto</Text>
-                    <Switch
-                      value={autoCapture}
-                      onValueChange={setAutoCapture}
-                      trackColor={{ false: '#27272a', true: '#22c55e' }}
-                      thumbColor="#ffffff"
-                    />
-                  </View>
+                  <TouchableOpacity style={styles.toolbarBtn} onPress={toggleMirror}>
+                    <Text style={styles.toolbarBtnText}>🪞 {mirrorPreview ? 'Mirror' : 'Normal'}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.toolbarBtn, showManualInput && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }]} 
+                    onPress={() => setShowManualInput(!showManualInput)}
+                  >
+                    <Text style={styles.toolbarBtnText}>✍️ Manual</Text>
+                  </TouchableOpacity>
                 </View>
 
-                {/* Status Message Display */}
-                {statusMsg && (
-                  <View style={[styles.statusBanner, statusMsg.type === 'success' ? styles.successBg : styles.errorBg]}>
-                    <Text style={styles.statusText}>{statusMsg.text}</Text>
-                  </View>
-                )}
+                {/* Auto-Foto dedicated row is now floating inside the camera view */}
 
                 {/* Manual scan input panel if Auto mode is off */}
                 {!autoCapture && barcode !== '' && (
@@ -586,29 +677,31 @@ export default function App() {
                 )}
 
                 {/* Manual Order Input Form */}
-                <View style={styles.manualInputContainer}>
-                  <TextInput
-                    style={styles.manualInput}
-                    placeholder="Ketik No. Pesanan secara manual..."
-                    placeholderTextColor="#71717a"
-                    value={manualBarcode}
-                    onChangeText={setManualBarcode}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  <TouchableOpacity
-                    style={styles.manualInputBtn}
-                    onPress={() => {
-                      if (manualBarcode.trim()) {
-                        uploadPackageProof(manualBarcode.trim());
-                        setManualBarcode('');
-                      }
-                    }}
-                    disabled={isUploading}
-                  >
-                    <Text style={styles.manualInputBtnText}>Kirim</Text>
-                  </TouchableOpacity>
-                </View>
+                {showManualInput && (
+                  <View style={styles.manualInputContainer}>
+                    <TextInput
+                      style={styles.manualInput}
+                      placeholder="Ketik No. Pesanan secara manual..."
+                      placeholderTextColor="#71717a"
+                      value={manualBarcode}
+                      onChangeText={setManualBarcode}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity
+                      style={styles.manualInputBtn}
+                      onPress={() => {
+                        if (manualBarcode.trim()) {
+                          uploadPackageProof(manualBarcode.trim());
+                          setManualBarcode('');
+                        }
+                      }}
+                      disabled={isUploading}
+                    >
+                      <Text style={styles.manualInputBtnText}>Kirim</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
               </View>
             </TouchableWithoutFeedback>
@@ -617,7 +710,9 @@ export default function App() {
           {activeTab === 'HISTORY' && (
             <View style={styles.tabContent}>
               <View style={styles.tabHeaderRow}>
-                <Text style={styles.tabHeaderTitle}>Riwayat Scan Hari Ini</Text>
+                <Text style={styles.tabHeaderTitle}>
+                  Riwayat Scan Hari Ini {history.length > 0 ? `(${history.length})` : ''}
+                </Text>
                 {history.length > 0 && (
                   <TouchableOpacity onPress={clearHistory}>
                     <Text style={styles.clearText}>Hapus Semua</Text>
@@ -630,7 +725,12 @@ export default function App() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ paddingBottom: 100 }}
                 renderItem={({ item }) => (
-                  <View style={styles.historyItem}>
+                  <View style={[
+                    styles.historyItem,
+                    item.status === 'success' 
+                      ? { borderLeftWidth: 4, borderLeftColor: '#22c55e' } 
+                      : { borderLeftWidth: 4, borderLeftColor: '#ef4444' }
+                  ]}>
                     <View style={styles.historyMain}>
                       <Text style={styles.itemBarcode}>{item.invoice_number}</Text>
                       {item.status === 'success' ? (
@@ -644,7 +744,15 @@ export default function App() {
                         </View>
                       )}
                     </View>
-                    <Text style={styles.itemTime}>{item.scanned_at}</Text>
+                    <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                      <Text style={styles.itemTime}>{item.scanned_at}</Text>
+                      <TouchableOpacity 
+                        onPress={() => deleteHistoryItem(item.id)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#ef4444" style={{ opacity: 0.8 }} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
                 ListEmptyComponent={
@@ -872,6 +980,20 @@ const styles = StyleSheet.create({
   toolbarBtnText: {
     color: '#ffffff',
     fontSize: 11,
+    fontWeight: '700',
+  },
+  autoCaptureDedicatedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(63, 63, 70, 0.2)',
+  },
+  autoCaptureTextDedicated: {
+    color: '#e4e4e7',
+    fontSize: 12,
     fontWeight: '700',
   },
   autoCaptureRow: {
@@ -1292,5 +1414,52 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 11,
     fontWeight: '700',
+  },
+  floatingStatusBanner: {
+    position: 'absolute',
+    top: 100, // Floats below the top Auto-Foto pill
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    maxWidth: '90%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 9999,
+  },
+  floatingStatusText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  floatingAutoToggleBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(9, 9, 11, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 4,
+    zIndex: 9999,
+  },
+  autoActiveBtn: {
+    borderColor: 'rgba(34, 197, 94, 0.5)',
+  },
+  autoInactiveBtn: {
+    borderColor: 'rgba(63, 63, 70, 0.5)',
+  },
+  floatingAutoToggleText: {
+    fontSize: 9,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
 });
