@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'welcome')->name('home');
 Route::get('/p/{code}', [\App\Http\Controllers\PublicProductController::class, 'show'])->name('public.product');
 Route::post('/api/mobile/login', [TransactionController::class, 'mobileLogin'])->name('api.mobile-login');
+Route::get('/api/mobile/stats', [TransactionController::class, 'mobileStats'])->name('api.mobile-stats');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Keuangan & Analisa - Daftar Transaksi

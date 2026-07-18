@@ -3,7 +3,7 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
 /* eslint-disable curly */
 import { Form, Head, router } from '@inertiajs/react';
-import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload, Info, FileText, MessageCircle, Store } from 'lucide-react';
+import { Box, Check, Copy, EyeIcon, FileSpreadsheet, Package, Plus, RefreshCw, Search, ShoppingBag, Trash2, Truck, XCircle, CheckCircle, MoreVertical, Upload, Info, FileText, MessageCircle, Store, Download } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
@@ -2740,15 +2740,24 @@ export default function Transactions({ transactions, storesList, productsList, c
                   <div className="flex items-center justify-between">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Bukti Packing / Kirim Paket</Label>
                     {selectedTransaction.package_proof && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleDeleteProof}
-                        className="h-6 text-[10px] font-bold text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 px-2 rounded-lg flex items-center gap-1 cursor-pointer"
-                      >
-                        <Trash2 className="h-3 w-3" /> Hapus Bukti
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/storage/${selectedTransaction.package_proof}`}
+                          download={`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}.jpg`}
+                          className="h-6 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 px-2 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Download className="h-3 w-3" /> Unduh Bukti
+                        </a>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleDeleteProof}
+                          className="h-6 text-[10px] font-bold text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 px-2 rounded-lg flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="h-3 w-3" /> Hapus Bukti
+                        </Button>
+                      </div>
                     )}
                   </div>
 
@@ -2782,6 +2791,14 @@ export default function Transactions({ transactions, storesList, productsList, c
                             </div>
                           </DialogContent>
                         </Dialog>
+                        <a
+                          href={`/storage/${selectedTransaction.package_proof}`}
+                          download={`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}.jpg`}
+                          className="inline-flex items-center justify-center rounded-md bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 h-8 px-3 text-xs font-semibold gap-1 hover:scale-105 transition-transform cursor-pointer"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Unduh
+                        </a>
                       </div>
                     </div>
                   ) : (

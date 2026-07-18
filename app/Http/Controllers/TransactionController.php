@@ -1132,4 +1132,42 @@ class TransactionController extends Controller
             'message' => 'Email atau password salah.'
         ], 401);
     }
+
+    public function mobileStats(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid, silakan login kembali.'
+                ], 401);
+            }
+        } else {
+            $user = Auth::user();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        $pendingCount = Transaction::where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->whereNull('package_proof')
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'pending_count' => $pendingCount,
+        ]);
+    }
 }
