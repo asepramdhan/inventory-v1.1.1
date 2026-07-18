@@ -657,6 +657,7 @@ class TransactionController extends Controller
             $nameIndex = null;
             $phoneIndex = null;
             $addressIndex = null;
+            $waybillIndex = null;
 
             foreach ($headerRow as $index => $headerValue) {
                 $cleanHeader = trim($headerValue);
@@ -682,6 +683,8 @@ class TransactionController extends Controller
                     $phoneIndex = $index;
                 } elseif ($cleanHeader === 'Alamat Pengiriman') {
                     $addressIndex = $index;
+                } elseif ($cleanHeader === 'No. Resi' || str_contains(strtolower($cleanHeader), 'no. resi') || str_contains(strtolower($cleanHeader), 'nomor resi')) {
+                    $waybillIndex = $index;
                 }
             }
 
@@ -700,7 +703,7 @@ class TransactionController extends Controller
             $skippedCount = 0;
             $errorMessages = [];
 
-            DB::transaction(function () use ($rows, $invoiceIndex, $statusIndex, $skuIndex, $priceIndex, $quantityIndex, $subtotalIndex, $orderDateIndex, $usernameIndex, $nameIndex, $phoneIndex, $addressIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
+            DB::transaction(function () use ($rows, $invoiceIndex, $waybillIndex, $statusIndex, $skuIndex, $priceIndex, $quantityIndex, $subtotalIndex, $orderDateIndex, $usernameIndex, $nameIndex, $phoneIndex, $addressIndex, $userId, $storeId, $store, &$importedCount, &$skippedCount, &$errorMessages) {
 
                 $ordersByInvoice = [];
 
@@ -712,6 +715,7 @@ class TransactionController extends Controller
                     $quantity = intval($rows[$i][$quantityIndex] ?? 0);
                     $subtotal = floatval(str_replace(['Rp', '.', ','], '', $rows[$i][$subtotalIndex] ?? 0));
                     $orderDateStr = $orderDateIndex !== null ? trim($rows[$i][$orderDateIndex] ?? '') : '';
+                    $waybillNumber = $waybillIndex !== null ? trim($rows[$i][$waybillIndex] ?? '') : null;
 
                     if (empty($invoiceNumber) || empty($shopeeSku)) {
                         continue;
@@ -721,6 +725,7 @@ class TransactionController extends Controller
                         $ordersByInvoice[$invoiceNumber] = [
                             'status' => $shopeeStatus,
                             'order_date' => $orderDateStr,
+                            'waybill_number' => $waybillNumber,
                             'customer_username' => $usernameIndex !== null ? trim($rows[$i][$usernameIndex] ?? '') : null,
                             'customer_name' => $nameIndex !== null ? trim($rows[$i][$nameIndex] ?? '') : null,
                             'customer_phone' => $phoneIndex !== null ? trim($rows[$i][$phoneIndex] ?? '') : null,
@@ -743,6 +748,11 @@ class TransactionController extends Controller
                         ->first();
 
                     if ($existingTransaction) {
+                        if (empty($existingTransaction->waybill_number) && !empty($orderData['waybill_number'])) {
+                            $existingTransaction->update([
+                                'waybill_number' => $orderData['waybill_number']
+                            ]);
+                        }
                         $skippedCount++;
                         continue;
                     }
@@ -852,6 +862,7 @@ class TransactionController extends Controller
                         'store_id' => $storeId,
                         'customer_id' => $customerId, // Tautkan customer
                         'invoice_number' => $invoiceNumber,
+                        'waybill_number' => $orderData['waybill_number'] ?: null,
                         'status' => $mappedStatus,
                         'subtotal' => $subtotal,
                         'discount' => 0,
@@ -967,7 +978,7 @@ class TransactionController extends Controller
 
     public function packingStation()
     {
-        return Inertia::render('finance/packing-station');
+        return redirect()->route('dashboard')->with('error', 'Stasiun Packing sekarang hanya dapat diakses melalui Aplikasi Mobile.');
     }
 
     public function uploadProofByBarcode(Request $request)
@@ -979,7 +990,32 @@ class TransactionController extends Controller
 
         $barcode = $request->input('barcode');
 
-        $transaction = Transaction::where('user_id', Auth::user()->id)
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid, silakan login kembali.'
+                ], 401);
+            }
+        } else {
+            $user = Auth::user();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan login terlebih dahulu untuk mengakses stasiun packing.'
+            ], 401);
+        }
+
+        $transaction = Transaction::where('user_id', $user->id)
             ->where(function ($query) use ($barcode) {
                 $query->where('invoice_number', $barcode)
                       ->orWhere('waybill_number', $barcode);
@@ -1065,5 +1101,35 @@ class TransactionController extends Controller
                 'status' => $transaction->status,
             ]
         ]);
+    }
+
+    public function mobileLogin(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        if (Auth::attempt($request->only('email', 'password'))) {
+            $user = Auth::user();
+            
+            // Secure connection token using App Key encryption (zero migration!)
+            $token = \Illuminate\Support\Facades\Crypt::encryptString($user->id . '|' . time());
+
+            return response()->json([
+                'success' => true,
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ]
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Email atau password salah.'
+        ], 401);
     }
 }

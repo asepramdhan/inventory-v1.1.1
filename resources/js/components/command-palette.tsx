@@ -41,7 +41,6 @@ const commands: CommandItem[] = [
   { id: 'nav-dashboard', title: 'Buka Dashboard', category: 'Navigasi Menu', icon: LayoutGrid, url: '/dashboard', shortcut: 'D' },
   { id: 'nav-margin', title: 'Buka Analisa Margin', category: 'Navigasi Menu', icon: ChartBar, url: '/finance/margin-analysis', shortcut: 'M' },
   { id: 'nav-transactions', title: 'Buka Riwayat Transaksi', category: 'Navigasi Menu', icon: ShoppingBag, url: '/finance/transactions', shortcut: 'T' },
-  { id: 'nav-packing-station', title: 'Buka Stasiun Packing Otomatis', category: 'Navigasi Menu', icon: Camera, url: '/finance/transactions/packing-station', shortcut: 'P' },
   { id: 'nav-ads', title: 'Buka Iklan & Affiliasi', category: 'Navigasi Menu', icon: Megaphone, url: '/finance/ads-affiliate', shortcut: 'A' },
   { id: 'nav-mutations', title: 'Buka Mutasi Kas', category: 'Navigasi Menu', icon: ArrowRightLeft, url: '/finance/mutations', shortcut: 'K' },
   { id: 'nav-profit-loss', title: 'Buka Laporan Laba Rugi', category: 'Navigasi Menu', icon: DollarSign, url: '/finance/profit-loss' },
@@ -69,7 +68,6 @@ const commands: CommandItem[] = [
   { id: 'act-run-backup', title: 'Jalankan Backup Database Sekarang', category: 'Aksi Cepat', icon: Database, url: '/master-data/backups', action: 'run', shortcut: 'B' },
   { id: 'act-import-shopee', title: 'Impor Excel Pesanan Shopee', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-shopee', shortcut: 'I' },
   { id: 'act-import-status', title: 'Impor Excel Status Pesanan', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-status', shortcut: 'U' },
-  { id: 'act-packing-station', title: 'Buka Stasiun Packing Otomatis', category: 'Aksi Cepat', icon: Camera, url: '/finance/transactions/packing-station', shortcut: 'P' },
   { id: 'act-export-profit', title: 'Unduh Excel Laporan Laba Rugi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/profit-loss/export' },
   { id: 'act-export-tx', title: 'Unduh Excel Riwayat Transaksi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/transactions/export' }
 ];
@@ -125,9 +123,6 @@ export function CommandPalette() {
       } else if (e.key.toLowerCase() === 'b') {
         e.preventDefault();
         router.visit('/master-data/backups?action=run');
-      } else if (e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        router.visit('/finance/transactions/packing-station');
       } else if (e.key === 'd') {
         e.preventDefault();
         router.visit('/dashboard');

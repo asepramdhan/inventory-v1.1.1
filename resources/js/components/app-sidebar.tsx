@@ -63,10 +63,6 @@ const transactionGroupItems: NavItem[] = [
                 href: TransactionController.index(),
             },
             {
-                title: 'Stasiun Packing',
-                href: '/finance/transactions/packing-station',
-            },
-            {
                 title: 'Iklan & Affiliasi',
                 href: AdsAffiliateController.index(),
             }
