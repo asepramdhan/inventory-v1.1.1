@@ -154,6 +154,33 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
   const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
   const [editingNoteValue, setEditingNoteValue] = useState<string>('');
 
+  // States untuk filter produsen, status, dan pencarian
+  const [selectedProducerName, setSelectedProducerName] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Filter tagihan di sisi klien
+  const filteredInvoices = invoices.filter((inv) => {
+    const matchProducer = selectedProducerName === 'all' || inv.producer_name === selectedProducerName;
+    const matchStatus = selectedStatus === 'all' || 
+      (selectedStatus === 'paid' && inv.status === 'paid') ||
+      (selectedStatus === 'unpaid' && inv.status === 'unpaid');
+    const matchQuery = searchQuery.trim() === '' || 
+      inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (inv.description && inv.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      inv.items?.some(item => item.item_name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return matchProducer && matchStatus && matchQuery;
+  });
+
+  // Hitung dinamis total sisa hutang berdasarkan filter
+  const dynamicTotalUnpaid = filteredInvoices.reduce((acc, inv) => {
+    if (inv.status === 'unpaid') {
+      return acc + (inv.total_amount - (inv.paid_amount || 0));
+    }
+    return acc;
+  }, 0);
+
   // --- TAMBAHKAN STATE & EFFECT SKELETON DI SINI ---
   const [isLoading, setIsLoading] = useState(true);
 
@@ -513,13 +540,72 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
             </div>
             <div className="px-5 pb-5">
               <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-                {isLoading ? <Skeleton className="h-8 w-[200px]" /> : formatIDR(totalUnpaid)}
+                {isLoading ? <Skeleton className="h-8 w-[200px]" /> : formatIDR(dynamicTotalUnpaid)}
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Total Tagihan Yang Harus Dilunasi</p>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">
+                {selectedProducerName === 'all' 
+                  ? 'Total Tagihan Semua Produsen' 
+                  : `Total Tagihan ${selectedProducerName}`}
+              </p>
             </div>
           </div>
         </div>
 
+
+        {/* FILTER & SEARCH BAR */}
+        {!isLoading && (
+          <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-zinc-50/40 dark:bg-zinc-900/30 p-3 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-xs">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              {/* Filter Produsen */}
+              <div className="w-full sm:w-[220px]">
+                <Select
+                  value={selectedProducerName}
+                  onValueChange={(val) => setSelectedProducerName(val)}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+                    <SelectValue placeholder="Semua Produsen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">🏢 Semua Produsen</SelectItem>
+                    {masterProducers?.map((mProd) => (
+                      <SelectItem key={mProd.id} value={mProd.name} className="text-xs">
+                        🏢 {mProd.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Filter Status */}
+              <div className="w-full sm:w-[160px]">
+                <Select
+                  value={selectedStatus}
+                  onValueChange={(val) => setSelectedStatus(val)}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+                    <SelectValue placeholder="Semua Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">🏷️ Semua Status</SelectItem>
+                    <SelectItem value="unpaid" className="text-xs text-red-600 dark:text-red-400 font-medium">🔴 Belum Lunas</SelectItem>
+                    <SelectItem value="paid" className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">🟢 Lunas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Search Input */}
+            <div className="w-full md:w-[280px]">
+              <Input
+                type="text"
+                placeholder="Cari No. Nota atau nama barang..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 text-xs bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
+              />
+            </div>
+          </div>
+        )}
 
         {/* LOGIKA SINKRONISASI LOADING SKELETON */}
         {isLoading ? (
@@ -541,14 +627,16 @@ export default function ProducerStocks({ invoices, accounts, totalUnpaid, master
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.length === 0 ? (
+                  {filteredInvoices.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-40 text-center text-muted-foreground text-sm">
-                        Belum ada rincian catatan pemasukan stok produsen.
+                        {invoices.length === 0 
+                          ? 'Belum ada rincian catatan pemasukan stok produsen.' 
+                          : 'Tidak ada catatan nota yang sesuai dengan filter.'}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    invoices.map((inv) => (
+                    filteredInvoices.map((inv) => (
                       <TableRow
                         key={inv.id}
                         className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors cursor-pointer border-b border-zinc-100 dark:border-zinc-800/60"

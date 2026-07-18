@@ -19,7 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             '/api/mobile/login',
-            '/finance/transactions/barcode-upload-proof'
+            '/finance/transactions/barcode-upload-proof',
+            '/api/mobile/product/update-stock'
         ]);
 
         $middleware->web(append: [

@@ -75,7 +75,7 @@ class TransactionController extends Controller
             ->get()
             ->map(function ($store) use ($storeStatusCounts) {
                 $counts = $storeStatusCounts->get($store->id);
-                
+
                 $store->transactions_count = $counts ? (int) $counts->sum('count') : 0;
                 $store->items_count = $counts ? (int) $counts->sum('items') : 0;
 
@@ -94,7 +94,7 @@ class TransactionController extends Controller
                 $cancelledRow = $counts ? $counts->where('status', 'cancelled')->first() : null;
                 $store->cancelled_count = $cancelledRow ? (int) $cancelledRow->count : 0;
                 $store->cancelled_items = $cancelledRow ? (int) $cancelledRow->items : 0;
-                
+
                 return $store;
             });
 
@@ -818,7 +818,7 @@ class TransactionController extends Controller
                     // Cari apakah pelanggan ini sudah ada berdasarkan username atau telepon,
                     // agar data sensor (masked) tidak membuat duplikasi record jika nilainya persis sama.
                     $custQuery = \App\Models\Customer::where('user_id', $userId);
-                    
+
                     if (!empty($orderData['customer_username'])) {
                         $custQuery->where('username', $orderData['customer_username']);
                     } elseif (!empty($orderData['customer_phone'])) {
@@ -940,7 +940,7 @@ class TransactionController extends Controller
             }
 
             $path = $request->file('package_proof')->store('package_proofs', 'public');
-            
+
             $transaction->update([
                 'package_proof' => $path
             ]);
@@ -962,7 +962,7 @@ class TransactionController extends Controller
 
         if ($transaction->package_proof) {
             \Illuminate\Support\Facades\Storage::disk('public')->delete($transaction->package_proof);
-            
+
             $transaction->update([
                 'package_proof' => null
             ]);
@@ -1018,7 +1018,7 @@ class TransactionController extends Controller
         $transaction = Transaction::where('user_id', $user->id)
             ->where(function ($query) use ($barcode) {
                 $query->where('invoice_number', $barcode)
-                      ->orWhere('waybill_number', $barcode);
+                    ->orWhere('waybill_number', $barcode);
             })
             ->with('store')
             ->first();
@@ -1036,7 +1036,7 @@ class TransactionController extends Controller
             }
 
             $path = $request->file('package_proof')->store('package_proofs', 'public');
-            
+
             $transaction->update([
                 'package_proof' => $path
             ]);
@@ -1075,7 +1075,7 @@ class TransactionController extends Controller
         $transaction = Transaction::where('user_id', \Illuminate\Support\Facades\Auth::user()->id)
             ->where(function ($q) use ($query) {
                 $q->where('invoice_number', $query)
-                  ->orWhere('waybill_number', $query);
+                    ->orWhere('waybill_number', $query);
             })
             ->with('store')
             ->first();
@@ -1112,7 +1112,7 @@ class TransactionController extends Controller
 
         if (Auth::attempt($request->only('email', 'password'))) {
             $user = Auth::user();
-            
+
             // Secure connection token using App Key encryption (zero migration!)
             $token = \Illuminate\Support\Facades\Crypt::encryptString($user->id . '|' . time());
 
@@ -1165,9 +1165,140 @@ class TransactionController extends Controller
             ->whereNull('package_proof')
             ->count();
 
+        $lowStockCount = \App\Models\Product::where('user_id', $user->id)
+            ->where('stock', '<=', 10)
+            ->count();
+
         return response()->json([
             'success' => true,
             'pending_count' => $pendingCount,
+            'low_stock_count' => $lowStockCount,
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email,
+            ]
+        ]);
+    }
+
+    public function mobileScanProduct(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid, silakan login kembali.'
+                ], 401);
+            }
+        } else {
+            $user = Auth::user();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        $sku = $request->query('sku');
+        if (!$sku) {
+            return response()->json([
+                'success' => false,
+                'message' => 'SKU tidak boleh kosong.'
+            ], 400);
+        }
+
+        $product = \App\Models\Product::with('category')
+            ->where('user_id', $user->id)
+            ->where(function ($query) use ($sku) {
+                $query->where('sku', $sku)
+                    ->orWhere('sku', 'like', $sku);
+            })
+            ->first();
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Produk tidak ditemukan.'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'product' => [
+                'id' => $product->id,
+                'sku' => $product->sku,
+                'name' => $product->name,
+                'stock' => $product->stock,
+                'price' => $product->price,
+                'category_name' => $product->category ? $product->category->name : 'Tanpa Kategori',
+            ]
+        ]);
+    }
+
+    public function mobileUpdateProductStock(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid, silakan login kembali.'
+                ], 401);
+            }
+        } else {
+            $user = Auth::user();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        $request->validate([
+            'product_id' => 'required|integer',
+            'stock' => 'required|integer|min:0',
+        ]);
+
+        $product = \App\Models\Product::where('user_id', $user->id)
+            ->where('id', $request->product_id)
+            ->first();
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Produk tidak ditemukan.'
+            ], 404);
+        }
+
+        $product->update([
+            'stock' => $request->stock
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stok produk berhasil diperbarui.',
+            'product' => [
+                'id' => $product->id,
+                'sku' => $product->sku,
+                'name' => $product->name,
+                'stock' => $product->stock,
+            ]
         ]);
     }
 }

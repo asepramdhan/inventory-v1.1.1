@@ -21,6 +21,8 @@ Route::inertia('/', 'welcome')->name('home');
 Route::get('/p/{code}', [\App\Http\Controllers\PublicProductController::class, 'show'])->name('public.product');
 Route::post('/api/mobile/login', [TransactionController::class, 'mobileLogin'])->name('api.mobile-login');
 Route::get('/api/mobile/stats', [TransactionController::class, 'mobileStats'])->name('api.mobile-stats');
+Route::get('/api/mobile/product/scan', [TransactionController::class, 'mobileScanProduct'])->name('api.mobile-product-scan');
+Route::post('/api/mobile/product/update-stock', [TransactionController::class, 'mobileUpdateProductStock'])->name('api.mobile-product-update-stock');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Keuangan & Analisa - Daftar Transaksi
@@ -39,7 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/finance/transactions/bulk-status', [TransactionController::class, 'bulkStatusUpdate'])->name('transactions.bulk-status');
     Route::post('/finance/transactions/bulk-delete', [TransactionController::class, 'bulkDelete'])->name('transactions.bulk-delete');
     Route::post('/finance/transactions/{transaction}/upload-proof', [TransactionController::class, 'uploadProof'])->name('transactions.upload-proof');
-    Route::delete('/finance/transactions/{transaction}/delete-proof', [TransactionController::class, 'deleteProof'])->name('transactions.delete-proof');
+    Route::post('/finance/transactions/{transaction}/delete-proof', [TransactionController::class, 'deleteProof'])->name('transactions.delete-proof');
     Route::get('/finance/transactions/packing-station', [TransactionController::class, 'packingStation'])->name('transactions.packing-station');
     Route::get('/finance/transactions/search-proof', [TransactionController::class, 'searchProof'])->name('transactions.search-proof');
     Route::post('/finance/transactions/barcode-upload-proof', [TransactionController::class, 'uploadProofByBarcode'])->name('transactions.barcode-upload-proof');

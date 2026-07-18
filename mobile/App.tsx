@@ -15,7 +15,9 @@ import {
   Animated,
   Platform,
   Keyboard,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  ScrollView,
+  RefreshControl
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -44,7 +46,24 @@ export default function App() {
   const [token, setToken] = useState('');
   const [userName, setUserName] = useState('');
   const [screen, setScreen] = useState<'LOGIN' | 'MAIN'>('LOGIN');
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'SCANNER' | 'HISTORY'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'SCANNER' | 'HISTORY' | 'STOK' | 'PROFILE'>('DASHBOARD');
+
+  // Cek & Update Stok States
+  const [searchSku, setSearchSku] = useState('');
+  const [scannedProduct, setScannedProduct] = useState<{
+    id: number;
+    sku: string;
+    name: string;
+    stock: number;
+    price: string;
+    category_name: string;
+  } | null>(null);
+  const [stockInput, setStockInput] = useState('');
+  const [showProductScanner, setShowProductScanner] = useState(false);
+  const [isSearchingProduct, setIsSearchingProduct] = useState(false);
+  const [lowStockCount, setLowStockCount] = useState<number>(0);
+  const [enableSound, setEnableSound] = useState<boolean>(true);
+  const [enableHaptic, setEnableHaptic] = useState<boolean>(true);
 
   // Scanner States
   const [barcode, setBarcode] = useState('');
@@ -61,8 +80,10 @@ export default function App() {
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [showTips, setShowTips] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [connectionError, setConnectionError] = useState<boolean>(false);
   const [mirrorPreview, setMirrorPreview] = useState(false);
   const [showManualInput, setShowManualInput] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const cameraRef = useRef<any>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -85,8 +106,14 @@ export default function App() {
         const savedUrl = await AsyncStorage.getItem('@server_url');
         const savedToken = await AsyncStorage.getItem('@auth_token');
         const savedName = await AsyncStorage.getItem('@user_name');
+        const savedEmail = await AsyncStorage.getItem('@user_email');
         const savedHistory = await AsyncStorage.getItem('@scan_history');
         const savedMirror = await AsyncStorage.getItem('@mirror_preview');
+
+        const savedSound = await AsyncStorage.getItem('@enable_sound');
+        const savedHaptic = await AsyncStorage.getItem('@enable_haptic');
+        if (savedSound !== null) setEnableSound(savedSound === 'true');
+        if (savedHaptic !== null) setEnableHaptic(savedHaptic === 'true');
 
         if (savedUrl) setServerUrl(savedUrl);
         if (savedMirror) setMirrorPreview(savedMirror === 'true');
@@ -95,6 +122,7 @@ export default function App() {
           setScreen('MAIN');
         }
         if (savedName) setUserName(savedName);
+        if (savedEmail) setEmail(savedEmail);
         if (savedHistory) setHistory(JSON.parse(savedHistory));
       } catch (err) {
         console.error('Failed to load credentials:', err);
@@ -104,6 +132,7 @@ export default function App() {
 
   // Beep sound player
   const playBeep = async (isSuccess: boolean) => {
+    if (!enableSound) return;
     try {
       const soundObject = new Audio.Sound();
       const soundUrl = isSuccess
@@ -123,6 +152,7 @@ export default function App() {
 
   // Vibe feedback
   const triggerHaptic = (isSuccess: boolean) => {
+    if (!enableHaptic) return;
     if (isSuccess) {
       Vibration.vibrate(80);
     } else {
@@ -132,7 +162,7 @@ export default function App() {
 
   const showStatus = (text: string, type: 'success' | 'error', duration = 4000, keepAlive = false) => {
     setStatusMsg({ text, type });
-    
+
     // Animate fade-in and slide-down (300ms)
     statusFadeAnim.setValue(0);
     Animated.timing(statusFadeAnim, {
@@ -170,6 +200,7 @@ export default function App() {
     try {
       const response = await fetch(`${serverUrl}/api/mobile/stats`, {
         headers: {
+          'X-Mobile-Token': token || '',
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
@@ -177,9 +208,119 @@ export default function App() {
       const data = await response.json();
       if (response.ok && data.success) {
         setPendingCount(data.pending_count);
+        setConnectionError(false);
+        if (typeof data.low_stock_count === 'number') {
+          setLowStockCount(data.low_stock_count);
+        }
+        if (data.user) {
+          if (data.user.name) {
+            setUserName(data.user.name);
+            await AsyncStorage.setItem('@user_name', data.user.name);
+          }
+          if (data.user.email) {
+            setEmail(data.user.email);
+            await AsyncStorage.setItem('@user_email', data.user.email);
+          }
+        }
+      } else {
+        setConnectionError(true);
       }
     } catch (err) {
+      setConnectionError(true);
       console.log('Failed to fetch stats:', err);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Fetch stats and force a minimum 700ms spin time for smooth visual feedback
+    await Promise.all([
+      fetchStats(),
+      new Promise(resolve => setTimeout(resolve, 700))
+    ]);
+    triggerHaptic(true);
+    setRefreshing(false);
+  };
+
+  const onRefreshHistory = async () => {
+    setRefreshing(true);
+    // Reload history local storage dan sync statistik kasir di background secara pararel
+    const [savedHistory] = await Promise.all([
+      AsyncStorage.getItem('@scan_history'),
+      fetchStats(),
+      new Promise(resolve => setTimeout(resolve, 700))
+    ]);
+    if (savedHistory) {
+      setHistory(JSON.parse(savedHistory));
+    }
+    triggerHaptic(true);
+    setRefreshing(false);
+  };
+
+  const searchProductBySku = async (skuCode: string) => {
+    if (!skuCode.trim()) return;
+    setIsSearchingProduct(true);
+    try {
+      const response = await fetch(`${serverUrl}/api/mobile/product/scan?sku=${encodeURIComponent(skuCode.trim())}`, {
+        method: 'GET',
+        headers: {
+          'X-Mobile-Token': token || '',
+          'Accept': 'application/json',
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.product) {
+        setScannedProduct(data.product);
+        setStockInput(String(data.product.stock));
+        triggerHaptic(true);
+      } else {
+        alert(data.message || 'Produk tidak ditemukan');
+        setScannedProduct(null);
+      }
+    } catch (err) {
+      console.log('Error searching product:', err);
+      alert('Gagal mencari produk. Periksa koneksi internet Anda.');
+    } finally {
+      setIsSearchingProduct(false);
+    }
+  };
+
+  const updateProductStock = async () => {
+    if (!scannedProduct) return;
+    const newStock = parseInt(stockInput);
+    if (isNaN(newStock) || newStock < 0) {
+      alert('Stok harus berupa angka positif.');
+      return;
+    }
+
+    setIsSearchingProduct(true);
+    try {
+      const response = await fetch(`${serverUrl}/api/mobile/product/update-stock`, {
+        method: 'POST',
+        headers: {
+          'X-Mobile-Token': token || '',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          product_id: scannedProduct.id,
+          stock: newStock,
+        })
+      });
+      const data = await response.json();
+      if (data.success && data.product) {
+        setScannedProduct(prev => prev ? { ...prev, stock: data.product.stock } : null);
+        alert('Stok produk berhasil diperbarui!');
+        triggerHaptic(true);
+        fetchStats();
+      } else {
+        alert(data.message || 'Gagal memperbarui stok.');
+      }
+    } catch (err) {
+      console.log('Error updating stock:', err);
+      alert('Gagal menghubungi server.');
+    } finally {
+      setIsSearchingProduct(false);
     }
   };
 
@@ -213,7 +354,7 @@ export default function App() {
     if (activeTab === 'SCANNER') {
       setShowTips(true);
       fadeAnim.setValue(0);
-      
+
       // Fade in (350ms)
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -266,10 +407,12 @@ export default function App() {
         await AsyncStorage.setItem('@server_url', cleanUrl);
         await AsyncStorage.setItem('@auth_token', data.token);
         await AsyncStorage.setItem('@user_name', data.user.name);
+        await AsyncStorage.setItem('@user_email', data.user.email);
 
         setServerUrl(cleanUrl);
         setToken(data.token);
         setUserName(data.user.name);
+        setEmail(data.user.email);
         setScreen('MAIN');
         setPassword('');
       } else {
@@ -286,7 +429,11 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('@auth_token');
+      await AsyncStorage.removeItem('@user_email');
+      await AsyncStorage.removeItem('@user_name');
       setToken('');
+      setEmail('');
+      setUserName('');
       setScreen('LOGIN');
     } catch (err) {
       console.error(err);
@@ -449,7 +596,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#09090b" />
-      
+
       {screen === 'LOGIN' ? (
         <View style={styles.loginCard}>
           <Text style={styles.logoText}>📦 STASIUN PACKING</Text>
@@ -504,23 +651,43 @@ export default function App() {
         </View>
       ) : (
         <View style={styles.scannerWrapper}>
+          {/* Global Floating Loading Indicator */}
+          {refreshing && (
+            <View style={styles.globalLoadingOverlay}>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={styles.globalLoadingText}>Memperbarui...</Text>
+            </View>
+          )}
+
           {/* Active Tab Screen Render */}
           {activeTab === 'DASHBOARD' && (
-            <View style={styles.tabContent}>
-              {/* Profile Card Section */}
-              <View style={styles.profileHeader}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarLetter}>{userName ? userName.charAt(0).toUpperCase() : 'P'}</Text>
-                </View>
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>{userName || 'Petugas'}</Text>
-                  <Text style={styles.profileRole}>Petugas Gudang / Packing</Text>
-                </View>
-                <TouchableOpacity style={styles.logoutBtnSmall} onPress={handleLogout}>
-                  <Ionicons name="log-out-outline" size={16} color="#ef4444" />
-                  <Text style={styles.logoutBtnSmallText}>Keluar</Text>
-                </TouchableOpacity>
+            <ScrollView
+              style={{ flex: 1, backgroundColor: '#09090b' }}
+              contentContainerStyle={{ padding: 20, paddingBottom: 110 }}
+              alwaysBounceVertical={true}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor="#22c55e"
+                  colors={["#22c55e"]}
+                />
+              }
+            >
+              {/* Dashboard Title */}
+              <View style={styles.tabHeaderRow}>
+                <Text style={styles.tabHeaderTitle}>Dashboard Gudang</Text>
               </View>
+
+              {/* Connection Error Alert */}
+              {connectionError && (
+                <View style={styles.connectionErrorCard}>
+                  <Ionicons name="wifi-outline" size={18} color="#ef4444" style={{ marginRight: 4 }} />
+                  <Text style={styles.connectionErrorText}>
+                    Koneksi terputus ke server. Pastikan URL Server di tab Profil sudah benar.
+                  </Text>
+                </View>
+              )}
 
               {/* 3-Column Stats Row */}
               <View style={styles.statsRow}>
@@ -542,167 +709,243 @@ export default function App() {
                 </View>
               </View>
 
-              <View style={styles.infoCard}>
-                <Text style={styles.infoCardTitle}>Status Koneksi</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Server URL:</Text>
-                  <Text style={styles.infoValue}>{serverUrl}</Text>
+              {/* Real-time Stock Alerts */}
+              {lowStockCount > 0 ? (
+                <TouchableOpacity
+                  style={styles.lowStockAlertCard}
+                  onPress={() => setActiveTab('STOK')}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="warning" size={22} color="#f43f5e" style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.lowStockAlertTitle}>Stok Kritis Terdeteksi!</Text>
+                    <Text style={styles.lowStockAlertDesc}>
+                      Ada {lowStockCount} produk yang stoknya hampir habis (≤ 10). Ketuk di sini untuk cek & sesuaikan.
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#f43f5e" />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.allStockSafeCard}>
+                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                  <Text style={styles.allStockSafeText}>Semua persediaan produk gudang terpantau aman.</Text>
                 </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Status:</Text>
-                  <Text style={[styles.infoValue, { color: '#22c55e', fontWeight: 'bold' }]}>● Terhubung</Text>
+              )}
+
+              {/* Progress Bar Rasio Sukses */}
+              {(() => {
+                const successCount = history.filter((h) => h.status === 'success').length;
+                const errorCount = history.filter((h) => h.status === 'error').length;
+                const totalCount = successCount + errorCount;
+                const successRate = totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0;
+
+                if (totalCount === 0) return null;
+
+                return (
+                  <View style={styles.progressCard}>
+                    <View style={styles.progressHeaderRow}>
+                      <Text style={styles.progressLabel}>Rasio Sukses Packing</Text>
+                      <Text style={[
+                        styles.progressPercentage,
+                        successRate >= 90 ? { color: '#10b981' } : successRate >= 70 ? { color: '#818cf8' } : { color: '#f59e0b' }
+                      ]}>
+                        {successRate}%
+                      </Text>
+                    </View>
+                    <View style={styles.progressBarBg}>
+                      <View style={[
+                        styles.progressBarFill,
+                        { width: `${successRate}%` },
+                        successRate >= 90 ? { backgroundColor: '#10b981' } : successRate >= 70 ? { backgroundColor: '#4f46e5' } : { backgroundColor: '#f59e0b' }
+                      ]} />
+                    </View>
+                    <Text style={styles.progressSubtext}>
+                      {successCount} dari {totalCount} paket berhasil diproses hari ini
+                    </Text>
+                  </View>
+                );
+              })()}
+
+              {/* Prosedur Kerja & Tips Gudang */}
+              <View style={styles.guideCard}>
+                <View style={styles.guideHeader}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#22c55e" />
+                  <Text style={styles.guideTitle}>Prosedur Operasional Gudang</Text>
+                </View>
+
+                <View style={styles.guideItem}>
+                  <View style={styles.guideStepNumber}>
+                    <Text style={styles.guideStepText}>1</Text>
+                  </View>
+                  <View style={styles.guideItemContent}>
+                    <Text style={styles.guideItemTitle}>Periksa Antrean</Text>
+                    <Text style={styles.guideItemDesc}>Pastikan jumlah Antrean Packing di atas terpantau berkala.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.guideItem}>
+                  <View style={styles.guideStepNumber}>
+                    <Text style={styles.guideStepText}>2</Text>
+                  </View>
+                  <View style={styles.guideItemContent}>
+                    <Text style={styles.guideItemTitle}>Scan Barcode Paket</Text>
+                    <Text style={styles.guideItemDesc}>Gunakan tombol kamera di tengah bawah untuk memindai resi pesanan dan merekam bukti foto packing.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.guideItem}>
+                  <View style={styles.guideStepNumber}>
+                    <Text style={styles.guideStepText}>3</Text>
+                  </View>
+                  <View style={styles.guideItemContent}>
+                    <Text style={styles.guideItemTitle}>Penyelarasan Stok Fisik</Text>
+                    <Text style={styles.guideItemDesc}>Jika ada ketidaksesuaian stok di rak, gunakan tab Stok untuk memperbarui jumlah secara instan.</Text>
+                  </View>
                 </View>
               </View>
-
-              <TouchableOpacity style={styles.primaryButton} onPress={() => setActiveTab('SCANNER')}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="camera" size={18} color="#ffffff" />
-                  <Text style={styles.primaryButtonText}>Mulai Scanning Sekarang</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
           )}
 
           {activeTab === 'SCANNER' && (
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
               <View style={StyleSheet.absoluteFill}>
-              {/* Full Screen Camera in the background */}
-              <CameraView
-                ref={cameraRef}
-                style={[
-                  StyleSheet.absoluteFill,
-                  mirrorPreview && { transform: [{ scaleX: -1 }] }
-                ]}
-                facing={facing}
-                enableTorch={flash}
-                barcodeScannerSettings={{
-                  barcodeTypes: ['qr', 'code128', 'code39', 'code93', 'pdf417', 'ean13', 'ean8'],
-                }}
-                onBarcodeScanned={isUploading ? undefined : handleBarcodeScanned}
-              />
-
-
-              {/* Target Reticle box overlay (Middle) */}
-              <View style={styles.overlayContainer}>
-                {/* Floating Status Banner */}
-                {statusMsg && (
-                  <Animated.View style={[
-                    styles.floatingStatusBanner, 
-                    statusMsg.type === 'success' ? { backgroundColor: 'rgba(21, 128, 61, 0.95)' } : { backgroundColor: 'rgba(185, 28, 28, 0.95)' },
-                    {
-                      opacity: statusFadeAnim,
-                      transform: [{ translateY }]
-                    }
-                  ]}>
-                    <Text style={styles.floatingStatusText}>{statusMsg.text}</Text>
-                  </Animated.View>
-                )}
-
-                {/* Floating Auto-Foto Toggle */}
-                {/* Floating Auto-Foto Toggle Button */}
-                <TouchableOpacity 
+                {/* Full Screen Camera in the background */}
+                <CameraView
+                  ref={cameraRef}
                   style={[
-                    styles.floatingAutoToggleBtn,
-                    autoCapture ? styles.autoActiveBtn : styles.autoInactiveBtn
+                    StyleSheet.absoluteFill,
+                    mirrorPreview && { transform: [{ scaleX: -1 }] }
                   ]}
-                  onPress={() => setAutoCapture(!autoCapture)}
-                >
-                  <Ionicons 
-                    name={autoCapture ? "flash" : "flash-outline"} 
-                    size={11} 
-                    color={autoCapture ? "#22c55e" : "#a1a1aa"} 
-                  />
-                  <Text style={[
-                    styles.floatingAutoToggleText,
-                    autoCapture ? { color: '#22c55e' } : { color: '#a1a1aa' }
-                  ]}>
-                    Auto
-                  </Text>
-                </TouchableOpacity>
+                  facing={facing}
+                  enableTorch={flash}
+                  barcodeScannerSettings={{
+                    barcodeTypes: ['qr', 'code128', 'code39', 'code93', 'pdf417', 'ean13', 'ean8'],
+                  }}
+                  onBarcodeScanned={isUploading ? undefined : handleBarcodeScanned}
+                />
 
-                <View style={styles.reticleBox} />
-                <Text style={styles.scanInstruction}>Arahkan barcode ke dalam kotak</Text>
-                {showTips && (
-                  <Animated.View style={{ opacity: fadeAnim, width: '100%', alignItems: 'center' }}>
-                    <Text style={styles.scanTips}>💡 Tips: Tutupi barcode resi besar dengan jari/kertas agar kamera fokus membaca barcode nomor pesanan kecil.</Text>
-                  </Animated.View>
-                )}
-              </View>
 
-              {/* Floating Control Panel */}
-              <View style={[
-                styles.floatingBottomPanel, 
-                { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 10 : 85 }
-              ]}>
-                {/* Toolbar: Flash, Flip Camera, Mirror, Manual Toggle */}
-                <View style={styles.bottomToolbar}>
-                  <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFlash(!flash)}>
-                    <Text style={styles.toolbarBtnText}>{flash ? '⚡ Flash On' : '⚡ Flash Off'}</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFacing(prev => prev === 'back' ? 'front' : 'back')}>
-                    <Text style={styles.toolbarBtnText}>🔄 {facing === 'back' ? 'Belakang' : 'Depan'}</Text>
-                  </TouchableOpacity>
+                {/* Target Reticle box overlay (Middle) */}
+                <View style={styles.overlayContainer}>
+                  {/* Floating Status Banner */}
+                  {statusMsg && (
+                    <Animated.View style={[
+                      styles.floatingStatusBanner,
+                      statusMsg.type === 'success' ? { backgroundColor: 'rgba(21, 128, 61, 0.95)' } : { backgroundColor: 'rgba(185, 28, 28, 0.95)' },
+                      {
+                        opacity: statusFadeAnim,
+                        transform: [{ translateY }]
+                      }
+                    ]}>
+                      <Text style={styles.floatingStatusText}>{statusMsg.text}</Text>
+                    </Animated.View>
+                  )}
 
-                  <TouchableOpacity style={styles.toolbarBtn} onPress={toggleMirror}>
-                    <Text style={styles.toolbarBtnText}>🪞 {mirrorPreview ? 'Mirror' : 'Normal'}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={[styles.toolbarBtn, showManualInput && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }]} 
-                    onPress={() => setShowManualInput(!showManualInput)}
+                  {/* Floating Auto-Foto Toggle */}
+                  {/* Floating Auto-Foto Toggle Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.floatingAutoToggleBtn,
+                      autoCapture ? styles.autoActiveBtn : styles.autoInactiveBtn
+                    ]}
+                    onPress={() => setAutoCapture(!autoCapture)}
                   >
-                    <Text style={styles.toolbarBtnText}>✍️ Manual</Text>
+                    <Ionicons
+                      name={autoCapture ? "flash" : "flash-outline"}
+                      size={11}
+                      color={autoCapture ? "#22c55e" : "#a1a1aa"}
+                    />
+                    <Text style={[
+                      styles.floatingAutoToggleText,
+                      autoCapture ? { color: '#22c55e' } : { color: '#a1a1aa' }
+                    ]}>
+                      Auto
+                    </Text>
                   </TouchableOpacity>
+
+                  <View style={styles.reticleBox} />
+                  <Text style={styles.scanInstruction}>Arahkan barcode ke dalam kotak</Text>
+                  {showTips && (
+                    <Animated.View style={{ opacity: fadeAnim, width: '100%', alignItems: 'center' }}>
+                      <Text style={styles.scanTips}>💡 Tips: Tutupi barcode resi besar dengan jari/kertas agar kamera fokus membaca barcode nomor pesanan kecil.</Text>
+                    </Animated.View>
+                  )}
                 </View>
 
-                {/* Auto-Foto dedicated row is now floating inside the camera view */}
+                {/* Floating Control Panel */}
+                <View style={[
+                  styles.floatingBottomPanel,
+                  { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 10 : 85 }
+                ]}>
+                  {/* Toolbar: Flash, Flip Camera, Mirror, Manual Toggle */}
+                  <View style={styles.bottomToolbar}>
+                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFlash(!flash)}>
+                      <Text style={styles.toolbarBtnText}>{flash ? '⚡ Flash On' : '⚡ Flash Off'}</Text>
+                    </TouchableOpacity>
 
-                {/* Manual scan input panel if Auto mode is off */}
-                {!autoCapture && barcode !== '' && (
-                  <View style={styles.manualActionPanel}>
-                    <Text style={styles.manualBarcodeText}>Resi Terdeteksi: {barcode}</Text>
+                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFacing(prev => prev === 'back' ? 'front' : 'back')}>
+                      <Text style={styles.toolbarBtnText}>🔄 {facing === 'back' ? 'Belakang' : 'Depan'}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.toolbarBtn} onPress={toggleMirror}>
+                      <Text style={styles.toolbarBtnText}>🪞 {mirrorPreview ? 'Mirror' : 'Normal'}</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
-                      style={styles.manualCaptureBtn}
-                      onPress={() => uploadPackageProof(barcode)}
-                      disabled={isUploading}
+                      style={[styles.toolbarBtn, showManualInput && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }]}
+                      onPress={() => setShowManualInput(!showManualInput)}
                     >
-                      {isUploading ? (
-                        <ActivityIndicator color="#ffffff" />
-                      ) : (
-                        <Text style={styles.manualCaptureBtnText}>📷 Ambil & Kirim Bukti</Text>
-                      )}
+                      <Text style={styles.toolbarBtnText}>✍️ Manual</Text>
                     </TouchableOpacity>
                   </View>
-                )}
 
-                {/* Manual Order Input Form */}
-                {showManualInput && (
-                  <View style={styles.manualInputContainer}>
-                    <TextInput
-                      style={styles.manualInput}
-                      placeholder="Ketik No. Pesanan secara manual..."
-                      placeholderTextColor="#71717a"
-                      value={manualBarcode}
-                      onChangeText={setManualBarcode}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    <TouchableOpacity
-                      style={styles.manualInputBtn}
-                      onPress={() => {
-                        if (manualBarcode.trim()) {
-                          uploadPackageProof(manualBarcode.trim());
-                          setManualBarcode('');
-                        }
-                      }}
-                      disabled={isUploading}
-                    >
-                      <Text style={styles.manualInputBtnText}>Kirim</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
+                  {/* Auto-Foto dedicated row is now floating inside the camera view */}
+
+                  {/* Manual scan input panel if Auto mode is off */}
+                  {!autoCapture && barcode !== '' && (
+                    <View style={styles.manualActionPanel}>
+                      <Text style={styles.manualBarcodeText}>Resi Terdeteksi: {barcode}</Text>
+                      <TouchableOpacity
+                        style={styles.manualCaptureBtn}
+                        onPress={() => uploadPackageProof(barcode)}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? (
+                          <ActivityIndicator color="#ffffff" />
+                        ) : (
+                          <Text style={styles.manualCaptureBtnText}>📷 Ambil & Kirim Bukti</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Manual Order Input Form */}
+                  {showManualInput && (
+                    <View style={styles.manualInputContainer}>
+                      <TextInput
+                        style={styles.manualInput}
+                        placeholder="Ketik No. Pesanan secara manual..."
+                        placeholderTextColor="#71717a"
+                        value={manualBarcode}
+                        onChangeText={setManualBarcode}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <TouchableOpacity
+                        style={styles.manualInputBtn}
+                        onPress={() => {
+                          if (manualBarcode.trim()) {
+                            uploadPackageProof(manualBarcode.trim());
+                            setManualBarcode('');
+                          }
+                        }}
+                        disabled={isUploading}
+                      >
+                        <Text style={styles.manualInputBtnText}>Kirim</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               </View>
             </TouchableWithoutFeedback>
           )}
@@ -724,11 +967,20 @@ export default function App() {
                 data={history}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ paddingBottom: 100 }}
+                alwaysBounceVertical={true}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefreshHistory}
+                    tintColor="#22c55e"
+                    colors={["#22c55e"]}
+                  />
+                }
                 renderItem={({ item }) => (
                   <View style={[
                     styles.historyItem,
-                    item.status === 'success' 
-                      ? { borderLeftWidth: 4, borderLeftColor: '#22c55e' } 
+                    item.status === 'success'
+                      ? { borderLeftWidth: 4, borderLeftColor: '#22c55e' }
                       : { borderLeftWidth: 4, borderLeftColor: '#ef4444' }
                   ]}>
                     <View style={styles.historyMain}>
@@ -746,7 +998,7 @@ export default function App() {
                     </View>
                     <View style={{ alignItems: 'flex-end', gap: 8 }}>
                       <Text style={styles.itemTime}>{item.scanned_at}</Text>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => deleteHistoryItem(item.id)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       >
@@ -764,40 +1016,327 @@ export default function App() {
             </View>
           )}
 
+          {/* Stok Tab */}
+          {activeTab === 'STOK' && (
+            <ScrollView
+              style={{ flex: 1, backgroundColor: '#09090b' }}
+              contentContainerStyle={{ padding: 20, paddingBottom: 110 }}
+            >
+              <View style={styles.tabHeaderRow}>
+                <Text style={styles.tabHeaderTitle}>Cek & Update Stok</Text>
+              </View>
+
+              {/* Search input and scan button */}
+              <View style={styles.searchSection}>
+                <View style={styles.searchInputWrapper}>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Ketik SKU Produk..."
+                    placeholderTextColor="#71717a"
+                    value={searchSku}
+                    onChangeText={setSearchSku}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <TouchableOpacity
+                    style={styles.searchBtn}
+                    onPress={() => searchProductBySku(searchSku)}
+                    disabled={isSearchingProduct}
+                  >
+                    {isSearchingProduct ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Ionicons name="search-outline" size={18} color="#ffffff" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.scanSkuBtn}
+                  onPress={() => setShowProductScanner(true)}
+                >
+                  <Ionicons name="camera-outline" size={18} color="#ffffff" />
+                  <Text style={styles.scanSkuBtnText}>Scan SKU</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Product Info Card */}
+              {scannedProduct ? (
+                <View style={styles.productCard}>
+                  <View style={styles.productCardHeader}>
+                    <Text style={styles.productCardSku}>{scannedProduct.sku}</Text>
+                    <Text style={styles.productCardCategory}>{scannedProduct.category_name}</Text>
+                  </View>
+                  <Text style={styles.productCardName}>{scannedProduct.name}</Text>
+                  <Text style={styles.productCardPrice}>
+                    Harga: Rp {parseInt(scannedProduct.price).toLocaleString('id-ID')}
+                  </Text>
+
+                  {/* Stock Health Status Badge */}
+                  <View style={styles.stockBadgeRow}>
+                    <View style={[
+                      styles.stockBadge,
+                      scannedProduct.stock <= 10
+                        ? { backgroundColor: 'rgba(239, 68, 68, 0.15)' }
+                        : { backgroundColor: 'rgba(34, 197, 94, 0.15)' }
+                    ]}>
+                      <Ionicons
+                        name={scannedProduct.stock <= 10 ? "warning-outline" : "checkmark-circle-outline"}
+                        size={12}
+                        color={scannedProduct.stock <= 10 ? "#ef4444" : "#22c55e"}
+                      />
+                      <Text style={[
+                        styles.stockBadgeText,
+                        scannedProduct.stock <= 10 ? { color: '#ef4444' } : { color: '#22c55e' }
+                      ]}>
+                        {scannedProduct.stock <= 10 ? 'Stok Menipis / Perlu Restok' : 'Stok Aman / Sehat'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.divider} />
+
+                  <Text style={styles.stockTitle}>Sesuaikan Jumlah Stok:</Text>
+                  <View style={styles.stockAdjustRow}>
+                    <TouchableOpacity
+                      style={[styles.adjustCircle, styles.adjustCircleMinus]}
+                      onPress={() => {
+                        const val = parseInt(stockInput) || 0;
+                        setStockInput(String(Math.max(0, val - 5)));
+                      }}
+                    >
+                      <Text style={styles.adjustTextMinus}>-5</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.adjustCircle, styles.adjustCircleMinus]}
+                      onPress={() => {
+                        const val = parseInt(stockInput) || 0;
+                        setStockInput(String(Math.max(0, val - 1)));
+                      }}
+                    >
+                      <Text style={styles.adjustTextMinus}>-1</Text>
+                    </TouchableOpacity>
+
+                    <TextInput
+                      style={styles.stockInput}
+                      keyboardType="numeric"
+                      value={stockInput}
+                      onChangeText={setStockInput}
+                    />
+
+                    <TouchableOpacity
+                      style={[styles.adjustCircle, styles.adjustCirclePlus]}
+                      onPress={() => {
+                        const val = parseInt(stockInput) || 0;
+                        setStockInput(String(val + 1));
+                      }}
+                    >
+                      <Text style={styles.adjustTextPlus}>+1</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.adjustCircle, styles.adjustCirclePlus]}
+                      onPress={() => {
+                        const val = parseInt(stockInput) || 0;
+                        setStockInput(String(val + 5));
+                      }}
+                    >
+                      <Text style={styles.adjustTextPlus}>+5</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.updateStockBtn}
+                    onPress={updateProductStock}
+                    disabled={isSearchingProduct}
+                  >
+                    {isSearchingProduct ? (
+                      <ActivityIndicator color="#ffffff" />
+                    ) : (
+                      <Text style={styles.updateStockBtnText}>Simpan Perubahan Stok</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.emptyProductContainer}>
+                  <Ionicons name="cube-outline" size={48} color="#71717a" />
+                  <Text style={styles.emptyProductText}>
+                    Silakan scan barcode produk di rak gudang atau ketik kode SKU di atas untuk mengecek stok.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.emptyScanBtn}
+                    onPress={() => setShowProductScanner(true)}
+                  >
+                    <Ionicons name="camera-outline" size={16} color="#818cf8" />
+                    <Text style={styles.emptyScanBtnText}>Mulai Scan Barcode</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          )}
+
+          {/* Profile Tab */}
+          {activeTab === 'PROFILE' && (
+            <ScrollView
+              style={{ flex: 1, backgroundColor: '#09090b' }}
+              contentContainerStyle={{ padding: 20, paddingBottom: 110 }}
+            >
+              <View style={styles.tabHeaderRow}>
+                <Text style={styles.tabHeaderTitle}>Akun Petugas</Text>
+              </View>
+
+              <View style={styles.profileCardFull}>
+                <View style={styles.avatarCircleLarge}>
+                  <Text style={styles.avatarLetterLarge}>{userName ? userName.charAt(0).toUpperCase() : 'P'}</Text>
+                </View>
+                <Text style={styles.profileNameLarge}>{userName || 'Petugas'}</Text>
+                <Text style={styles.profileRoleLarge}>Petugas Gudang / Packing</Text>
+
+                <View style={styles.divider} />
+
+                <View style={styles.profileDetailRow}>
+                  <Text style={styles.profileDetailLabel}>Email</Text>
+                  <Text style={styles.profileDetailValue}>{email || '-'}</Text>
+                </View>
+                <View style={styles.profileDetailRow}>
+                  <Text style={styles.profileDetailLabel}>Server URL</Text>
+                  <Text style={styles.profileDetailValue}>{serverUrl}</Text>
+                </View>
+                <View style={styles.profileDetailRow}>
+                  <Text style={styles.profileDetailLabel}>Status</Text>
+                  <Text style={[styles.profileDetailValue, { color: '#22c55e', fontWeight: 'bold' }]}>● Terhubung</Text>
+                </View>
+              </View>
+
+              {/* Scan Response Settings */}
+              <View style={styles.settingsCard}>
+                <Text style={styles.settingsTitle}>Pengaturan Respon Scan</Text>
+
+                <View style={styles.settingsRow}>
+                  <View>
+                    <Text style={styles.settingsLabel}>Suara Beep</Text>
+                    <Text style={styles.settingsDesc}>Bunyi beep saat memindai barcode resi</Text>
+                  </View>
+                  <Switch
+                    trackColor={{ false: '#2c2c2e', true: '#4f46e5' }}
+                    thumbColor={enableSound ? '#ffffff' : '#a1a1aa'}
+                    value={enableSound}
+                    onValueChange={async (value) => {
+                      setEnableSound(value);
+                      await AsyncStorage.setItem('@enable_sound', String(value));
+                    }}
+                  />
+                </View>
+
+                <View style={[styles.settingsRow, { marginBottom: 0 }]}>
+                  <View>
+                    <Text style={styles.settingsLabel}>Getaran (Haptic)</Text>
+                    <Text style={styles.settingsDesc}>Efek getar dinamis pada perangkat</Text>
+                  </View>
+                  <Switch
+                    trackColor={{ false: '#2c2c2e', true: '#4f46e5' }}
+                    thumbColor={enableHaptic ? '#ffffff' : '#a1a1aa'}
+                    value={enableHaptic}
+                    onValueChange={async (value) => {
+                      setEnableHaptic(value);
+                      await AsyncStorage.setItem('@enable_haptic', String(value));
+                    }}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.logoutBtnLarge} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.logoutBtnLargeText}>Keluar dari Sistem</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+
+          {/* Product Scanner Modal */}
+          {showProductScanner && (
+            <View style={StyleSheet.absoluteFill}>
+              <CameraView
+                style={StyleSheet.absoluteFill}
+                facing="back"
+                barcodeScannerSettings={{
+                  barcodeTypes: ['qr', 'code128', 'code39', 'code93', 'pdf417', 'ean13', 'ean8'],
+                }}
+                onBarcodeScanned={({ data }) => {
+                  setShowProductScanner(false);
+                  setSearchSku(data);
+                  searchProductBySku(data);
+                }}
+              />
+              <View style={styles.overlayContainer}>
+                <View style={styles.reticleBox} />
+                <Text style={styles.scanInstruction}>Scan Barcode/SKU Produk</Text>
+                <TouchableOpacity
+                  style={[styles.primaryButton, { marginTop: 40, width: 200 }]}
+                  onPress={() => setShowProductScanner(false)}
+                >
+                  <Text style={styles.primaryButtonText}>Batal</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {/* Bottom Tab Navigation Bar */}
           <View style={styles.tabBar}>
-            <TouchableOpacity 
-              style={styles.tabBarItem} 
+            <TouchableOpacity
+              style={styles.tabBarItem}
               onPress={() => setActiveTab('DASHBOARD')}
             >
-              <Ionicons 
-                name={activeTab === 'DASHBOARD' ? 'home' : 'home-outline'} 
-                size={22} 
-                color={activeTab === 'DASHBOARD' ? '#4f46e5' : '#a1a1aa'} 
+              <Ionicons
+                name={activeTab === 'DASHBOARD' ? 'home' : 'home-outline'}
+                size={20}
+                color={activeTab === 'DASHBOARD' ? '#4f46e5' : '#a1a1aa'}
               />
-              <Text style={[styles.tabBarLabel, activeTab === 'DASHBOARD' && styles.tabActiveColor]}>Dashboard</Text>
+              <Text style={[styles.tabBarLabel, activeTab === 'DASHBOARD' && styles.tabActiveColor]}>Home</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.tabBarItem}
+              onPress={() => setActiveTab('STOK')}
+            >
+              <Ionicons
+                name={activeTab === 'STOK' ? 'cube' : 'cube-outline'}
+                size={20}
+                color={activeTab === 'STOK' ? '#4f46e5' : '#a1a1aa'}
+              />
+              <Text style={[styles.tabBarLabel, activeTab === 'STOK' && styles.tabActiveColor]}>Stok</Text>
             </TouchableOpacity>
 
             {/* Elevated Scanner Center Button */}
             <View style={styles.centerTabContainer}>
-              <TouchableOpacity 
-                style={styles.centerScanBtn} 
+              <TouchableOpacity
+                style={styles.centerScanBtn}
                 onPress={() => setActiveTab('SCANNER')}
               >
                 <Ionicons name="camera" size={26} color="#ffffff" />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity 
-              style={styles.tabBarItem} 
+            <TouchableOpacity
+              style={styles.tabBarItem}
               onPress={() => setActiveTab('HISTORY')}
             >
-              <Ionicons 
-                name={activeTab === 'HISTORY' ? 'list' : 'list-outline'} 
-                size={22} 
-                color={activeTab === 'HISTORY' ? '#4f46e5' : '#a1a1aa'} 
+              <Ionicons
+                name={activeTab === 'HISTORY' ? 'list' : 'list-outline'}
+                size={20}
+                color={activeTab === 'HISTORY' ? '#4f46e5' : '#a1a1aa'}
               />
               <Text style={[styles.tabBarLabel, activeTab === 'HISTORY' && styles.tabActiveColor]}>Riwayat</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.tabBarItem}
+              onPress={() => setActiveTab('PROFILE')}
+            >
+              <Ionicons
+                name={activeTab === 'PROFILE' ? 'person' : 'person-outline'}
+                size={20}
+                color={activeTab === 'PROFILE' ? '#4f46e5' : '#a1a1aa'}
+              />
+              <Text style={[styles.tabBarLabel, activeTab === 'PROFILE' && styles.tabActiveColor]}>Profil</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1228,7 +1767,7 @@ const styles = StyleSheet.create({
   tabBarItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: '33%',
+    width: '20%',
   },
   tabBarIcon: {
     fontSize: 20,
@@ -1244,7 +1783,7 @@ const styles = StyleSheet.create({
     color: '#4f46e5',
   },
   centerTabContainer: {
-    width: '33%',
+    width: '20%',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1415,6 +1954,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  globalLoadingOverlay: {
+    position: 'absolute',
+    top: 60, // Float below the status bar
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    zIndex: 9999, // Ensure it is on top of everything!
+  },
+  globalLoadingText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   floatingStatusBanner: {
     position: 'absolute',
     top: 100, // Floats below the top Auto-Foto pill
@@ -1461,5 +2016,499 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  searchSection: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  searchInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#1c1c1e',
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    borderRadius: 12,
+    alignItems: 'center',
+    height: 48,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#ffffff',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  searchBtn: {
+    paddingHorizontal: 16,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#2c2c2e',
+    borderTopRightRadius: 11,
+    borderBottomRightRadius: 11,
+  },
+  scanSkuBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#4f46e5',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  scanSkuBtnText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  productCard: {
+    backgroundColor: '#1c1c1e',
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  productCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  productCardSku: {
+    color: '#818cf8',
+    fontWeight: '800',
+    fontSize: 11,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    textTransform: 'uppercase',
+  },
+  productCardCategory: {
+    color: '#a1a1aa',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  productCardName: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+    lineHeight: 26,
+  },
+  productCardPrice: {
+    color: '#34d399',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#2c2c2e',
+    marginVertical: 18,
+  },
+  stockTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  stockAdjustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 24,
+  },
+  adjustCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  adjustCircleMinus: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  adjustCirclePlus: {
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+  },
+  adjustTextMinus: {
+    color: '#ef4444',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  adjustTextPlus: {
+    color: '#22c55e',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  stockInput: {
+    width: 70,
+    height: 46,
+    borderWidth: 1.5,
+    borderColor: '#4f46e5',
+    backgroundColor: '#09090b',
+    color: '#ffffff',
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '800',
+    borderRadius: 10,
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  updateStockBtn: {
+    backgroundColor: '#10b981',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  updateStockBtnText: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+  emptyProductContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 20,
+    backgroundColor: '#1c1c1e',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#2c2c2e',
+    gap: 16,
+    marginTop: 10,
+  },
+  emptyProductText: {
+    color: '#a1a1aa',
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 22,
+    paddingHorizontal: 10,
+  },
+  emptyScanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  emptyScanBtnText: {
+    color: '#818cf8',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  stockBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  stockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  stockBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  profileCardFull: {
+    backgroundColor: '#18181b',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  avatarCircleLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#4f46e5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  avatarLetterLarge: {
+    color: '#ffffff',
+    fontSize: 32,
+    fontWeight: '800',
+  },
+  profileNameLarge: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  profileRoleLarge: {
+    color: '#a1a1aa',
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  profileDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#27272a',
+  },
+  profileDetailLabel: {
+    color: '#a1a1aa',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  profileDetailValue: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  logoutBtnLarge: {
+    flexDirection: 'row',
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutBtnLargeText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  guideCard: {
+    backgroundColor: '#1c1c1e',
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 20,
+  },
+  guideHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2c2c2e',
+    paddingBottom: 10,
+  },
+  guideTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  guideItem: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14,
+    alignItems: 'flex-start',
+  },
+  guideStepNumber: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  guideStepText: {
+    color: '#818cf8',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  guideItemContent: {
+    flex: 1,
+  },
+  guideItemTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  guideItemDesc: {
+    color: '#a1a1aa',
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  lowStockAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(244, 63, 94, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.3)',
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+    marginTop: 18,
+  },
+  lowStockAlertTitle: {
+    color: '#f43f5e',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  lowStockAlertDesc: {
+    color: '#a1a1aa',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  allStockSafeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+    marginTop: 18,
+  },
+  allStockSafeText: {
+    color: '#10b981',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  settingsCard: {
+    backgroundColor: '#1c1c1e',
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  settingsTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2c2c2e',
+    paddingBottom: 10,
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  settingsLabel: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  settingsDesc: {
+    color: '#a1a1aa',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  progressCard: {
+    backgroundColor: '#1c1c1e',
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 18,
+  },
+  progressHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  progressLabel: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  progressPercentage: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  progressBarBg: {
+    height: 10,
+    backgroundColor: '#09090b',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  progressSubtext: {
+    color: '#a1a1aa',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  connectionErrorCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  connectionErrorText: {
+    color: '#ef4444',
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
   },
 });

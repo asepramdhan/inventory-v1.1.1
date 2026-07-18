@@ -1066,9 +1066,7 @@ export default function Transactions({ transactions, storesList, productsList, c
   const handleDeleteProof = () => {
     if (!confirm('Apakah Anda yakin ingin menghapus bukti packing ini?')) return;
     
-    router.post(`/finance/transactions/${selectedTransaction.id}/delete-proof`, {
-      _method: 'delete'
-    }, {
+    router.post(`/finance/transactions/${selectedTransaction.id}/delete-proof`, {}, {
       onSuccess: () => {
         toast.success('Bukti packing berhasil dihapus.');
       }
