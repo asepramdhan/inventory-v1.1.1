@@ -166,21 +166,8 @@ export default function App() {
   // Beep sound player
   const playBeep = async (isSuccess: boolean) => {
     if (!enableSound) return;
-    try {
-      const soundObject = new Audio.Sound();
-      const soundUrl = isSuccess
-        ? 'https://www.soundjay.com/buttons/button-3.mp3'
-        : 'https://www.soundjay.com/buttons/button-10.mp3';
-      await soundObject.loadAsync({ uri: soundUrl });
-      await soundObject.playAsync();
-      soundObject.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          soundObject.unloadAsync();
-        }
-      });
-    } catch (err) {
-      console.log('Failed to play sound beep, falling back to vibration');
-    }
+    // Hapus pemanggilan internet (soundjay.com) agar tidak memicu thread starvation / network contention di jaringan gudang
+    console.log('Beep feedback triggered:', isSuccess ? 'SUCCESS' : 'FAILED');
   };
 
   // Vibe feedback
@@ -498,6 +485,10 @@ export default function App() {
       return;
     }
 
+    // Kunci state kesibukan secara INSTAN agar scanner dinonaktifkan di level hardware
+    isUploadingRef.current = true;
+    setIsUploading(true);
+
     lastScannedBarcodeRef.current = cleanData;
     lastScanTimeRef.current = now;
     setLastScannedBarcode(cleanData);
@@ -508,7 +499,10 @@ export default function App() {
     playBeep(true);
 
     if (autoCaptureRef.current) {
-      checkAndStartRecording(cleanData);
+      // Jeda 500ms agar hardware kamera selesai menonaktifkan decoder barcode sebelum masuk alur rekam
+      setTimeout(() => {
+        checkAndStartRecording(cleanData);
+      }, 500);
     }
   }, []);
 
@@ -543,6 +537,9 @@ export default function App() {
     setStatusMsg(null);
     setIsUploading(true);
     isUploadingRef.current = true;
+
+    // Jeda 300ms agar React selesai re-render dan menonaktifkan barcodeScannerSettings sebelum jepret foto!
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     let photoUri = '';
     try {
@@ -594,8 +591,17 @@ export default function App() {
             maxDuration: 10, // Batasi 10 detik biar file sangat kecil & otomatis stop!
             videoBitrate: 500000, // 500 kbps (sangat kecil & hemat kuota!)
             codec: Platform.OS === 'ios' ? 'avc1' : undefined
-          }).then((video: any) => {
+          }).then(async (video: any) => {
             if (video && video.uri) {
+              // Berhentikan timer rekam di layar HP terlebih dahulu
+              setIsRecording(false);
+              isRecordingRef.current = false;
+              if (recordTimerIdRef.current) {
+                clearInterval(recordTimerIdRef.current);
+                recordTimerIdRef.current = null;
+              }
+              // Berikan jeda 1 detik agar file video selesai ditulis & dilepas dari kunci OS sebelum diunggah!
+              await new Promise(resolve => setTimeout(resolve, 1000));
               uploadDualProof(targetBarcode, capturedPhotoUriRef.current || '', video.uri);
             }
           }).catch((err: any) => {

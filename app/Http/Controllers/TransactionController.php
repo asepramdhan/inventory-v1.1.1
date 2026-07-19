@@ -1024,7 +1024,7 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Silakan login terlebih dahulu untuk mengakses stasiun packing.'
-            ], 401);
+            ], 200); // Gunakan 200 agar LiteSpeed/cPanel tidak melakukan intersept/redirect
         }
 
         $transaction = Transaction::where('user_id', $user->id)
@@ -1039,7 +1039,7 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'No. Pesanan atau Resi "' . $barcode . '" tidak ditemukan di database.'
-            ], 404);
+            ], 200); // Gunakan 200 agar LiteSpeed tidak memutus koneksi/WAF trigger
         }
 
         $path = '';
