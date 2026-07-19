@@ -42,6 +42,10 @@ const BARCODE_SETTINGS = {
   barcodeTypes: ['qr', 'code128', 'code39', 'code93', 'pdf417', 'ean13', 'ean8'] as any[],
 };
 
+const DISABLED_BARCODE_SETTINGS = {
+  barcodeTypes: [] as any[],
+};
+
 export default function App() {
   useKeepAwake();
   const [permission, requestPermission] = useCameraPermissions();
@@ -484,23 +488,27 @@ export default function App() {
       return;
     }
 
+    // Bersihkan barcode secara total dari spasi, newline, carriage return (\r\n), dan karakter non-alphanumeric/punctuation agar tidak merusak format HTTP FormData
+    const cleanData = data.replace(/[^a-zA-Z0-9\-_./]/g, '').trim();
+    if (!cleanData) return;
+
     // Debounce to prevent multiple quick trigger scans of the same barcode
     const now = Date.now();
-    if (data === lastScannedBarcodeRef.current && now - lastScanTimeRef.current < 4000) {
+    if (cleanData === lastScannedBarcodeRef.current && now - lastScanTimeRef.current < 4000) {
       return;
     }
 
-    lastScannedBarcodeRef.current = data;
+    lastScannedBarcodeRef.current = cleanData;
     lastScanTimeRef.current = now;
-    setLastScannedBarcode(data);
+    setLastScannedBarcode(cleanData);
     setLastScanTime(now);
-    setBarcode(data);
+    setBarcode(cleanData);
 
     triggerHaptic(true);
     playBeep(true);
 
     if (autoCaptureRef.current) {
-      checkAndStartRecording(data);
+      checkAndStartRecording(cleanData);
     }
   }, []);
 
@@ -1005,7 +1013,11 @@ export default function App() {
                   enableTorch={flash}
                   mode={cameraMode}
                   videoQuality="480p"
-                  barcodeScannerSettings={BARCODE_SETTINGS}
+                  barcodeScannerSettings={
+                    isUploading || isRecording || cameraMode === 'video' || activeUploads > 0
+                      ? DISABLED_BARCODE_SETTINGS
+                      : BARCODE_SETTINGS
+                  }
                   onBarcodeScanned={handleBarcodeScanned}
                 />
 

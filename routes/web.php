@@ -25,6 +25,11 @@ Route::get('/api/mobile/product/scan', [TransactionController::class, 'mobileSca
 Route::post('/api/mobile/product/update-stock', [TransactionController::class, 'mobileUpdateProductStock'])->name('api.mobile-product-update-stock');
 Route::post('/finance/transactions/barcode-upload-proof', [TransactionController::class, 'uploadProofByBarcode'])->name('transactions.barcode-upload-proof');
 
+Route::get('/clear-route-cache', function() {
+    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+    return 'Laravel cache and routes cleared successfully woy!';
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Keuangan & Analisa - Daftar Transaksi
     // Route::inertia('dashboard', 'dashboard')->name('dashboard');
