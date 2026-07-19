@@ -26,6 +26,12 @@ export default function PackingStation() {
   const [scannedList, setScannedList] = useState<ScannedPackage[]>([]);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
 
+  const isVideoFile = (path?: string | null) => {
+    if (!path) return false;
+    const ext = path.split('.').pop()?.toLowerCase();
+    return ['mp4', 'mov', 'avi', 'webm', 'qt', 'quicktime'].includes(ext || '');
+  };
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -529,16 +535,38 @@ export default function PackingStation() {
                         {/* Image Preview inside Dialog zoom */}
                         <Dialog>
                           <DialogTrigger asChild>
-                            <div className="h-12 w-16 rounded-lg overflow-hidden border bg-muted flex items-center justify-center cursor-pointer hover:opacity-85 transition-opacity shrink-0 relative group">
-                              <img src={`/storage/${pkg.package_proof}`} alt="Snapshot" className="w-full h-full object-cover" />
+                            <div className="h-12 w-24 rounded-lg overflow-hidden border bg-muted flex items-center gap-1 p-0.5 cursor-pointer hover:opacity-85 transition-opacity shrink-0 relative group">
+                              {pkg.package_proof.split(',').map((proofPath: string, idx: number) => {
+                                const isVideo = ['mp4', 'mov', 'avi', 'webm', 'qt', 'quicktime'].includes(proofPath.split('.').pop()?.toLowerCase() || '');
+                                return (
+                                  <div key={idx} className="flex-1 h-full rounded overflow-hidden bg-zinc-950 flex items-center justify-center">
+                                    {isVideo ? (
+                                      <Camera className="h-4 w-4 text-indigo-500" />
+                                    ) : (
+                                      <img src={`/storage/${proofPath}`} alt="Snapshot" className="w-full h-full object-cover" />
+                                    )}
+                                  </div>
+                                );
+                              })}
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-bold">
-                                <Eye className="h-3 w-3" />
+                                <Eye className="h-3 w-3" /> Detail
                               </div>
                             </div>
                           </DialogTrigger>
-                          <DialogContent className="sm:max-w-3xl p-1 bg-black border-none rounded-2xl overflow-hidden shadow-2xl">
-                            <div className="relative w-full max-h-[85vh] bg-zinc-950 flex items-center justify-center">
-                              <img src={`/storage/${pkg.package_proof}`} alt="Full Snapshot" className="max-w-full max-h-[85vh] object-contain" />
+                          <DialogContent className="sm:max-w-5xl p-4 bg-zinc-950 border-none rounded-2xl overflow-y-auto max-h-[90vh] shadow-2xl">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                              {pkg.package_proof.split(',').map((proofPath: string, idx: number) => {
+                                const isVideo = ['mp4', 'mov', 'avi', 'webm', 'qt', 'quicktime'].includes(proofPath.split('.').pop()?.toLowerCase() || '');
+                                return (
+                                  <div key={idx} className="relative w-full aspect-[4/3] bg-zinc-900 flex items-center justify-center rounded-xl border border-zinc-800 overflow-hidden">
+                                    {isVideo ? (
+                                      <video src={`/storage/${proofPath}`} controls className="w-full h-full object-contain" />
+                                    ) : (
+                                      <img src={`/storage/${proofPath}`} alt={`Bukti Packing ${idx + 1}`} className="w-full h-full object-cover" />
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </DialogContent>
                         </Dialog>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   StatusBar,
   Switch,
+  Alert,
   Image as RNImage,
   Animated,
   Platform,
@@ -36,6 +37,10 @@ interface ScannedPackage {
   status: 'success' | 'error';
   errorMessage?: string;
 }
+
+const BARCODE_SETTINGS = {
+  barcodeTypes: ['qr', 'code128', 'code39', 'code93', 'pdf417', 'ean13', 'ean8'] as any[],
+};
 
 export default function App() {
   useKeepAwake();
@@ -65,6 +70,12 @@ export default function App() {
   const [enableSound, setEnableSound] = useState<boolean>(true);
   const [enableHaptic, setEnableHaptic] = useState<boolean>(true);
 
+  // Perekaman Video States
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [cameraMode, setCameraMode] = useState<'picture' | 'video'>('picture');
+  const [activeUploads, setActiveUploads] = useState<number>(0);
+
   // Scanner States
   const [barcode, setBarcode] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -86,9 +97,27 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
 
   const cameraRef = useRef<any>(null);
+  const capturedPhotoUriRef = useRef<string | null>(null);
+  const recordTimerIdRef = useRef<any>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const statusFadeAnim = useRef(new Animated.Value(0)).current;
   const statusTimeoutRef = useRef<any>(null);
+
+  const isUploadingRef = useRef(false);
+  const isRecordingRef = useRef(false);
+  const cameraModeRef = useRef<'picture' | 'video'>('picture');
+  const activeUploadsRef = useRef(0);
+  const lastScannedBarcodeRef = useRef('');
+  const lastScanTimeRef = useRef(0);
+  const autoCaptureRef = useRef(true);
+  const historyRef = useRef<ScannedPackage[]>([]);
+
+  useEffect(() => { isUploadingRef.current = isUploading; }, [isUploading]);
+  useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
+  useEffect(() => { cameraModeRef.current = cameraMode; }, [cameraMode]);
+  useEffect(() => { activeUploadsRef.current = activeUploads; }, [activeUploads]);
+  useEffect(() => { autoCaptureRef.current = autoCapture; }, [autoCapture]);
+  useEffect(() => { historyRef.current = history; }, [history]);
 
   const translateY = statusFadeAnim.interpolate({
     inputRange: [0, 1],
@@ -440,17 +469,29 @@ export default function App() {
     }
   };
 
-  // Handle camera scanned barcode event
-  const handleBarcodeScanned = async (scanningResult: { data: string }) => {
+  // Handle camera scanned barcode event (useCallback dengan dependensi kosong agar referensinya 100% statis & tidak merusak sesi kamera)
+  const handleBarcodeScanned = useCallback(async (scanningResult: { data: string }) => {
     const { data } = scanningResult;
     if (!data) return;
 
-    // Debounce to prevent multiple quick trigger scans of the same barcode
-    const now = Date.now();
-    if (data === lastScannedBarcode && now - lastScanTime < 4000) {
+    // Filter jika sedang sibuk merekam atau mengunggah agar sesi kamera stabil
+    if (
+      isUploadingRef.current || 
+      isRecordingRef.current || 
+      cameraModeRef.current === 'video' || 
+      activeUploadsRef.current > 0
+    ) {
       return;
     }
 
+    // Debounce to prevent multiple quick trigger scans of the same barcode
+    const now = Date.now();
+    if (data === lastScannedBarcodeRef.current && now - lastScanTimeRef.current < 4000) {
+      return;
+    }
+
+    lastScannedBarcodeRef.current = data;
+    lastScanTimeRef.current = now;
     setLastScannedBarcode(data);
     setLastScanTime(now);
     setBarcode(data);
@@ -458,42 +499,161 @@ export default function App() {
     triggerHaptic(true);
     playBeep(true);
 
-    if (autoCapture) {
-      uploadPackageProof(data);
+    if (autoCaptureRef.current) {
+      checkAndStartRecording(data);
+    }
+  }, []);
+
+  const checkAndStartRecording = (data: string) => {
+    const isAlreadyScanned = historyRef.current.some(
+      (item) => 
+        item.status === 'success' && 
+        (item.invoice_number === data || item.waybill_number === data)
+    );
+
+    if (isAlreadyScanned) {
+      Alert.alert(
+        '⚠️ Resi Sudah Dipacking',
+        `Resi "${data}" sudah dipacking sebelumnya hari ini. Apakah Anda yakin ingin memproses ulang?`,
+        [
+          { text: 'Batal', style: 'cancel', onPress: () => {
+            setLastScannedBarcode('');
+            lastScannedBarcodeRef.current = '';
+          }},
+          { text: 'Lanjutkan', onPress: () => {
+            startVideoRecordingWorkflow(data);
+          }}
+        ]
+      );
+    } else {
+      startVideoRecordingWorkflow(data);
     }
   };
 
-  const uploadPackageProof = async (targetBarcode: string) => {
-    if (isUploading) return;
-    setIsUploading(true);
+  const startVideoRecordingWorkflow = async (targetBarcode: string) => {
+    setBarcode(targetBarcode);
     setStatusMsg(null);
+    setIsUploading(true);
 
     let photoUri = '';
     try {
       if (cameraRef.current) {
+        // Ambil gambar terlebih dahulu dengan kompresi 0.3 (sangat ringan namun tetap terbaca jelas)
         const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
+          quality: 0.3,
         });
         photoUri = photo.uri;
-        // Immediate capture success status message (stays until overwrite by upload response)
-        showStatus('📸 Foto berhasil diambil. Mengirim ke server...', 'success', 0, true);
+        capturedPhotoUriRef.current = photo.uri;
       }
     } catch (err) {
-      console.error('Failed to capture frame:', err);
-      showStatus('Gagal mengambil gambar dari kamera.', 'error');
-      triggerHaptic(false);
-      playBeep(false);
+      console.error('Failed to take picture before recording:', err);
+      showStatus('Gagal mengambil foto resi.', 'error');
       setIsUploading(false);
       return;
     }
 
+    // Jeda 500ms agar hardware iOS selesai menulis file jepretan ke disk
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Bersihkan status banner agar hanya timer rekam yang tampil
+    setStatusMsg(null);
+
+    // Pindah ke mode video dan mulai merekam
+    setCameraMode('video');
+    setRecordingSeconds(0);
+    setIsRecording(true);
+
+    // Mulai interval detik timer SEGERA menggunakan React Ref (Sangat Aman!)
+    if (recordTimerIdRef.current) {
+      clearInterval(recordTimerIdRef.current);
+    }
+    const intervalId = setInterval(() => {
+      setRecordingSeconds(prev => {
+        console.log('Countdown Timer Ticked:', prev + 1);
+        return prev + 1;
+      });
+    }, 1000);
+    recordTimerIdRef.current = intervalId;
+
+    setTimeout(() => {
+      try {
+        if (cameraRef.current) {
+          cameraRef.current.recordAsync({
+            maxDuration: 10, // Batasi 10 detik biar file sangat kecil & otomatis stop!
+            videoBitrate: 500000, // 500 kbps (sangat kecil & hemat kuota!)
+            codec: Platform.OS === 'ios' ? 'avc1' : undefined
+          }).then((video: any) => {
+            if (video && video.uri) {
+              uploadDualProof(targetBarcode, capturedPhotoUriRef.current || '', video.uri);
+            }
+          }).catch((err: any) => {
+            console.error('Failed to record video inside promise:', err);
+            showStatus('Gagal merekam video.', 'error');
+            setCameraMode('picture');
+            setIsRecording(false);
+            setIsUploading(false);
+          });
+        }
+      } catch (err) {
+        console.error('Failed to record video:', err);
+        showStatus('Gagal memulai perekaman video.', 'error');
+        setCameraMode('picture');
+        setIsRecording(false);
+        setIsUploading(false);
+      }
+    }, 1000); // Jeda transisi 1000ms yang aman untuk iOS AVFoundation
+  };
+
+  const stopVideoRecordingWorkflow = async () => {
+    if (recordTimerIdRef.current) {
+      clearInterval(recordTimerIdRef.current);
+      recordTimerIdRef.current = null;
+    }
+    if (cameraRef.current) {
+      try {
+        cameraRef.current.stopRecording();
+      } catch (err) {
+        console.error('Failed to stop recording:', err);
+      }
+    }
+    setIsRecording(false);
+  };
+
+  const uploadDualProof = async (targetBarcode: string, photoUri: string, videoUri: string) => {
+    // LANGSUNG PINDAH LAGI KE SCAN (TIDAK MENUNGGU BERES KIRIM)
+    setActiveUploads(prev => prev + 1);
+    setIsUploading(false);
+    setCameraMode('picture');
+    setIsRecording(false);
+    setBarcode('');
+    setLastScannedBarcode(''); // Reset debouncer agar bisa langsung scan barcode selanjutnya
+    capturedPhotoUriRef.current = null;
+    
+    if (recordTimerIdRef.current) {
+      clearInterval(recordTimerIdRef.current);
+      recordTimerIdRef.current = null;
+    }
+    
+    showStatus('📤 Mengirim bukti foto & video di latar belakang...', 'success', 0, true);
+    
     const formData = new FormData();
     formData.append('barcode', targetBarcode);
+    
+    // Lampirkan Foto
     if (photoUri) {
-      formData.append('package_proof', {
+      formData.append('package_proof_photo', {
         uri: photoUri,
-        name: 'proof.jpg',
+        name: 'proof_photo.jpg',
         type: 'image/jpeg'
+      } as any);
+    }
+
+    // Lampirkan Video (Paksa simpan sebagai .mp4)
+    if (videoUri) {
+      formData.append('package_proof_video', {
+        uri: videoUri,
+        name: 'proof_video.mp4',
+        type: 'video/mp4'
       } as any);
     }
 
@@ -509,7 +669,7 @@ export default function App() {
 
       const data = await response.json();
       if (response.ok && data.success) {
-        showStatus(`Sukses menyimpan resi: ${targetBarcode}`, 'success');
+        showStatus(`Sukses menyimpan bukti: ${targetBarcode}`, 'success');
         triggerHaptic(true);
         playBeep(true);
         fetchStats();
@@ -529,19 +689,19 @@ export default function App() {
         setHistory(updatedHistory);
         await AsyncStorage.setItem('@scan_history', JSON.stringify(updatedHistory));
       } else {
-        showStatus(data.message || 'Resi tidak ditemukan.', 'error');
+        showStatus(`Gagal menyimpan ${targetBarcode}: ${data.message || 'Resi tidak ditemukan'}`, 'error');
         triggerHaptic(false);
         playBeep(false);
         saveFailedScan(targetBarcode, data.message || 'Resi tidak terdaftar.');
       }
     } catch (err) {
       console.error(err);
-      showStatus('Koneksi error, gagal mengunggah.', 'error');
+      showStatus(`Koneksi error, gagal mengunggah bukti ${targetBarcode}`, 'error');
       triggerHaptic(false);
       playBeep(false);
       saveFailedScan(targetBarcode, 'Masalah koneksi internet.');
     } finally {
-      setIsUploading(false);
+      setActiveUploads(prev => Math.max(0, prev - 1));
     }
   };
 
@@ -818,10 +978,10 @@ export default function App() {
                   ]}
                   facing={facing}
                   enableTorch={flash}
-                  barcodeScannerSettings={{
-                    barcodeTypes: ['qr', 'code128', 'code39', 'code93', 'pdf417', 'ean13', 'ean8'],
-                  }}
-                  onBarcodeScanned={isUploading ? undefined : handleBarcodeScanned}
+                  mode={cameraMode}
+                  videoQuality="480p"
+                  barcodeScannerSettings={BARCODE_SETTINGS}
+                  onBarcodeScanned={handleBarcodeScanned}
                 />
 
 
@@ -841,34 +1001,51 @@ export default function App() {
                     </Animated.View>
                   )}
 
-                  {/* Floating Auto-Foto Toggle */}
-                  {/* Floating Auto-Foto Toggle Button */}
-                  <TouchableOpacity
-                    style={[
-                      styles.floatingAutoToggleBtn,
-                      autoCapture ? styles.autoActiveBtn : styles.autoInactiveBtn
-                    ]}
-                    onPress={() => setAutoCapture(!autoCapture)}
-                  >
-                    <Ionicons
-                      name={autoCapture ? "flash" : "flash-outline"}
-                      size={11}
-                      color={autoCapture ? "#22c55e" : "#a1a1aa"}
-                    />
-                    <Text style={[
-                      styles.floatingAutoToggleText,
-                      autoCapture ? { color: '#22c55e' } : { color: '#a1a1aa' }
-                    ]}>
-                      Auto
-                    </Text>
-                  </TouchableOpacity>
+                  {activeUploads > 0 && (
+                    <View style={styles.backgroundUploadBadge}>
+                      <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 6 }} />
+                      <Text style={styles.backgroundUploadText}>Mengunggah {activeUploads} bukti...</Text>
+                    </View>
+                  )}
 
-                  <View style={styles.reticleBox} />
-                  <Text style={styles.scanInstruction}>Arahkan barcode ke dalam kotak</Text>
-                  {showTips && (
-                    <Animated.View style={{ opacity: fadeAnim, width: '100%', alignItems: 'center' }}>
-                      <Text style={styles.scanTips}>💡 Tips: Tutupi barcode resi besar dengan jari/kertas agar kamera fokus membaca barcode nomor pesanan kecil.</Text>
-                    </Animated.View>
+                  {isRecording ? (
+                    <View style={styles.recordingTimerContainer}>
+                      <View style={styles.recordingDot} />
+                      <Text style={styles.recordingTimerText}>
+                        SISA WAKTU REKAM: {Math.max(0, 10 - recordingSeconds)}s
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      {/* Floating Auto-Foto Toggle Button */}
+                      <TouchableOpacity
+                        style={[
+                          styles.floatingAutoToggleBtn,
+                          autoCapture ? styles.autoActiveBtn : styles.autoInactiveBtn
+                        ]}
+                        onPress={() => setAutoCapture(!autoCapture)}
+                      >
+                        <Ionicons
+                          name={autoCapture ? "flash" : "flash-outline"}
+                          size={11}
+                          color={autoCapture ? "#22c55e" : "#a1a1aa"}
+                        />
+                        <Text style={[
+                          styles.floatingAutoToggleText,
+                          autoCapture ? { color: '#22c55e' } : { color: '#a1a1aa' }
+                        ]}>
+                          Auto
+                        </Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.reticleBox} />
+                      <Text style={styles.scanInstruction}>Arahkan barcode ke dalam kotak</Text>
+                      {showTips && (
+                        <Animated.View style={{ opacity: fadeAnim, width: '100%', alignItems: 'center' }}>
+                          <Text style={styles.scanTips}>💡 Tips: Tutupi barcode resi besar dengan jari/kertas agar kamera fokus membaca barcode nomor pesanan kecil.</Text>
+                        </Animated.View>
+                      )}
+                    </>
                   )}
                 </View>
 
@@ -877,73 +1054,82 @@ export default function App() {
                   styles.floatingBottomPanel,
                   { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 10 : 85 }
                 ]}>
-                  {/* Toolbar: Flash, Flip Camera, Mirror, Manual Toggle */}
-                  <View style={styles.bottomToolbar}>
-                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFlash(!flash)}>
-                      <Text style={styles.toolbarBtnText}>{flash ? '⚡ Flash On' : '⚡ Flash Off'}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFacing(prev => prev === 'back' ? 'front' : 'back')}>
-                      <Text style={styles.toolbarBtnText}>🔄 {facing === 'back' ? 'Belakang' : 'Depan'}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.toolbarBtn} onPress={toggleMirror}>
-                      <Text style={styles.toolbarBtnText}>🪞 {mirrorPreview ? 'Mirror' : 'Normal'}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.toolbarBtn, showManualInput && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }]}
-                      onPress={() => setShowManualInput(!showManualInput)}
-                    >
-                      <Text style={styles.toolbarBtnText}>✍️ Manual</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Auto-Foto dedicated row is now floating inside the camera view */}
-
-                  {/* Manual scan input panel if Auto mode is off */}
-                  {!autoCapture && barcode !== '' && (
-                    <View style={styles.manualActionPanel}>
-                      <Text style={styles.manualBarcodeText}>Resi Terdeteksi: {barcode}</Text>
+                  {isRecording ? (
+                    <View style={styles.recordingControlPanel}>
                       <TouchableOpacity
-                        style={styles.manualCaptureBtn}
-                        onPress={() => uploadPackageProof(barcode)}
-                        disabled={isUploading}
+                        style={styles.stopRecordingBtn}
+                        onPress={stopVideoRecordingWorkflow}
                       >
-                        {isUploading ? (
-                          <ActivityIndicator color="#ffffff" />
-                        ) : (
-                          <Text style={styles.manualCaptureBtnText}>📷 Ambil & Kirim Bukti</Text>
-                        )}
+                        <View style={styles.stopIconSquare} />
+                        <Text style={styles.stopRecordingBtnText}>HENTIKAN & KIRIM REKAMAN</Text>
                       </TouchableOpacity>
                     </View>
-                  )}
+                  ) : (
+                    <>
+                      {/* Toolbar: Flash, Flip Camera, Mirror, Manual Toggle */}
+                      <View style={styles.bottomToolbar}>
+                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFlash(!flash)}>
+                          <Text style={styles.toolbarBtnText}>{flash ? '⚡ Flash On' : '⚡ Flash Off'}</Text>
+                        </TouchableOpacity>
 
-                  {/* Manual Order Input Form */}
-                  {showManualInput && (
-                    <View style={styles.manualInputContainer}>
-                      <TextInput
-                        style={styles.manualInput}
-                        placeholder="Ketik No. Pesanan secara manual..."
-                        placeholderTextColor="#71717a"
-                        value={manualBarcode}
-                        onChangeText={setManualBarcode}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                      <TouchableOpacity
-                        style={styles.manualInputBtn}
-                        onPress={() => {
-                          if (manualBarcode.trim()) {
-                            uploadPackageProof(manualBarcode.trim());
-                            setManualBarcode('');
-                          }
-                        }}
-                        disabled={isUploading}
-                      >
-                        <Text style={styles.manualInputBtnText}>Kirim</Text>
-                      </TouchableOpacity>
-                    </View>
+                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFacing(prev => prev === 'back' ? 'front' : 'back')}>
+                          <Text style={styles.toolbarBtnText}>🔄 {facing === 'back' ? 'Belakang' : 'Depan'}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.toolbarBtn} onPress={toggleMirror}>
+                          <Text style={styles.toolbarBtnText}>🪞 {mirrorPreview ? 'Mirror' : 'Normal'}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.toolbarBtn, showManualInput && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }]}
+                          onPress={() => setShowManualInput(!showManualInput)}
+                        >
+                          <Text style={styles.toolbarBtnText}>✍️ Manual</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Auto-Foto dedicated row is now floating inside the camera view */}
+
+                      {/* Manual scan input panel if Auto mode is off */}
+                      {!autoCapture && barcode !== '' && (
+                        <View style={styles.manualActionPanel}>
+                          <Text style={styles.manualBarcodeText}>Resi Terdeteksi: {barcode}</Text>
+                          <TouchableOpacity
+                            style={styles.manualCaptureBtn}
+                            onPress={() => checkAndStartRecording(barcode)}
+                          >
+                            <Text style={styles.manualCaptureBtnText}>📹 Mulai Rekam Packing</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Manual Order Input Form */}
+                      {showManualInput && (
+                        <View style={styles.manualInputContainer}>
+                          <TextInput
+                            style={styles.manualInput}
+                            placeholder="Ketik No. Pesanan secara manual..."
+                            placeholderTextColor="#71717a"
+                            value={manualBarcode}
+                            onChangeText={setManualBarcode}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                          />
+                          <TouchableOpacity
+                            style={styles.manualInputBtn}
+                            onPress={() => {
+                              if (manualBarcode.trim()) {
+                                checkAndStartRecording(manualBarcode.trim());
+                                setManualBarcode('');
+                              }
+                            }}
+                            disabled={isUploading}
+                          >
+                            <Text style={styles.manualInputBtnText}>Kirim</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </>
                   )}
                 </View>
               </View>
@@ -1257,9 +1443,7 @@ export default function App() {
               <CameraView
                 style={StyleSheet.absoluteFill}
                 facing="back"
-                barcodeScannerSettings={{
-                  barcodeTypes: ['qr', 'code128', 'code39', 'code93', 'pdf417', 'ean13', 'ean8'],
-                }}
+                barcodeScannerSettings={BARCODE_SETTINGS}
                 onBarcodeScanned={({ data }) => {
                   setShowProductScanner(false);
                   setSearchSku(data);
@@ -2510,5 +2694,85 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     flex: 1,
+  },
+  recordingTimerContainer: {
+    position: 'absolute',
+    top: 160,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  backgroundUploadBadge: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(79, 70, 229, 0.9)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 9999,
+  },
+  backgroundUploadText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  recordingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+  },
+  recordingTimerText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  recordingControlPanel: {
+    width: '100%',
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopRecordingBtn: {
+    width: '100%',
+    height: 52,
+    backgroundColor: '#ef4444',
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  stopIconSquare: {
+    width: 14,
+    height: 14,
+    backgroundColor: '#ffffff',
+    borderRadius: 2,
+  },
+  stopRecordingBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

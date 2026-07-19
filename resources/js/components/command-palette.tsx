@@ -455,23 +455,38 @@ export function CommandPalette() {
 
               {/* Photo Proof */}
               {proofResult.package_proof ? (
-                <div className="space-y-2">
-                  <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-950 flex items-center justify-center">
-                    <img
-                      src={proofResult.package_proof}
-                      alt="Bukti Packing"
-                      className="h-full w-full object-cover animate-in fade-in duration-300"
-                    />
-                  </div>
-                  <a
-                    href={proofResult.package_proof}
-                    download={`Bukti_Packing_${proofResult.invoice_number}.jpg`}
-                    target="_blank"
-                    className="w-full h-9 text-xs font-bold border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-foreground rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Unduh Bukti Pengiriman (Banding)
-                  </a>
+                <div className="space-y-4">
+                  {proofResult.package_proof.split(',').map((proofPath: string, idx: number) => {
+                    const isVideo = ['mp4', 'mov', 'avi', 'webm', 'qt', 'quicktime'].includes(proofPath.split('.').pop()?.toLowerCase() || '');
+                    return (
+                      <div key={idx} className="space-y-2">
+                        <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-950 flex items-center justify-center">
+                          {isVideo ? (
+                            <video
+                              src={proofPath}
+                              controls
+                              className="h-full w-full object-contain animate-in fade-in duration-300"
+                            />
+                          ) : (
+                            <img
+                              src={proofPath}
+                              alt={`Bukti Packing ${idx + 1}`}
+                              className="h-full w-full object-cover animate-in fade-in duration-300"
+                            />
+                          )}
+                        </div>
+                        <a
+                          href={proofPath}
+                          download={`Bukti_Packing_${proofResult.invoice_number}_${idx + 1}.${proofPath.split('?')[0].split('.').pop()?.toLowerCase() || 'jpg'}`}
+                          target="_blank"
+                          className="w-full h-9 text-xs font-bold border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-foreground rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Unduh Bukti {isVideo ? 'Video' : 'Foto'} ({idx + 1})
+                        </a>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="aspect-video w-full rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/20 flex flex-col items-center justify-center text-center p-4 gap-2">

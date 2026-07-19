@@ -295,6 +295,43 @@ export default function Transactions({ transactions, storesList, productsList, c
   }, [search, storeFilter, statusFilter, startDate, endDate]);
 
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [isZipping, setIsZipping] = useState(false);
+
+  const handleDownloadZip = async () => {
+    if (!selectedTransaction || !selectedTransaction.package_proof) return;
+    setIsZipping(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      const paths = selectedTransaction.package_proof.split(',');
+      
+      for (let i = 0; i < paths.length; i++) {
+        const path = paths[i].trim();
+        const ext = path.split('?')[0].split('.').pop()?.toLowerCase() || 'jpg';
+        const response = await fetch(`/storage/${path}`);
+        if (!response.ok) throw new Error(`Failed to fetch file: ${path}`);
+        const blob = await response.blob();
+        zip.file(`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}-${i + 1}.${ext}`, blob);
+      }
+      
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Bukti berhasil dikompres dan diunduh!');
+    } catch (error) {
+      console.error('Failed to create ZIP download:', error);
+      toast.error('Gagal mengompres berkas bukti ke ZIP. Silakan unduh secara manual.');
+    } finally {
+      setIsZipping(false);
+    }
+  };
+
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
@@ -2741,13 +2778,35 @@ export default function Transactions({ transactions, storesList, productsList, c
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground">Bukti Packing / Kirim Paket</Label>
                     {selectedTransaction.package_proof && (
                       <div className="flex items-center gap-2">
-                        <a
-                          href={`/storage/${selectedTransaction.package_proof}`}
-                          download={`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}.jpg`}
-                          className="h-6 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 px-2 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                        >
-                          <Download className="h-3 w-3" /> Unduh Bukti
-                        </a>
+                        {selectedTransaction.package_proof.includes(',') ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={isZipping}
+                            onClick={handleDownloadZip}
+                            className="h-6 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 px-2 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            {isZipping ? (
+                              <>
+                                <span className="animate-spin mr-1 h-2.5 w-2.5 border-2 border-indigo-600 border-t-transparent rounded-full" />
+                                Mengompres...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-3 w-3" /> Unduh Semua (ZIP)
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <a
+                            href={`/storage/${selectedTransaction.package_proof}`}
+                            download={`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}.${selectedTransaction.package_proof.split('.').pop()?.toLowerCase() || 'jpg'}`}
+                            className="h-6 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 px-2 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Download className="h-3 w-3" /> Unduh Bukti
+                          </a>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"
@@ -2762,51 +2821,68 @@ export default function Transactions({ transactions, storesList, productsList, c
                   </div>
 
                   {selectedTransaction.package_proof ? (
-                    <div className="group relative rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden aspect-[4/3] bg-muted shadow-sm hover:shadow-md transition-all duration-300">
-                      <img 
-                        src={`/storage/${selectedTransaction.package_proof}`} 
-                        alt="Bukti Packing" 
-                        className="w-full h-full object-cover"
-                      />
-                      {/* Premium Hover Zoom Overlay */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-all duration-300 backdrop-blur-xs">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="secondary" 
-                              size="sm" 
-                              className="h-8 text-xs font-semibold gap-1 hover:scale-105 transition-transform"
-                            >
-                              <EyeIcon className="h-3.5 w-3.5" />
-                              Perbesar Foto
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-3xl p-1 bg-black border-none rounded-2xl overflow-hidden shadow-2xl">
-                            <div className="relative w-full max-h-[85vh] bg-zinc-950 flex items-center justify-center">
-                              <img 
-                                src={`/storage/${selectedTransaction.package_proof}`} 
-                                alt="Detail Bukti Packing" 
-                                className="max-w-full max-h-[85vh] object-contain"
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {selectedTransaction.package_proof.split(',').map((proofPath: string, idx: number) => {
+                        const isVideo = ['mp4', 'mov', 'avi', 'webm', 'qt', 'quicktime'].includes(proofPath.split('.').pop()?.toLowerCase() || '');
+                        return (
+                          <div key={idx} className="group relative rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden aspect-[4/3] bg-muted shadow-sm hover:shadow-md transition-all duration-300">
+                            {isVideo ? (
+                              <video 
+                                src={`/storage/${proofPath}`} 
+                                controls
+                                className="w-full h-full object-contain bg-zinc-950"
                               />
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                        <a
-                          href={`/storage/${selectedTransaction.package_proof}`}
-                          download={`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}.jpg`}
-                          className="inline-flex items-center justify-center rounded-md bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 h-8 px-3 text-xs font-semibold gap-1 hover:scale-105 transition-transform cursor-pointer"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Unduh
-                        </a>
-                      </div>
+                            ) : (
+                              <img 
+                                src={`/storage/${proofPath}`} 
+                                alt={`Bukti Packing ${idx + 1}`} 
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                            
+                            {!isVideo && (
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-all duration-300 backdrop-blur-xs">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button 
+                                      variant="secondary" 
+                                      size="sm" 
+                                      className="h-8 text-xs font-semibold gap-1 hover:scale-105 transition-transform"
+                                    >
+                                      <EyeIcon className="h-3.5 w-3.5" />
+                                      Perbesar Foto
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="sm:max-w-3xl p-1 bg-black border-none rounded-2xl overflow-hidden shadow-2xl">
+                                    <div className="relative w-full max-h-[85vh] bg-zinc-950 flex items-center justify-center">
+                                      <img 
+                                        src={`/storage/${proofPath}`} 
+                                        alt={`Detail Bukti Packing ${idx + 1}`} 
+                                        className="max-w-full max-h-[85vh] object-contain"
+                                      />
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                                <a
+                                  href={`/storage/${proofPath}`}
+                                  download={`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}-${idx + 1}.${proofPath.split('?')[0].split('.').pop()?.toLowerCase() || 'jpg'}`}
+                                  className="inline-flex items-center justify-center rounded-md bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 h-8 px-3 text-xs font-semibold gap-1 hover:scale-105 transition-transform cursor-pointer"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  Unduh
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div>
                       <input 
                         type="file" 
                         id="proof-upload-input" 
-                        accept="image/png, image/jpeg, image/jpg, image/webp" 
+                        accept="image/png, image/jpeg, image/jpg, image/webp, video/mp4, video/quicktime, video/x-msvideo" 
                         className="hidden" 
                         onChange={(e) => {
                           if (e.target.files && e.target.files[0]) {

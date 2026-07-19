@@ -931,12 +931,17 @@ class TransactionController extends Controller
         }
 
         $request->validate([
-            'package_proof' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120'
+            'package_proof' => 'required|file|mimes:jpeg,png,jpg,webp,mp4,mov,quicktime,avi|max:30720'
         ]);
 
         if ($request->hasFile('package_proof')) {
             if ($transaction->package_proof) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($transaction->package_proof);
+                $oldFiles = explode(',', $transaction->package_proof);
+                foreach ($oldFiles as $oldFile) {
+                    if ($oldFile) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete(trim($oldFile));
+                    }
+                }
             }
 
             $path = $request->file('package_proof')->store('package_proofs', 'public');
@@ -961,7 +966,12 @@ class TransactionController extends Controller
         }
 
         if ($transaction->package_proof) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($transaction->package_proof);
+            $oldFiles = explode(',', $transaction->package_proof);
+            foreach ($oldFiles as $oldFile) {
+                if ($oldFile) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete(trim($oldFile));
+                }
+            }
 
             $transaction->update([
                 'package_proof' => null
@@ -985,7 +995,9 @@ class TransactionController extends Controller
     {
         $request->validate([
             'barcode' => 'required|string',
-            'package_proof' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120'
+            'package_proof' => 'nullable|file|mimes:jpeg,png,jpg,webp,mp4,mov,quicktime,avi|max:30720',
+            'package_proof_photo' => 'nullable|file|mimes:jpeg,png,jpg,webp|max:5120',
+            'package_proof_video' => 'nullable|file|mimes:mp4,mov,quicktime,avi|max:30720',
         ]);
 
         $barcode = $request->input('barcode');
@@ -1030,12 +1042,30 @@ class TransactionController extends Controller
             ], 404);
         }
 
-        if ($request->hasFile('package_proof')) {
+        $path = '';
+
+        if ($request->hasFile('package_proof_photo') || $request->hasFile('package_proof_video') || $request->hasFile('package_proof')) {
+            // Hapus file lama jika ada
             if ($transaction->package_proof) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($transaction->package_proof);
+                $oldFiles = explode(',', $transaction->package_proof);
+                foreach ($oldFiles as $oldFile) {
+                    if ($oldFile) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete(trim($oldFile));
+                    }
+                }
             }
 
-            $path = $request->file('package_proof')->store('package_proofs', 'public');
+            if ($request->hasFile('package_proof_photo') && $request->hasFile('package_proof_video')) {
+                $photoPath = $request->file('package_proof_photo')->store('package_proofs', 'public');
+                $videoPath = $request->file('package_proof_video')->store('package_proofs', 'public');
+                $path = $photoPath . ',' . $videoPath;
+            } else if ($request->hasFile('package_proof')) {
+                $path = $request->file('package_proof')->store('package_proofs', 'public');
+            } else if ($request->hasFile('package_proof_photo')) {
+                $path = $request->file('package_proof_photo')->store('package_proofs', 'public');
+            } else if ($request->hasFile('package_proof_video')) {
+                $path = $request->file('package_proof_video')->store('package_proofs', 'public');
+            }
 
             $transaction->update([
                 'package_proof' => $path
@@ -1095,7 +1125,9 @@ class TransactionController extends Controller
                 'waybill_number' => $transaction->waybill_number ?? '-',
                 'store_name' => $transaction->store ? $transaction->store->name : 'Toko',
                 'platform' => $transaction->store ? $transaction->store->platform : 'Marketplace',
-                'package_proof' => $transaction->package_proof ? asset('storage/' . $transaction->package_proof) : null,
+                'package_proof' => $transaction->package_proof ? implode(',', array_map(function ($p) {
+                    return asset('storage/' . trim($p));
+                }, explode(',', $transaction->package_proof))) : null,
                 'transaction_date' => $transaction->transaction_date,
                 'grand_total' => $transaction->grand_total,
                 'status' => $transaction->status,
