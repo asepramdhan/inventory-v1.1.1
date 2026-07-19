@@ -115,6 +115,8 @@ export default function App() {
   const lastScanTimeRef = useRef(0);
   const autoCaptureRef = useRef(true);
   const historyRef = useRef<ScannedPackage[]>([]);
+  const serverUrlRef = useRef('');
+  const tokenRef = useRef('');
 
   useEffect(() => { isUploadingRef.current = isUploading; }, [isUploading]);
   useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
@@ -122,6 +124,8 @@ export default function App() {
   useEffect(() => { activeUploadsRef.current = activeUploads; }, [activeUploads]);
   useEffect(() => { autoCaptureRef.current = autoCapture; }, [autoCapture]);
   useEffect(() => { historyRef.current = history; }, [history]);
+  useEffect(() => { serverUrlRef.current = serverUrl; }, [serverUrl]);
+  useEffect(() => { tokenRef.current = token; }, [token]);
 
   const translateY = statusFadeAnim.interpolate({
     inputRange: [0, 1],
@@ -216,12 +220,14 @@ export default function App() {
   };
 
   const fetchStats = async () => {
-    if (!serverUrl || !token) return;
+    const activeUrl = serverUrlRef.current || serverUrl;
+    const activeToken = tokenRef.current || token;
+    if (!activeUrl || !activeToken) return;
     try {
-      const response = await fetch(`${serverUrl}/api/mobile/stats`, {
+      const response = await fetch(`${activeUrl}/api/mobile/stats`, {
         headers: {
-          'X-Mobile-Token': token || '',
-          'Authorization': `Bearer ${token}`,
+          'X-Mobile-Token': activeToken,
+          'Authorization': `Bearer ${activeToken}`,
           'Accept': 'application/json'
         }
       });
@@ -485,10 +491,6 @@ export default function App() {
       return;
     }
 
-    // Kunci state kesibukan secara INSTAN agar scanner dinonaktifkan di level hardware
-    isUploadingRef.current = true;
-    setIsUploading(true);
-
     lastScannedBarcodeRef.current = cleanData;
     lastScanTimeRef.current = now;
     setLastScannedBarcode(cleanData);
@@ -499,10 +501,17 @@ export default function App() {
     playBeep(true);
 
     if (autoCaptureRef.current) {
-      // Jeda 500ms agar hardware kamera selesai menonaktifkan decoder barcode sebelum masuk alur rekam
+      // Kunci state kesibukan secara INSTAN agar scanner dinonaktifkan di level hardware khusus untuk mode Auto-Capture
+      isUploadingRef.current = true;
+      setIsUploading(true);
+
+      // Tampilkan indikator persiapan agar petugas menahan HP dengan stabil
+      showStatus('📸 Mempersiapkan kamera...', 'success', 1000);
+      
+      // Jeda 1200ms agar hardware kamera selesai menonaktifkan decoder barcode, menstabilkan fokus, dan merestart frame buffer sebelum jepret
       setTimeout(() => {
         checkAndStartRecording(cleanData);
-      }, 500);
+      }, 1200);
     }
   }, []);
 
@@ -696,11 +705,14 @@ export default function App() {
     }
 
     try {
-      const response = await fetch(`${serverUrl}/finance/transactions/barcode-upload-proof`, {
+      const activeUrl = serverUrlRef.current || serverUrl;
+      const activeToken = tokenRef.current || token;
+
+      const response = await fetch(`${activeUrl}/finance/transactions/barcode-upload-proof`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Mobile-Token': token || '',
+          'Authorization': `Bearer ${activeToken}`,
+          'X-Mobile-Token': activeToken || '',
           'Accept': 'application/json'
         },
         body: formData
@@ -724,7 +736,7 @@ export default function App() {
           status: 'success'
         };
 
-        const updatedHistory = [newScan, ...history.slice(0, 19)];
+        const updatedHistory = [newScan, ...(historyRef.current || history).slice(0, 19)];
         setHistory(updatedHistory);
         await AsyncStorage.setItem('@scan_history', JSON.stringify(updatedHistory));
       } else {
@@ -759,7 +771,7 @@ export default function App() {
       errorMessage: reason
     };
 
-    const updatedHistory = [failedScan, ...history.slice(0, 19)];
+    const updatedHistory = [failedScan, ...(historyRef.current || history).slice(0, 19)];
     setHistory(updatedHistory);
     await AsyncStorage.setItem('@scan_history', JSON.stringify(updatedHistory));
   };
