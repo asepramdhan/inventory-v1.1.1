@@ -23,6 +23,7 @@ Route::post('/api/mobile/login', [TransactionController::class, 'mobileLogin'])-
 Route::get('/api/mobile/stats', [TransactionController::class, 'mobileStats'])->name('api.mobile-stats');
 Route::get('/api/mobile/product/scan', [TransactionController::class, 'mobileScanProduct'])->name('api.mobile-product-scan');
 Route::post('/api/mobile/product/update-stock', [TransactionController::class, 'mobileUpdateProductStock'])->name('api.mobile-product-update-stock');
+Route::post('/finance/transactions/barcode-upload-proof', [TransactionController::class, 'uploadProofByBarcode'])->name('transactions.barcode-upload-proof');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Keuangan & Analisa - Daftar Transaksi
@@ -44,7 +45,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/finance/transactions/{transaction}/delete-proof', [TransactionController::class, 'deleteProof'])->name('transactions.delete-proof');
     Route::get('/finance/transactions/packing-station', [TransactionController::class, 'packingStation'])->name('transactions.packing-station');
     Route::get('/finance/transactions/search-proof', [TransactionController::class, 'searchProof'])->name('transactions.search-proof');
-    Route::post('/finance/transactions/barcode-upload-proof', [TransactionController::class, 'uploadProofByBarcode'])->name('transactions.barcode-upload-proof');
 
     Route::get('/finance/mutations', [FinancialMutationController::class, 'index'])->name('mutations.index');
     Route::post('/finance/mutations', [FinancialMutationController::class, 'store'])->name('mutations.store');
