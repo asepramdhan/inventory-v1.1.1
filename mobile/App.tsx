@@ -700,6 +700,7 @@ export default function App() {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'X-Mobile-Token': token || '',
           'Accept': 'application/json'
         },
         body: formData

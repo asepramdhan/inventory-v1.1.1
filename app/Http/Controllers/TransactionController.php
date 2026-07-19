@@ -1014,7 +1014,7 @@ class TransactionController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Sesi tidak valid, silakan login kembali.'
-                ], 401);
+                ], 200); // 200 agar LiteSpeed tidak drop koneksi
             }
         } else {
             $user = Auth::user();
@@ -1024,9 +1024,33 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Silakan login terlebih dahulu untuk mengakses stasiun packing.'
-            ], 200); // Gunakan 200 agar LiteSpeed/cPanel tidak melakukan intersept/redirect
+            ], 200);
         }
 
+        // 1. Simpan berkas yang diunggah terlebih dahulu agar koneksi TCP payload terserap 100%
+        $path = '';
+        $tempFiles = [];
+
+        if ($request->hasFile('package_proof_photo') || $request->hasFile('package_proof_video') || $request->hasFile('package_proof')) {
+            if ($request->hasFile('package_proof_photo') && $request->hasFile('package_proof_video')) {
+                $photoPath = $request->file('package_proof_photo')->store('package_proofs', 'public');
+                $videoPath = $request->file('package_proof_video')->store('package_proofs', 'public');
+                $path = $photoPath . ',' . $videoPath;
+                $tempFiles[] = $photoPath;
+                $tempFiles[] = $videoPath;
+            } else if ($request->hasFile('package_proof')) {
+                $path = $request->file('package_proof')->store('package_proofs', 'public');
+                $tempFiles[] = $path;
+            } else if ($request->hasFile('package_proof_photo')) {
+                $path = $request->file('package_proof_photo')->store('package_proofs', 'public');
+                $tempFiles[] = $path;
+            } else if ($request->hasFile('package_proof_video')) {
+                $path = $request->file('package_proof_video')->store('package_proofs', 'public');
+                $tempFiles[] = $path;
+            }
+        }
+
+        // 2. Baru cari transaksi di database
         $transaction = Transaction::where('user_id', $user->id)
             ->where(function ($query) use ($barcode) {
                 $query->where('invoice_number', $barcode)
@@ -1035,40 +1059,33 @@ class TransactionController extends Controller
             ->with('store')
             ->first();
 
+        // 3. Jika transaksi tidak ditemukan, hapus file yang telanjur disimpan lalu kembalikan 200 OK dengan pesan error
         if (!$transaction) {
+            foreach ($tempFiles as $fileToDelete) {
+                if ($fileToDelete) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($fileToDelete);
+                }
+            }
             return response()->json([
                 'success' => false,
                 'message' => 'No. Pesanan atau Resi "' . $barcode . '" tidak ditemukan di database.'
-            ], 200); // Gunakan 200 agar LiteSpeed tidak memutus koneksi/WAF trigger
+            ], 200);
         }
 
-        $path = '';
-
-        if ($request->hasFile('package_proof_photo') || $request->hasFile('package_proof_video') || $request->hasFile('package_proof')) {
-            // Hapus file lama jika ada
-            if ($transaction->package_proof) {
-                $oldFiles = explode(',', $transaction->package_proof);
-                foreach ($oldFiles as $oldFile) {
-                    if ($oldFile) {
-                        \Illuminate\Support\Facades\Storage::disk('public')->delete(trim($oldFile));
-                    }
+        // 4. Jika ditemukan, hapus file lama transaksi dan update dengan file baru
+        if ($transaction->package_proof) {
+            $oldFiles = explode(',', $transaction->package_proof);
+            foreach ($oldFiles as $oldFile) {
+                if ($oldFile) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete(trim($oldFile));
                 }
             }
+        }
 
-            if ($request->hasFile('package_proof_photo') && $request->hasFile('package_proof_video')) {
-                $photoPath = $request->file('package_proof_photo')->store('package_proofs', 'public');
-                $videoPath = $request->file('package_proof_video')->store('package_proofs', 'public');
-                $path = $photoPath . ',' . $videoPath;
-            } else if ($request->hasFile('package_proof')) {
-                $path = $request->file('package_proof')->store('package_proofs', 'public');
-            } else if ($request->hasFile('package_proof_photo')) {
-                $path = $request->file('package_proof_photo')->store('package_proofs', 'public');
-            } else if ($request->hasFile('package_proof_video')) {
-                $path = $request->file('package_proof_video')->store('package_proofs', 'public');
-            }
-
+        if ($path) {
             $transaction->update([
-                'package_proof' => $path
+                'package_proof' => $path,
+                'status' => 'packed'
             ]);
 
             return response()->json([
@@ -1089,7 +1106,7 @@ class TransactionController extends Controller
         return response()->json([
             'success' => false,
             'message' => 'Gagal menerima file gambar.'
-        ], 400);
+        ], 200);
     }
 
     public function searchProof(Request $request)
