@@ -534,6 +534,7 @@ export default function App() {
     setBarcode(targetBarcode);
     setStatusMsg(null);
     setIsUploading(true);
+    isUploadingRef.current = true;
 
     let photoUri = '';
     try {
@@ -549,6 +550,7 @@ export default function App() {
       console.error('Failed to take picture before recording:', err);
       showStatus('Gagal mengambil foto resi.', 'error');
       setIsUploading(false);
+      isUploadingRef.current = false;
       return;
     }
 
@@ -560,8 +562,10 @@ export default function App() {
 
     // Pindah ke mode video dan mulai merekam
     setCameraMode('video');
+    cameraModeRef.current = 'video';
     setRecordingSeconds(0);
     setIsRecording(true);
+    isRecordingRef.current = true;
 
     // Mulai interval detik timer SEGERA menggunakan React Ref (Sangat Aman!)
     if (recordTimerIdRef.current) {
@@ -590,16 +594,22 @@ export default function App() {
             console.error('Failed to record video inside promise:', err);
             showStatus('Gagal merekam video.', 'error');
             setCameraMode('picture');
+            cameraModeRef.current = 'picture';
             setIsRecording(false);
+            isRecordingRef.current = false;
             setIsUploading(false);
+            isUploadingRef.current = false;
           });
         }
       } catch (err) {
         console.error('Failed to record video:', err);
         showStatus('Gagal memulai perekaman video.', 'error');
         setCameraMode('picture');
+        cameraModeRef.current = 'picture';
         setIsRecording(false);
+        isRecordingRef.current = false;
         setIsUploading(false);
+        isUploadingRef.current = false;
       }
     }, 1000); // Jeda transisi 1000ms yang aman untuk iOS AVFoundation
   };
@@ -617,17 +627,31 @@ export default function App() {
       }
     }
     setIsRecording(false);
+    isRecordingRef.current = false;
   };
 
   const uploadDualProof = async (targetBarcode: string, photoUri: string, videoUri: string) => {
     // LANGSUNG PINDAH LAGI KE SCAN (TIDAK MENUNGGU BERES KIRIM)
+    activeUploadsRef.current = activeUploadsRef.current + 1;
     setActiveUploads(prev => prev + 1);
+    
     setIsUploading(false);
+    isUploadingRef.current = false;
+    
     setCameraMode('picture');
+    cameraModeRef.current = 'picture';
+    
     setIsRecording(false);
+    isRecordingRef.current = false;
+    
     setBarcode('');
     setLastScannedBarcode(''); // Reset debouncer agar bisa langsung scan barcode selanjutnya
     capturedPhotoUriRef.current = null;
+    
+    // Perbarui waktu scan terakhir dengan waktu saat ini agar mendapatkan masa tenggang 4 detik baru setelah scanning aktif kembali
+    const nowTime = Date.now();
+    lastScanTimeRef.current = nowTime;
+    setLastScanTime(nowTime);
     
     if (recordTimerIdRef.current) {
       clearInterval(recordTimerIdRef.current);
@@ -701,6 +725,7 @@ export default function App() {
       playBeep(false);
       saveFailedScan(targetBarcode, 'Masalah koneksi internet.');
     } finally {
+      activeUploadsRef.current = Math.max(0, activeUploadsRef.current - 1);
       setActiveUploads(prev => Math.max(0, prev - 1));
     }
   };
