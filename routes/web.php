@@ -30,6 +30,22 @@ Route::get('/clear-route-cache', function() {
     return 'Laravel cache and routes cleared successfully woy!';
 });
 
+Route::get('/view-laravel-log', function() {
+    $logPath = storage_path('logs/laravel.log');
+    if (!file_exists($logPath)) {
+        return 'Log file does not exist woy!';
+    }
+    // Baca 15000 karakter terakhir
+    $size = filesize($logPath);
+    $fp = fopen($logPath, 'r');
+    if ($size > 15000) {
+        fseek($fp, $size - 15000);
+    }
+    $content = fread($fp, 15000);
+    fclose($fp);
+    return '<pre style="background:#0f172a;color:#cbd5e1;padding:20px;font-family:monospace;">' . htmlspecialchars($content) . '</pre>';
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Keuangan & Analisa - Daftar Transaksi
     // Route::inertia('dashboard', 'dashboard')->name('dashboard');

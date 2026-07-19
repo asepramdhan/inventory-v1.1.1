@@ -726,12 +726,13 @@ export default function App() {
         playBeep(false);
         saveFailedScan(targetBarcode, data.message || 'Resi tidak terdaftar.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showStatus(`Koneksi error, gagal mengunggah bukti ${targetBarcode}`, 'error');
+      const errMsg = err?.message || 'Error tidak diketahui';
+      showStatus(`Koneksi error (${errMsg}), gagal mengunggah bukti ${targetBarcode}`, 'error');
       triggerHaptic(false);
       playBeep(false);
-      saveFailedScan(targetBarcode, 'Masalah koneksi internet.');
+      saveFailedScan(targetBarcode, `Error: ${errMsg}`);
     } finally {
       activeUploadsRef.current = Math.max(0, activeUploadsRef.current - 1);
       setActiveUploads(prev => Math.max(0, prev - 1));
