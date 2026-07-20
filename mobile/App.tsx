@@ -22,7 +22,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Audio } from 'expo-av';
+import { Audio, Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 
@@ -55,7 +55,7 @@ export default function App() {
   const [token, setToken] = useState('');
   const [userName, setUserName] = useState('');
   const [screen, setScreen] = useState<'LOGIN' | 'MAIN'>('LOGIN');
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'SCANNER' | 'HISTORY' | 'STOK' | 'PROFILE'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'SCANNER' | 'HISTORY' | 'STOK' | 'PROFILE' | 'BAHAN'>('DASHBOARD');
 
   // Cek & Update Stok States
   const [searchSku, setSearchSku] = useState('');
@@ -97,6 +97,26 @@ export default function App() {
   const [processingCount, setProcessingCount] = useState<number>(0);
   const [todaySuccessCount, setTodaySuccessCount] = useState<number>(0);
   const [todayFailedCount, setTodayFailedCount] = useState<number>(0);
+  const [activeChecklist, setActiveChecklist] = useState<{
+    invoice: string;
+    store: string;
+    items: Array<{ id: number; product_name: string; quantity: number; sku: string }>;
+  } | null>(null);
+  const [viewingProofItem, setViewingProofItem] = useState<ScannedPackage | null>(null);
+  const [supplies, setSupplies] = useState<any[]>([]);
+  const [isLoadingSupplies, setIsLoadingSupplies] = useState(false);
+  const [searchSupply, setSearchSupply] = useState('');
+  
+  // Quick Expense Tracker States
+  const [financialAccounts, setFinancialAccounts] = useState<any[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<string[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | ''>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [expenseAmount, setExpenseAmount] = useState<string>('');
+  const [expenseDescription, setExpenseDescription] = useState<string>('');
+  const [isSubmittingExpense, setIsSubmittingExpense] = useState<boolean>(false);
+  const [isLoadingExpenseMeta, setIsLoadingExpenseMeta] = useState<boolean>(false);
+
   const [showTips, setShowTips] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [connectionError, setConnectionError] = useState<boolean>(false);
@@ -276,6 +296,16 @@ export default function App() {
           }
         }
       } else {
+        if (
+          response.status === 401 ||
+          data.message?.toLowerCase().includes('sesi tidak valid') ||
+          data.message?.toLowerCase().includes('login kembali') ||
+          data.message?.toLowerCase().includes('unauthorized') ||
+          data.message?.toLowerCase().includes('login terlebih dahulu')
+        ) {
+          handleLogout();
+          return;
+        }
         setConnectionError(true);
       }
     } catch (err) {
@@ -327,6 +357,16 @@ export default function App() {
         setStockInput(String(data.product.stock));
         triggerHaptic(true);
       } else {
+        if (
+          response.status === 401 ||
+          data.message?.toLowerCase().includes('sesi tidak valid') ||
+          data.message?.toLowerCase().includes('login kembali') ||
+          data.message?.toLowerCase().includes('unauthorized') ||
+          data.message?.toLowerCase().includes('login terlebih dahulu')
+        ) {
+          handleLogout();
+          return;
+        }
         alert(data.message || 'Produk tidak ditemukan');
         setScannedProduct(null);
       }
@@ -367,6 +407,16 @@ export default function App() {
         triggerHaptic(true);
         fetchStats();
       } else {
+        if (
+          response.status === 401 ||
+          data.message?.toLowerCase().includes('sesi tidak valid') ||
+          data.message?.toLowerCase().includes('login kembali') ||
+          data.message?.toLowerCase().includes('unauthorized') ||
+          data.message?.toLowerCase().includes('login terlebih dahulu')
+        ) {
+          handleLogout();
+          return;
+        }
         alert(data.message || 'Gagal memperbarui stok.');
       }
     } catch (err) {
@@ -374,6 +424,180 @@ export default function App() {
       alert('Gagal menghubungi server.');
     } finally {
       setIsSearchingProduct(false);
+    }
+  };
+
+  const fetchSupplies = async () => {
+    if (!token) return;
+    setIsLoadingSupplies(true);
+    setConnectionError(false);
+    try {
+      const activeUrl = serverUrlRef.current || serverUrl;
+      const activeToken = tokenRef.current || token;
+      const response = await fetch(`${activeUrl}/operational/supplies/list-mobile`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${activeToken}`,
+          'X-Mobile-Token': activeToken
+        }
+      });
+
+      const data = await response.json();
+      if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
+        handleLogout();
+        return;
+      }
+
+      if (data.success) {
+        setSupplies(data.supplies || []);
+      } else {
+        Alert.alert('Gagal', data.message || 'Gagal memuat data perlengkapan.');
+      }
+    } catch (error) {
+      console.error('Fetch supplies error:', error);
+      setConnectionError(true);
+    } finally {
+      setIsLoadingSupplies(false);
+    }
+  };
+
+  const updateSupplyStock = async (id: number, newStock: number) => {
+    if (!token) return;
+    setConnectionError(false);
+    try {
+      const activeUrl = serverUrlRef.current || serverUrl;
+      const activeToken = tokenRef.current || token;
+      const response = await fetch(`${activeUrl}/operational/supplies/${id}/update-stock-mobile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${activeToken}`,
+          'X-Mobile-Token': activeToken
+        },
+        body: JSON.stringify({ stock: newStock })
+      });
+
+      const data = await response.json();
+      if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
+        handleLogout();
+        return;
+      }
+
+      if (data.success && data.supply) {
+        // Update local state
+        setSupplies(prev => prev.map(s => s.id === id ? { ...s, stock: data.supply.stock } : s));
+        triggerHaptic(true);
+      } else {
+        Alert.alert('Error', data.message || 'Gagal memperbarui stok.');
+      }
+    } catch (error) {
+      console.error('Update supply stock error:', error);
+      Alert.alert('Koneksi Error', 'Gagal terhubung ke server.');
+    }
+  };
+
+  const fetchExpenseMeta = async () => {
+    if (!token) return;
+    setIsLoadingExpenseMeta(true);
+    setConnectionError(false);
+    try {
+      const activeUrl = serverUrlRef.current || serverUrl;
+      const activeToken = tokenRef.current || token;
+      const response = await fetch(`${activeUrl}/api/mobile/expense/accounts-and-categories`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${activeToken}`,
+          'X-Mobile-Token': activeToken
+        }
+      });
+
+      const data = await response.json();
+      if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
+        handleLogout();
+        return;
+      }
+
+      if (data.success) {
+        setFinancialAccounts(data.accounts || []);
+        setExpenseCategories(data.categories || []);
+        if (data.accounts && data.accounts.length > 0) {
+          const defaultAcc = data.accounts.find((a: any) => a.is_default) || data.accounts[0];
+          setSelectedAccountId(defaultAcc.id);
+        }
+        if (data.categories && data.categories.length > 0) {
+          setSelectedCategory(data.categories[0]);
+        }
+      } else {
+        Alert.alert('Gagal', data.message || 'Gagal memuat info keuangan.');
+      }
+    } catch (error) {
+      console.error('Fetch expense meta error:', error);
+      setConnectionError(true);
+    } finally {
+      setIsLoadingExpenseMeta(false);
+    }
+  };
+
+  const submitExpense = async () => {
+    if (!token) return;
+    const amountVal = parseFloat(expenseAmount);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      Alert.alert('Input Tidak Valid', 'Nominal pengeluaran harus berupa angka positif.');
+      return;
+    }
+    if (!selectedAccountId) {
+      Alert.alert('Input Tidak Valid', 'Silakan pilih sumber dana/akun keuangan.');
+      return;
+    }
+    if (!selectedCategory) {
+      Alert.alert('Input Tidak Valid', 'Silakan pilih kategori pengeluaran.');
+      return;
+    }
+
+    setIsSubmittingExpense(true);
+    try {
+      const activeUrl = serverUrlRef.current || serverUrl;
+      const activeToken = tokenRef.current || token;
+      const response = await fetch(`${activeUrl}/api/mobile/expense/store`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${activeToken}`,
+          'X-Mobile-Token': activeToken
+        },
+        body: JSON.stringify({
+          financial_account_id: selectedAccountId,
+          category: selectedCategory,
+          amount: amountVal,
+          description: expenseDescription
+        })
+      });
+
+      const data = await response.json();
+      if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
+        handleLogout();
+        return;
+      }
+
+      if (data.success) {
+        Alert.alert('Berhasil', data.message);
+        setExpenseAmount('');
+        setExpenseDescription('');
+        triggerHaptic(true);
+        fetchExpenseMeta();
+        fetchStats();
+      } else {
+        Alert.alert('Gagal', data.message || 'Gagal menyimpan pengeluaran.');
+      }
+    } catch (error) {
+      console.error('Submit expense error:', error);
+      Alert.alert('Koneksi Error', 'Gagal menyimpan pengeluaran ke server.');
+    } finally {
+      setIsSubmittingExpense(false);
     }
   };
 
@@ -399,6 +623,20 @@ export default function App() {
   useEffect(() => {
     if (screen === 'MAIN' && serverUrl && token) {
       fetchStats();
+    }
+  }, [token, serverUrl, screen, activeTab]);
+
+  // Fetch supplies whenever BAHAN tab is active
+  useEffect(() => {
+    if (screen === 'MAIN' && activeTab === 'BAHAN' && serverUrl && token) {
+      fetchSupplies();
+    }
+  }, [token, serverUrl, screen, activeTab]);
+
+  // Fetch expense meta whenever PROFILE tab is active
+  useEffect(() => {
+    if (screen === 'MAIN' && activeTab === 'PROFILE' && serverUrl && token) {
+      fetchExpenseMeta();
     }
   }, [token, serverUrl, screen, activeTab]);
 
@@ -508,6 +746,8 @@ export default function App() {
       return;
     }
 
+    setActiveChecklist(null);
+
     // Bersihkan barcode secara total dari spasi, newline, carriage return (\r\n), dan karakter non-alphanumeric/punctuation agar tidak merusak format HTTP FormData
     const cleanData = data.replace(/[^a-zA-Z0-9\-_./]/g, '').trim();
     if (!cleanData) return;
@@ -571,6 +811,16 @@ export default function App() {
       const resData = await response.json();
 
       if (!response.ok || !resData.success) {
+        if (
+          response.status === 401 ||
+          resData.message?.toLowerCase().includes('sesi tidak valid') ||
+          resData.message?.toLowerCase().includes('login kembali') ||
+          resData.message?.toLowerCase().includes('unauthorized') ||
+          resData.message?.toLowerCase().includes('login terlebih dahulu')
+        ) {
+          handleLogout();
+          return;
+        }
         const errMsg = resData.message || 'Resi tidak ditemukan di database.';
         showStatus(`Gagal: ${errMsg}`, 'error');
         triggerHaptic(false);
@@ -586,12 +836,19 @@ export default function App() {
       }
 
       // Jika lolos verifikasi database, baru lanjut ke alur perekaman
+      setActiveChecklist({
+        invoice: resData.transaction.invoice_number,
+        store: `${resData.transaction.store_name} (${resData.transaction.platform})`,
+        items: resData.transaction.items || []
+      });
+
       if (isAlreadyScanned) {
         Alert.alert(
           '⚠️ Resi Sudah Dipacking',
           `Resi "${data}" sudah dipacking sebelumnya hari ini. Apakah Anda yakin ingin memproses ulang?`,
           [
             { text: 'Batal', style: 'cancel', onPress: () => {
+              setActiveChecklist(null);
               setLastScannedBarcode('');
               lastScannedBarcodeRef.current = '';
               setIsUploading(false);
@@ -678,7 +935,7 @@ export default function App() {
         if (cameraRef.current) {
           cameraRef.current.recordAsync({
             maxDuration: 10, // Batasi 10 detik biar file sangat kecil & otomatis stop!
-            videoBitrate: 500000, // 500 kbps (sangat kecil & hemat kuota!)
+            quality: '480p', // Turunkan kualitas ke 480p agar sizenya super kecil & hemat storage woy!
             codec: Platform.OS === 'ios' ? 'avc1' : undefined
           }).then(async (video: any) => {
             if (video && video.uri) {
@@ -827,6 +1084,16 @@ export default function App() {
         setHistory(updatedHistory);
         await AsyncStorage.setItem('@scan_history', JSON.stringify(updatedHistory));
       } else {
+        if (
+          response.status === 401 ||
+          data.message?.toLowerCase().includes('sesi tidak valid') ||
+          data.message?.toLowerCase().includes('login kembali') ||
+          data.message?.toLowerCase().includes('unauthorized') ||
+          data.message?.toLowerCase().includes('login terlebih dahulu')
+        ) {
+          handleLogout();
+          return;
+        }
         showStatus(`Gagal menyimpan ${targetBarcode}: ${data.message || 'Resi tidak ditemukan'}`, 'error');
         triggerHaptic(false);
         playBeep(false);
@@ -1165,11 +1432,40 @@ export default function App() {
                     </View>
                   )}
 
+                  {activeChecklist && (
+                    <View style={styles.checklistCard}>
+                      <View style={styles.checklistHeader}>
+                        <Ionicons name="clipboard-outline" size={16} color="#22c55e" style={{ marginRight: 6 }} />
+                        <Text style={styles.checklistInvoice} numberOfLines={1}>
+                          {activeChecklist.invoice}
+                        </Text>
+                        <Text style={styles.checklistStore} numberOfLines={1}>
+                          {activeChecklist.store}
+                        </Text>
+                      </View>
+                      <View style={styles.checklistDivider} />
+                      <ScrollView style={styles.checklistScroll} nestedScrollEnabled={true}>
+                        {activeChecklist.items.map((item, index) => (
+                          <View key={item.id || index} style={styles.checklistItemRow}>
+                            <Ionicons name="checkbox-outline" size={14} color="#a1a1aa" style={{ marginRight: 6, marginTop: 2 }} />
+                            <Text style={styles.checklistQty}>{item.quantity}x</Text>
+                            <Text style={styles.checklistProductName} numberOfLines={2}>
+                              {item.product_name}
+                            </Text>
+                            {item.sku && item.sku !== '-' && (
+                              <Text style={styles.checklistSku}>({item.sku})</Text>
+                            )}
+                          </View>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+
                   {isRecording ? (
-                    <View style={styles.recordingTimerContainer}>
+                    <View style={styles.floatingTimerBadge}>
                       <View style={styles.recordingDot} />
-                      <Text style={styles.recordingTimerText}>
-                        SISA WAKTU REKAM: {Math.max(0, 10 - recordingSeconds)}s
+                      <Text style={styles.floatingTimerText}>
+                        {Math.max(0, 10 - recordingSeconds)}
                       </Text>
                     </View>
                   ) : (
@@ -1319,37 +1615,47 @@ export default function App() {
                     colors={["#22c55e"]}
                   />
                 }
-                renderItem={({ item }) => (
-                  <View style={[
-                    styles.historyItem,
-                    item.status === 'success'
-                      ? { borderLeftWidth: 4, borderLeftColor: '#22c55e' }
-                      : { borderLeftWidth: 4, borderLeftColor: '#ef4444' }
-                  ]}>
-                    <View style={styles.historyMain}>
-                      <Text style={styles.itemBarcode}>{item.invoice_number}</Text>
-                      {item.status === 'success' ? (
-                        <View style={styles.badgeRow}>
-                          <Text style={styles.itemStore}>{item.store_name} ({item.platform})</Text>
-                          <Text style={styles.successText}>Success</Text>
-                        </View>
-                      ) : (
-                        <View style={styles.badgeRow}>
-                          <Text style={styles.errorText}>Failed: {item.errorMessage}</Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: 8 }}>
-                      <Text style={styles.itemTime}>{item.scanned_at}</Text>
-                      <TouchableOpacity
-                        onPress={() => deleteHistoryItem(item.id)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons name="trash-outline" size={14} color="#ef4444" style={{ opacity: 0.8 }} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
+                renderItem={({ item }) => {
+                  const CardWrapper = item.status === 'success' ? TouchableOpacity : View;
+                  return (
+                    <CardWrapper
+                      activeOpacity={item.status === 'success' ? 0.75 : 1}
+                      onPress={item.status === 'success' ? () => setViewingProofItem(item) : undefined}
+                      style={[
+                        styles.historyItem,
+                        item.status === 'success'
+                          ? { borderLeftWidth: 4, borderLeftColor: '#22c55e' }
+                          : { borderLeftWidth: 4, borderLeftColor: '#ef4444' }
+                      ]}
+                    >
+                      <View style={styles.historyMain}>
+                        <Text style={styles.itemBarcode}>{item.invoice_number}</Text>
+                        {item.status === 'success' ? (
+                          <View style={styles.badgeRow}>
+                            <Text style={styles.itemStore}>{item.store_name} ({item.platform})</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Text style={styles.successText}>Success</Text>
+                              <Ionicons name="play-circle-outline" size={13} color="#22c55e" />
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={styles.badgeRow}>
+                            <Text style={styles.errorText}>Failed: {item.errorMessage}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                        <Text style={styles.itemTime}>{item.scanned_at}</Text>
+                        <TouchableOpacity
+                          onPress={() => deleteHistoryItem(item.id)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons name="trash-outline" size={14} color="#ef4444" style={{ opacity: 0.8 }} />
+                        </TouchableOpacity>
+                      </View>
+                    </CardWrapper>
+                  );
+                }}
                 ListEmptyComponent={
                   <View style={styles.emptyContainer}>
                     <Text style={styles.emptyText}>Belum ada paket yang dipindai.</Text>
@@ -1587,11 +1893,236 @@ export default function App() {
                 </View>
               </View>
 
+              {/* Quick Expense Tracker Form */}
+              <View style={styles.settingsCard}>
+                <Text style={styles.settingsTitle}>💸 Catat Jajanan / Pengeluaran Gudang</Text>
+                
+                <Text style={styles.fieldLabel}>Sumber Kas/Dana:</Text>
+                <View style={styles.pickerWrapper}>
+                  {financialAccounts.length === 0 ? (
+                    <Text style={styles.emptyTextSimple}>Tidak ada akun kas aktif.</Text>
+                  ) : (
+                    <View style={styles.horizontalAccountsList}>
+                      {financialAccounts.map((acc) => {
+                        const isSelected = selectedAccountId === acc.id;
+                        return (
+                          <TouchableOpacity
+                            key={acc.id}
+                            style={[
+                              styles.accountSelectCard,
+                              isSelected && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' }
+                            ]}
+                            onPress={() => setSelectedAccountId(acc.id)}
+                          >
+                            <Text style={styles.accountCardName}>{acc.name}</Text>
+                            <Text style={[styles.accountCardBalance, isSelected && { color: '#818cf8' }]}>
+                              Rp {parseInt(acc.current_balance).toLocaleString('id-ID')}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
+                <Text style={styles.fieldLabel}>Kategori Pengeluaran:</Text>
+                <View style={styles.pickerWrapper}>
+                  <View style={styles.horizontalCategoriesList}>
+                    {expenseCategories.map((cat) => {
+                      const isSelected = selectedCategory === cat;
+                      return (
+                        <TouchableOpacity
+                          key={cat}
+                          style={[
+                            styles.categorySelectBadge,
+                            isSelected && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }
+                          ]}
+                          onPress={() => setSelectedCategory(cat)}
+                        >
+                          <Text style={[
+                            styles.categoryBadgeText,
+                            isSelected && { color: '#ffffff' }
+                          ]}>
+                            {cat}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <Text style={styles.fieldLabel}>Nominal Pengeluaran (Rupiah):</Text>
+                <View style={styles.inputContainerWithPrefix}>
+                  <Text style={styles.currencyPrefix}>Rp</Text>
+                  <TextInput
+                    style={styles.currencyInput}
+                    placeholder="Contoh: 15000"
+                    placeholderTextColor="#71717a"
+                    keyboardType="numeric"
+                    value={expenseAmount}
+                    onChangeText={setExpenseAmount}
+                  />
+                </View>
+
+                <Text style={styles.fieldLabel}>Keterangan / Catatan:</Text>
+                <TextInput
+                  style={styles.textInputFull}
+                  placeholder="Contoh: Beli lakban cokelat eceran 2 roll"
+                  placeholderTextColor="#71717a"
+                  value={expenseDescription}
+                  onChangeText={setExpenseDescription}
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    { marginTop: 16, height: 44 },
+                    isSubmittingExpense && { opacity: 0.7 }
+                  ]}
+                  onPress={submitExpense}
+                  disabled={isSubmittingExpense}
+                >
+                  <Ionicons name="cash-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={styles.primaryButtonText}>
+                    {isSubmittingExpense ? 'Menyimpan...' : '💸 Catat Pengeluaran'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity style={styles.logoutBtnLarge} onPress={handleLogout}>
                 <Ionicons name="log-out-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
                 <Text style={styles.logoutBtnLargeText}>Keluar dari Sistem</Text>
               </TouchableOpacity>
             </ScrollView>
+          )}
+
+          {/* Bahan Tab */}
+          {activeTab === 'BAHAN' && (
+            <View style={styles.tabContent}>
+              <View style={styles.tabHeaderRow}>
+                <Text style={styles.tabHeaderTitle}>Perlengkapan Packing</Text>
+              </View>
+
+              <View style={styles.searchSection}>
+                <View style={styles.searchInputWrapper}>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Cari bahan (kardus, bubble, dll)..."
+                    placeholderTextColor="#71717a"
+                    value={searchSupply}
+                    onChangeText={setSearchSupply}
+                    autoCapitalize="none"
+                  />
+                  <Ionicons name="search-outline" size={16} color="#71717a" style={{ marginRight: 14 }} />
+                </View>
+              </View>
+
+              <FlatList
+                data={supplies.filter(s => s.name.toLowerCase().includes(searchSupply.toLowerCase()))}
+                keyExtractor={(item) => String(item.id)}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                alwaysBounceVertical={true}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isLoadingSupplies}
+                    onRefresh={fetchSupplies}
+                    tintColor="#4f46e5"
+                    colors={["#4f46e5"]}
+                  />
+                }
+                renderItem={({ item }) => {
+                  const isLowStock = item.stock <= item.min_stock;
+                  return (
+                    <View style={styles.supplyCard}>
+                      <View style={styles.supplyMainRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.supplyName}>{item.name}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                            <View style={[
+                              styles.supplyBadge,
+                              isLowStock
+                                ? { backgroundColor: 'rgba(239, 68, 68, 0.15)' }
+                                : { backgroundColor: 'rgba(34, 197, 94, 0.15)' }
+                            ]}>
+                              <Ionicons
+                                name={isLowStock ? "warning-outline" : "checkmark-circle-outline"}
+                                size={10}
+                                color={isLowStock ? "#ef4444" : "#22c55e"}
+                              />
+                              <Text style={[
+                                styles.supplyBadgeText,
+                                isLowStock ? { color: '#ef4444' } : { color: '#22c55e' }
+                              ]}>
+                                {isLowStock ? 'Stok Menipis' : 'Stok Aman'}
+                              </Text>
+                            </View>
+                            <Text style={styles.supplyPriceText}>Rp {item.purchase_price.toLocaleString('id-ID')} / {item.unit}</Text>
+                          </View>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={[styles.supplyStockQty, isLowStock && { color: '#ef4444' }]}>
+                            {item.stock}
+                          </Text>
+                          <Text style={styles.supplyUnitText}>{item.unit}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.supplyAdjustDivider} />
+
+                      {/* Quick Adjusters Row */}
+                      <View style={styles.supplyAdjustRow}>
+                        <TouchableOpacity
+                          style={[styles.supplyAdjustCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}
+                          onPress={() => updateSupplyStock(item.id, Math.max(0, item.stock - 10))}
+                        >
+                          <Text style={[styles.supplyAdjustText, { color: '#ef4444' }]}>-10</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.supplyAdjustCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}
+                          onPress={() => updateSupplyStock(item.id, Math.max(0, item.stock - 1))}
+                        >
+                          <Text style={[styles.supplyAdjustText, { color: '#ef4444' }]}>-1</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.supplyInputWrapper}>
+                          <TextInput
+                            style={styles.supplyStockInput}
+                            value={String(item.stock)}
+                            keyboardType="numeric"
+                            onChangeText={(text) => {
+                              const val = parseInt(text);
+                              if (!isNaN(val) && val >= 0) {
+                                updateSupplyStock(item.id, val);
+                              }
+                            }}
+                          />
+                        </View>
+
+                        <TouchableOpacity
+                          style={[styles.supplyAdjustCircle, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}
+                          onPress={() => updateSupplyStock(item.id, item.stock + 1)}
+                        >
+                          <Text style={[styles.supplyAdjustText, { color: '#22c55e' }]}>+1</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.supplyAdjustCircle, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}
+                          onPress={() => updateSupplyStock(item.id, item.stock + 10)}
+                        >
+                          <Text style={[styles.supplyAdjustText, { color: '#22c55e' }]}>+10</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                }}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>Tidak ada perlengkapan packing ditemukan.</Text>
+                  </View>
+                }
+              />
+            </View>
           )}
 
           {/* Product Scanner Modal */}
@@ -1646,6 +2177,18 @@ export default function App() {
               <Text style={[styles.tabBarLabel, activeTab === 'STOK' && styles.tabActiveColor]}>Stok</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.tabBarItem}
+              onPress={() => setActiveTab('BAHAN')}
+            >
+              <Ionicons
+                name={activeTab === 'BAHAN' ? 'construct' : 'construct-outline'}
+                size={20}
+                color={activeTab === 'BAHAN' ? '#4f46e5' : '#a1a1aa'}
+              />
+              <Text style={[styles.tabBarLabel, activeTab === 'BAHAN' && styles.tabActiveColor]}>Bahan</Text>
+            </TouchableOpacity>
+
             {/* Elevated Scanner Center Button */}
             <View style={styles.centerTabContainer}>
               <TouchableOpacity
@@ -1680,6 +2223,85 @@ export default function App() {
               <Text style={[styles.tabBarLabel, activeTab === 'PROFILE' && styles.tabActiveColor]}>Profil</Text>
             </TouchableOpacity>
           </View>
+          {/* Modal Proof Player & Viewer */}
+          {viewingProofItem && (() => {
+            const files = viewingProofItem.package_proof ? viewingProofItem.package_proof.split(',') : [];
+            const photoFile = files.find(f => f.endsWith('.jpg') || f.endsWith('.jpeg') || f.endsWith('.png'));
+            const videoFile = files.find(f => f.endsWith('.mp4') || f.endsWith('.mov') || f.endsWith('.avi') || f.endsWith('.webm'));
+            
+            const getFullUrl = (filePath: string) => {
+              if (!filePath) return '';
+              const trimmed = filePath.trim();
+              const activeUrl = serverUrlRef.current || serverUrl;
+              
+              // Cek jika ini file video, gunakan streamVideo controller agar support range requests woy!
+              const isVideo = trimmed.endsWith('.mp4') || trimmed.endsWith('.mov') || trimmed.endsWith('.avi') || trimmed.endsWith('.webm');
+              if (isVideo) {
+                const filename = trimmed.substring(trimmed.lastIndexOf('/') + 1);
+                return `${activeUrl}/finance/transactions/stream-video/${filename}`;
+              }
+
+              if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                return trimmed;
+              }
+              return `${activeUrl}/storage/${trimmed}`;
+            };
+
+            const photoUrl = photoFile ? getFullUrl(photoFile) : null;
+            const videoUrl = videoFile ? getFullUrl(videoFile) : null;
+
+            return (
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Detail Bukti Packing</Text>
+                    <TouchableOpacity onPress={() => setViewingProofItem(null)} style={styles.modalCloseBtn}>
+                      <Ionicons name="close" size={22} color="#ffffff" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView contentContainerStyle={styles.modalScrollContent}>
+                    <View style={styles.modalMetaCard}>
+                      <Text style={styles.modalMetaText}>Invoice: <Text style={{fontWeight: 'bold', color: '#ffffff'}}>{viewingProofItem.invoice_number}</Text></Text>
+                      {viewingProofItem.waybill_number && viewingProofItem.waybill_number !== '-' && (
+                        <Text style={styles.modalMetaText}>Resi: <Text style={{fontWeight: 'bold', color: '#ffffff'}}>{viewingProofItem.waybill_number}</Text></Text>
+                      )}
+                      <Text style={styles.modalMetaText}>Toko: <Text style={{color: '#ffffff', fontWeight: '600'}}>{viewingProofItem.store_name} ({viewingProofItem.platform})</Text></Text>
+                      <Text style={styles.modalMetaText}>Waktu: <Text style={{color: '#a1a1aa'}}>{viewingProofItem.scanned_at}</Text></Text>
+                    </View>
+
+                    {photoUrl && (
+                      <View style={styles.mediaContainer}>
+                        <Text style={styles.mediaLabel}>📸 Foto Bukti Packing</Text>
+                        <RNImage
+                          source={{ uri: photoUrl }}
+                          style={styles.modalPhoto}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    )}
+
+                    {videoUrl && (
+                      <View style={styles.mediaContainer}>
+                        <Text style={styles.mediaLabel}>🎥 Rekaman Video Packing</Text>
+                        <Video
+                          source={{ uri: videoUrl }}
+                          rate={1.0}
+                          volume={1.0}
+                          isMuted={false}
+                          resizeMode={ResizeMode.CONTAIN}
+                          shouldPlay={false}
+                          isLooping={false}
+                          useNativeControls={true}
+                          style={styles.modalVideo}
+                        />
+                      </View>
+                    )}
+                  </ScrollView>
+                </View>
+              </View>
+            );
+          })()}
         </View>
       )}
     </SafeAreaView>
@@ -2108,7 +2730,7 @@ const styles = StyleSheet.create({
   tabBarItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: '20%',
+    flex: 1,
   },
   tabBarIcon: {
     fontSize: 20,
@@ -2124,7 +2746,7 @@ const styles = StyleSheet.create({
     color: '#4f46e5',
   },
   centerTabContainer: {
-    width: '20%',
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -2931,5 +3553,340 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  checklistCard: {
+    position: 'absolute',
+    top: 90,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(24, 24, 27, 0.90)',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#22c55e',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 99,
+  },
+  checklistHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  checklistInvoice: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    flex: 1,
+  },
+  checklistStore: {
+    color: '#a1a1aa',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  checklistDivider: {
+    height: 1,
+    backgroundColor: '#3f3f46',
+    marginBottom: 8,
+  },
+  checklistScroll: {
+    maxHeight: 120,
+  },
+  checklistItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  checklistQty: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '800',
+    marginRight: 6,
+    minWidth: 20,
+  },
+  checklistProductName: {
+    color: '#e4e4e7',
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  checklistSku: {
+    color: '#a1a1aa',
+    fontSize: 10,
+    marginLeft: 6,
+    marginTop: 1,
+  },
+  floatingTimerBadge: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.90)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+    gap: 6,
+    zIndex: 9999,
+  },
+  floatingTimerText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(9, 9, 11, 0.90)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 99999,
+  },
+  modalContent: {
+    width: '90%',
+    height: '80%',
+    backgroundColor: '#18181b',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#27272a',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderColor: '#27272a',
+    backgroundColor: '#09090b',
+  },
+  modalTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalScrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  modalMetaCard: {
+    backgroundColor: '#09090b',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#27272a',
+    marginBottom: 16,
+    gap: 4,
+  },
+  modalMetaText: {
+    color: '#a1a1aa',
+    fontSize: 12,
+  },
+  mediaContainer: {
+    marginBottom: 16,
+  },
+  mediaLabel: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalPhoto: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: '#09090b',
+  },
+  modalVideo: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: '#09090b',
+  },
+  supplyCard: {
+    backgroundColor: '#18181b',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  supplyMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  supplyName: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  supplyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  supplyBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  supplyPriceText: {
+    color: '#71717a',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  supplyStockQty: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  supplyUnitText: {
+    color: '#71717a',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  supplyAdjustDivider: {
+    height: 1,
+    backgroundColor: '#27272a',
+    marginVertical: 12,
+  },
+  supplyAdjustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  supplyAdjustCircle: {
+    width: 44,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supplyAdjustText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  supplyInputWrapper: {
+    width: 64,
+    height: 32,
+    backgroundColor: '#09090b',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supplyStockInput: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+    width: '100%',
+    padding: 0,
+  },
+  fieldLabel: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  pickerWrapper: {
+    marginBottom: 6,
+  },
+  emptyTextSimple: {
+    color: '#71717a',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  horizontalAccountsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  accountSelectCard: {
+    width: '48%',
+    backgroundColor: '#09090b',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderRadius: 8,
+    padding: 10,
+  },
+  accountCardName: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  accountCardBalance: {
+    color: '#a1a1aa',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  horizontalCategoriesList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  categorySelectBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#27272a',
+    backgroundColor: '#09090b',
+  },
+  categoryBadgeText: {
+    color: '#a1a1aa',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  inputContainerWithPrefix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#09090b',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 40,
+  },
+  currencyPrefix: {
+    color: '#71717a',
+    fontSize: 13,
+    fontWeight: '700',
+    marginRight: 6,
+  },
+  currencyInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+    padding: 0,
+  },
+  textInputFull: {
+    backgroundColor: '#09090b',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+    height: 40,
   },
 });

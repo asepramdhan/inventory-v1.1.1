@@ -379,4 +379,107 @@ class FinancialMutationController extends Controller
 
         return back();
     }
+
+    public function getExpenseMetaMobile(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            }
+        } else {
+            $user = Auth::user();
+        }
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $accounts = \App\Models\FinancialAccount::where('user_id', $user->id)
+            ->get();
+
+        $categories = [
+            'Jajan Gudang',
+            'Uang Bensin',
+            'Alat Tulis & Lakban',
+            'Biaya Kurir / Ongkir',
+            'Uang Makan / Lembur',
+            'Lain-lain'
+        ];
+
+        return response()->json([
+            'success' => true,
+            'accounts' => $accounts,
+            'categories' => $categories
+        ]);
+    }
+
+    public function storeExpenseMobile(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            }
+        } else {
+            $user = Auth::user();
+        }
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'financial_account_id' => 'required|exists:financial_accounts,id',
+            'category' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:1',
+            'description' => 'nullable|string'
+        ]);
+
+        $account = \App\Models\FinancialAccount::where('id', $request->financial_account_id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$account) {
+            return response()->json(['success' => false, 'message' => 'Akun keuangan tidak ditemukan.'], 404);
+        }
+
+        if ($account->current_balance < $request->amount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Saldo tidak mencukupi! Saldo terkini ' . $account->name . ' adalah Rp ' . number_format($account->current_balance, 0, ',', '.')
+            ], 200);
+        }
+
+        \DB::transaction(function () use ($request, $user, $account) {
+            $amount = $request->amount;
+            $account->current_balance -= $amount;
+            $account->save();
+
+            \App\Models\FinancialMutation::create([
+                'user_id' => $user->id,
+                'financial_account_id' => $account->id,
+                'date' => now()->toDateString(),
+                'type' => 'expense',
+                'category' => $request->category,
+                'amount' => $amount,
+                'balance_snapshot' => $account->current_balance,
+                'description' => $request->description ?? 'Dicatat cepat via Mobile App'
+            ]);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengeluaran/jajanan gudang berhasil dicatat!',
+            'balance' => $account->current_balance
+        ]);
+    }
 }

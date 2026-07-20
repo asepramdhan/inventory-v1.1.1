@@ -183,4 +183,75 @@ class OperationalSupplyController extends Controller
 
         return back();
     }
+
+    private function resolveMobileUser(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                return \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+        return Auth::user();
+    }
+
+    public function listSupplies(Request $request)
+    {
+        $user = $this->resolveMobileUser($request);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $supplies = OperationalSupply::where('user_id', $user->id)
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'supplies' => $supplies
+        ]);
+    }
+
+    public function updateSupplyStockMobile(Request $request, $id)
+    {
+        $user = $this->resolveMobileUser($request);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $supply = OperationalSupply::where('user_id', $user->id)->findOrFail($id);
+
+        $request->validate([
+            'stock' => 'required|integer|min:0',
+        ]);
+
+        $oldStock = $supply->stock;
+        $newStock = (int) $request->stock;
+
+        $supply->update([
+            'stock' => $newStock,
+        ]);
+
+        if ($oldStock !== $newStock) {
+            $adjustment = $newStock - $oldStock;
+            OperationalSupplyLog::create([
+                'user_id' => $user->id,
+                'operational_supply_id' => $supply->id,
+                'operational_supply_name' => $supply->name,
+                'adjustment' => $adjustment,
+                'source' => 'mobile_quick_update',
+                'description' => "Pembaruan cepat stok via Mobile: {$oldStock} -> {$newStock}",
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stok bahan operasional berhasil diperbarui.',
+            'supply' => $supply
+        ]);
+    }
 }

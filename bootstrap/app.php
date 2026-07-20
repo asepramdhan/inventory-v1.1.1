@@ -21,7 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
             '/api/mobile/login',
             '/finance/transactions/barcode-upload-proof',
             '/finance/transactions/search-proof',
-            '/api/mobile/product/update-stock'
+            '/api/mobile/product/update-stock',
+            '/operational/supplies/*/update-stock-mobile',
+            '/api/mobile/expense/store'
         ]);
 
         $middleware->web(append: [

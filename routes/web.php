@@ -46,6 +46,12 @@ Route::get('/view-laravel-log', function() {
     return '<pre style="background:#0f172a;color:#cbd5e1;padding:20px;font-family:monospace;">' . htmlspecialchars($content) . '</pre>';
 });
 
+Route::get('/finance/transactions/stream-video/{filename}', [TransactionController::class, 'streamVideo'])->name('transactions.stream-video');
+Route::get('/operational/supplies/list-mobile', [OperationalSupplyController::class, 'listSupplies']);
+Route::put('/operational/supplies/{id}/update-stock-mobile', [OperationalSupplyController::class, 'updateSupplyStockMobile']);
+Route::get('/api/mobile/expense/accounts-and-categories', [FinancialMutationController::class, 'getExpenseMetaMobile']);
+Route::post('/api/mobile/expense/store', [FinancialMutationController::class, 'storeExpenseMobile']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Keuangan & Analisa - Daftar Transaksi
     // Route::inertia('dashboard', 'dashboard')->name('dashboard');

@@ -1038,18 +1038,32 @@ class TransactionController extends Controller
         if ($request->hasFile('package_proof_photo') || $request->hasFile('package_proof_video') || $request->hasFile('package_proof')) {
             if ($request->hasFile('package_proof_photo') && $request->hasFile('package_proof_video')) {
                 $photoPath = $request->file('package_proof_photo')->store('package_proofs', 'public');
-                $videoPath = $request->file('package_proof_video')->store('package_proofs', 'public');
+                
+                // Simpan video selalu dengan nama acak berekstensi .mp4 agar Android dan iOS bisa memutarnya woy!
+                $videoFile = $request->file('package_proof_video');
+                $videoName = \Illuminate\Support\Str::random(40) . '.mp4';
+                $videoPath = $videoFile->storeAs('package_proofs', $videoName, 'public');
+                
                 $path = $photoPath . ',' . $videoPath;
                 $tempFiles[] = $photoPath;
                 $tempFiles[] = $videoPath;
             } else if ($request->hasFile('package_proof')) {
-                $path = $request->file('package_proof')->store('package_proofs', 'public');
+                $file = $request->file('package_proof');
+                $mime = $file->getMimeType();
+                if (str_contains($mime, 'video') || strtolower($file->getClientOriginalExtension()) === 'mov') {
+                    $videoName = \Illuminate\Support\Str::random(40) . '.mp4';
+                    $path = $file->storeAs('package_proofs', $videoName, 'public');
+                } else {
+                    $path = $file->store('package_proofs', 'public');
+                }
                 $tempFiles[] = $path;
             } else if ($request->hasFile('package_proof_photo')) {
                 $path = $request->file('package_proof_photo')->store('package_proofs', 'public');
                 $tempFiles[] = $path;
             } else if ($request->hasFile('package_proof_video')) {
-                $path = $request->file('package_proof_video')->store('package_proofs', 'public');
+                $videoFile = $request->file('package_proof_video');
+                $videoName = \Illuminate\Support\Str::random(40) . '.mp4';
+                $path = $videoFile->storeAs('package_proofs', $videoName, 'public');
                 $tempFiles[] = $path;
             }
         }
@@ -1153,7 +1167,7 @@ class TransactionController extends Controller
                 $q->where('invoice_number', $query)
                     ->orWhere('waybill_number', $query);
             })
-            ->with('store')
+            ->with(['store', 'items.product'])
             ->first();
 
         if (!$transaction) {
@@ -1177,6 +1191,14 @@ class TransactionController extends Controller
                 'transaction_date' => $transaction->transaction_date,
                 'grand_total' => $transaction->grand_total,
                 'status' => $transaction->status,
+                'items' => $transaction->items->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'product_name' => $item->product_name ?? ($item->product ? $item->product->name : 'Produk'),
+                        'quantity' => $item->quantity,
+                        'sku' => $item->product ? $item->product->sku : '-'
+                    ];
+                }),
             ]
         ]);
     }
@@ -1388,5 +1410,74 @@ class TransactionController extends Controller
                 'stock' => $product->stock,
             ]
         ]);
+    }
+
+    public function streamVideo($filename)
+    {
+        // Bersihkan filename dari path traversal
+        $filename = basename($filename);
+        $path = storage_path('app/public/package_proofs/' . $filename);
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        $stream = fopen($path, 'r');
+        $size = filesize($path);
+        $length = $size;
+        $start = 0;
+        $end = $size - 1;
+
+        $type = 'video/mp4';
+        if (str_ends_with($filename, '.mov')) {
+            $type = 'video/quicktime';
+        }
+
+        headers_sent() ? null : header("Content-Type: $type");
+        header("Accept-Ranges: bytes");
+
+        if (isset($_SERVER['HTTP_RANGE'])) {
+            $c_start = $start;
+            $c_end = $end;
+
+            list(, $range) = explode('=', $_SERVER['HTTP_RANGE'], 2);
+            if (strpos($range, ',') !== false) {
+                header('HTTP/1.1 416 Requested Range Not Satisfiable');
+                header("Content-Range: bytes $start-$end/$size");
+                exit;
+            }
+            if ($range == '-') {
+                $c_start = $start;
+            } else {
+                $c_split = explode('-', $range);
+                $c_start = $c_split[0];
+                $c_end = (isset($c_split[1]) && is_numeric($c_split[1])) ? $c_split[1] : $size - 1;
+            }
+            $c_end = ($c_end > $end) ? $end : $c_end;
+            if ($c_start > $c_end || $c_start > $size - 1 || $c_end >= $size) {
+                header('HTTP/1.1 416 Requested Range Not Satisfiable');
+                header("Content-Range: bytes $start-$end/$size");
+                exit;
+            }
+            $start = $c_start;
+            $end = $c_end;
+            $length = $end - $start + 1;
+            fseek($stream, $start);
+            header('HTTP/1.1 206 Partial Content');
+        }
+
+        header("Content-Range: bytes $start-$end/$size");
+        header("Content-Length: " . $length);
+
+        $buffer = 1024 * 8;
+        while (!feof($stream) && ($p = ftell($stream)) <= $end) {
+            if ($p + $buffer > $end) {
+                $buffer = $end - $p + 1;
+            }
+            set_time_limit(0);
+            echo fread($stream, $buffer);
+            flush();
+        }
+        fclose($stream);
+        exit;
     }
 }
