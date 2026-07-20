@@ -145,6 +145,10 @@ class TransactionController extends Controller
                 'count' => (int) ($rawCounts->get('pending')->count ?? 0),
                 'items' => (int) ($rawCounts->get('pending')->items ?? 0),
             ],
+            'packed' => [
+                'count' => (int) ($rawCounts->get('packed')->count ?? 0),
+                'items' => (int) ($rawCounts->get('packed')->items ?? 0),
+            ],
             'processing' => [
                 'count' => (int) ($rawCounts->get('processing')->count ?? 0),
                 'items' => (int) ($rawCounts->get('processing')->items ?? 0),
@@ -1116,10 +1120,35 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Silakan masukkan nomor resi atau pesanan.'
-            ], 400);
+            ], 200);
         }
 
-        $transaction = Transaction::where('user_id', \Illuminate\Support\Facades\Auth::user()->id)
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid, silakan login kembali.'
+                ], 200);
+            }
+        } else {
+            $user = Auth::user();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan login terlebih dahulu.'
+            ], 200);
+        }
+
+        $transaction = Transaction::where('user_id', $user->id)
             ->where(function ($q) use ($query) {
                 $q->where('invoice_number', $query)
                     ->orWhere('waybill_number', $query);
@@ -1130,8 +1159,8 @@ class TransactionController extends Controller
         if (!$transaction) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bukti packing tidak ditemukan untuk nomor "' . $query . '".'
-            ], 404);
+                'message' => 'No. Pesanan atau Resi "' . $query . '" tidak ditemukan di database.'
+            ], 200);
         }
 
         return response()->json([
@@ -1214,6 +1243,14 @@ class TransactionController extends Controller
             ->whereNull('package_proof')
             ->count();
 
+        $packedCount = Transaction::where('user_id', $user->id)
+            ->where('status', 'packed')
+            ->count();
+
+        $processingCount = Transaction::where('user_id', $user->id)
+            ->where('status', 'processing')
+            ->count();
+
         $lowStockCount = \App\Models\Product::where('user_id', $user->id)
             ->where('stock', '<=', 10)
             ->count();
@@ -1221,6 +1258,8 @@ class TransactionController extends Controller
         return response()->json([
             'success' => true,
             'pending_count' => $pendingCount,
+            'packed_count' => $packedCount,
+            'processing_count' => $processingCount,
             'low_stock_count' => $lowStockCount,
             'user' => [
                 'name' => $user->name,

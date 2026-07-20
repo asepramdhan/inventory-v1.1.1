@@ -85,7 +85,7 @@ class MarginAnalysisController extends Controller
         // Hitung profit berjalan (dana tertahan) tanpa memotong iklan harian di dalamnya
         $ongoingRaw = (clone $baseQuery)
             ->selectRaw("
-                COALESCE(SUM(CASE WHEN status IN ('pending', 'menunggu') THEN (grand_total - marketplace_admin_fee - COALESCE(items_hpp.total_transaction_hpp, 0)) ELSE 0 END), 0) as profit_pending,
+                COALESCE(SUM(CASE WHEN status IN ('pending', 'menunggu', 'packed') THEN (grand_total - marketplace_admin_fee - COALESCE(items_hpp.total_transaction_hpp, 0)) ELSE 0 END), 0) as profit_pending,
                 COALESCE(SUM(CASE WHEN status IN ('processing', 'dikirim') THEN (grand_total - marketplace_admin_fee - COALESCE(items_hpp.total_transaction_hpp, 0)) ELSE 0 END), 0) as profit_processing
             ")
             ->first();

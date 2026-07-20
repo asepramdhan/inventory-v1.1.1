@@ -1186,6 +1186,9 @@ export default function Transactions({ transactions, storesList, productsList, c
   const countPendingOrders = statusCounts?.pending?.count ?? 0;
   const countPendingItems = statusCounts?.pending?.items ?? 0;
 
+  const countPackedOrders = statusCounts?.packed?.count ?? 0;
+  const countPackedItems = statusCounts?.packed?.items ?? 0;
+
   const countProcessingOrders = statusCounts?.processing?.count ?? 0;
   const countProcessingItems = statusCounts?.processing?.items ?? 0;
 
@@ -1203,6 +1206,8 @@ export default function Transactions({ transactions, storesList, productsList, c
         return <Badge className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400">Diproses</Badge>;
       case 'pending':
         return <Badge className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400">Menunggu</Badge>;
+      case 'packed':
+        return <Badge className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400">Packed</Badge>;
       case 'cancelled':
         return <Badge variant="destructive">Dibatalkan</Badge>;
       default:
@@ -1404,6 +1409,7 @@ export default function Transactions({ transactions, storesList, productsList, c
                                 <SelectItem value="completed">Selesai</SelectItem>
                                 <SelectItem value="processing">Diproses</SelectItem>
                                 <SelectItem value="pending">Menunggu</SelectItem>
+                                <SelectItem value="packed">Packed</SelectItem>
                                 <SelectItem value="cancelled">Dibatalkan</SelectItem>
                               </SelectContent>
                             </Select>
@@ -1995,6 +2001,14 @@ export default function Transactions({ transactions, storesList, productsList, c
                 Perlu Dikirim
                 <Badge className="px-2 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">
                   {countPendingOrders}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="packed" className="gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:text-zinc-950 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-900 dark:data-[state=active]:text-zinc-50 dark:text-zinc-400 transition-all duration-200 cursor-pointer">
+                <Box className="h-3.5 w-3.5 text-purple-500" />
+                Packed
+                <Badge className="px-2 py-0.5 text-[10px] font-bold bg-purple-500 text-white rounded-full">
+                  {countPackedOrders}
                 </Badge>
               </TabsTrigger>
 
@@ -2767,6 +2781,7 @@ export default function Transactions({ transactions, storesList, productsList, c
                       <SelectItem value="processing">Diproses (Dikirim)</SelectItem>
                       <SelectItem value="completed">Selesai (Completed)</SelectItem>
                       <SelectItem value="pending">Menunggu (Pending)</SelectItem>
+                      <SelectItem value="packed">Packed</SelectItem>
                       <SelectItem value="cancelled">Dibatalkan</SelectItem>
                     </SelectContent>
                   </Select>

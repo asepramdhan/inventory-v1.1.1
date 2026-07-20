@@ -330,7 +330,7 @@ export default function MarginAnalysis({ summary, trendData, storePerformance, p
                       <div className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                           <Clock className="h-3 w-3" />
-                          Pending
+                          Pending / Packed
                         </span>
                         <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_pending)}</span>
                       </div>

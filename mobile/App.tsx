@@ -93,6 +93,10 @@ export default function App() {
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [showHistory, setShowHistory] = useState(false);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [packedCount, setPackedCount] = useState<number>(0);
+  const [processingCount, setProcessingCount] = useState<number>(0);
+  const [todaySuccessCount, setTodaySuccessCount] = useState<number>(0);
+  const [todayFailedCount, setTodayFailedCount] = useState<number>(0);
   const [showTips, setShowTips] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [connectionError, setConnectionError] = useState<boolean>(false);
@@ -158,9 +162,26 @@ export default function App() {
           setToken(savedToken);
           setScreen('MAIN');
         }
+        if (savedHistory) setHistory(JSON.parse(savedHistory));
         if (savedName) setUserName(savedName);
         if (savedEmail) setEmail(savedEmail);
-        if (savedHistory) setHistory(JSON.parse(savedHistory));
+
+        // Cek & muat penghitung pindaian hari ini
+        const todayDateStr = new Date().toISOString().split('T')[0];
+        const savedDate = await AsyncStorage.getItem('@today_date');
+        const savedSuccessCount = await AsyncStorage.getItem('@today_success_count');
+        const savedFailedCount = await AsyncStorage.getItem('@today_failed_count');
+
+        if (savedDate === todayDateStr) {
+          if (savedSuccessCount) setTodaySuccessCount(parseInt(savedSuccessCount, 10));
+          if (savedFailedCount) setTodayFailedCount(parseInt(savedFailedCount, 10));
+        } else {
+          await AsyncStorage.setItem('@today_date', todayDateStr);
+          await AsyncStorage.setItem('@today_success_count', '0');
+          await AsyncStorage.setItem('@today_failed_count', '0');
+          setTodaySuccessCount(0);
+          setTodayFailedCount(0);
+        }
       } catch (err) {
         console.error('Failed to load credentials:', err);
       }
@@ -235,6 +256,12 @@ export default function App() {
       if (response.ok && data.success) {
         setPendingCount(data.pending_count);
         setConnectionError(false);
+        if (typeof data.packed_count === 'number') {
+          setPackedCount(data.packed_count);
+        }
+        if (typeof data.processing_count === 'number') {
+          setProcessingCount(data.processing_count);
+        }
         if (typeof data.low_stock_count === 'number') {
           setLowStockCount(data.low_stock_count);
         }
@@ -515,29 +542,82 @@ export default function App() {
     }
   }, []);
 
-  const checkAndStartRecording = (data: string) => {
+  const checkAndStartRecording = async (data: string) => {
+    // Kunci kesibukan secara instan dan beri indikasi verifikasi
+    setIsUploading(true);
+    isUploadingRef.current = true;
+    showStatus('🔍 Memverifikasi resi di database...', 'success', 2000);
+
     const isAlreadyScanned = historyRef.current.some(
       (item) => 
         item.status === 'success' && 
         (item.invoice_number === data || item.waybill_number === data)
     );
 
-    if (isAlreadyScanned) {
-      Alert.alert(
-        '⚠️ Resi Sudah Dipacking',
-        `Resi "${data}" sudah dipacking sebelumnya hari ini. Apakah Anda yakin ingin memproses ulang?`,
-        [
-          { text: 'Batal', style: 'cancel', onPress: () => {
-            setLastScannedBarcode('');
-            lastScannedBarcodeRef.current = '';
-          }},
-          { text: 'Lanjutkan', onPress: () => {
-            startVideoRecordingWorkflow(data);
-          }}
-        ]
-      );
-    } else {
-      startVideoRecordingWorkflow(data);
+    try {
+      const activeUrl = serverUrlRef.current || serverUrl;
+      const activeToken = tokenRef.current || token;
+
+      // Panggil API searchProof untuk cek keberadaan resi di database
+      const response = await fetch(`${activeUrl}/finance/transactions/search-proof?query=${encodeURIComponent(data)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${activeToken}`,
+          'X-Mobile-Token': activeToken || '',
+          'Accept': 'application/json'
+        }
+      });
+
+      const resData = await response.json();
+
+      if (!response.ok || !resData.success) {
+        const errMsg = resData.message || 'Resi tidak ditemukan di database.';
+        showStatus(`Gagal: ${errMsg}`, 'error');
+        triggerHaptic(false);
+        playBeep(false);
+        saveFailedScan(data, errMsg);
+
+        // Buka kembali kunci scanner
+        setLastScannedBarcode('');
+        lastScannedBarcodeRef.current = '';
+        setIsUploading(false);
+        isUploadingRef.current = false;
+        return;
+      }
+
+      // Jika lolos verifikasi database, baru lanjut ke alur perekaman
+      if (isAlreadyScanned) {
+        Alert.alert(
+          '⚠️ Resi Sudah Dipacking',
+          `Resi "${data}" sudah dipacking sebelumnya hari ini. Apakah Anda yakin ingin memproses ulang?`,
+          [
+            { text: 'Batal', style: 'cancel', onPress: () => {
+              setLastScannedBarcode('');
+              lastScannedBarcodeRef.current = '';
+              setIsUploading(false);
+              isUploadingRef.current = false;
+            }},
+            { text: 'Lanjutkan', onPress: () => {
+              startVideoRecordingWorkflow(data);
+            }}
+          ]
+        );
+      } else {
+        startVideoRecordingWorkflow(data);
+      }
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err?.message || 'Error koneksi verifikasi.';
+      showStatus(`Gagal verifikasi database: ${errMsg}`, 'error');
+      triggerHaptic(false);
+      playBeep(false);
+      saveFailedScan(data, `Verifikasi Gagal: ${errMsg}`);
+
+      // Buka kunci scanner
+      setLastScannedBarcode('');
+      lastScannedBarcodeRef.current = '';
+      setIsUploading(false);
+      isUploadingRef.current = false;
     }
   };
 
@@ -725,8 +805,15 @@ export default function App() {
         playBeep(true);
         fetchStats();
 
+        // Tambah hitungan sukses hari ini secara lokal
+        setTodaySuccessCount(prev => {
+          const next = prev + 1;
+          AsyncStorage.setItem('@today_success_count', next.toString());
+          return next;
+        });
+
         const newScan: ScannedPackage = {
-          id: data.transaction.id.toString(),
+          id: Math.random().toString(),
           invoice_number: data.transaction.invoice_number,
           waybill_number: data.transaction.waybill_number,
           package_proof: data.transaction.package_proof,
@@ -759,6 +846,13 @@ export default function App() {
   };
 
   const saveFailedScan = async (failedBarcode: string, reason: string) => {
+    // Tambah hitungan gagal hari ini secara lokal
+    setTodayFailedCount(prev => {
+      const next = prev + 1;
+      AsyncStorage.setItem('@today_failed_count', next.toString());
+      return next;
+    });
+
     const failedScan: ScannedPackage = {
       id: Math.random().toString(),
       invoice_number: failedBarcode,
@@ -902,22 +996,30 @@ export default function App() {
                 </View>
               )}
 
-              {/* 3-Column Stats Row */}
-              <View style={styles.statsRow}>
+              {/* Row 1: Status Pesanan */}
+              <View style={[styles.statsRow, { marginBottom: 12 }]}>
                 <View style={styles.statsCard}>
                   <Text style={[styles.statsValue, { color: '#f43f5e' }]}>{pendingCount}</Text>
-                  <Text style={styles.statsLabel}>Antrean Packing</Text>
+                  <Text style={styles.statsLabel}>Antrean</Text>
                 </View>
                 <View style={styles.statsCard}>
-                  <Text style={[styles.statsValue, { color: '#22c55e' }]}>
-                    {history.filter((h) => h.status === 'success').length}
-                  </Text>
+                  <Text style={[styles.statsValue, { color: '#a855f7' }]}>{packedCount}</Text>
+                  <Text style={styles.statsLabel}>Packed</Text>
+                </View>
+                <View style={styles.statsCard}>
+                  <Text style={[styles.statsValue, { color: '#3b82f6' }]}>{processingCount}</Text>
+                  <Text style={styles.statsLabel}>Dikirim</Text>
+                </View>
+              </View>
+
+              {/* Row 2: Aktivitas Pindaian Hari Ini */}
+              <View style={styles.statsRow}>
+                <View style={styles.statsCard}>
+                  <Text style={[styles.statsValue, { color: '#22c55e' }]}>{todaySuccessCount}</Text>
                   <Text style={styles.statsLabel}>Sukses Hari Ini</Text>
                 </View>
                 <View style={styles.statsCard}>
-                  <Text style={[styles.statsValue, { color: '#f59e0b' }]}>
-                    {history.filter((h) => h.status === 'error').length}
-                  </Text>
+                  <Text style={[styles.statsValue, { color: '#f59e0b' }]}>{todayFailedCount}</Text>
                   <Text style={styles.statsLabel}>Gagal Hari Ini</Text>
                 </View>
               </View>
@@ -947,10 +1049,8 @@ export default function App() {
 
               {/* Progress Bar Rasio Sukses */}
               {(() => {
-                const successCount = history.filter((h) => h.status === 'success').length;
-                const errorCount = history.filter((h) => h.status === 'error').length;
-                const totalCount = successCount + errorCount;
-                const successRate = totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0;
+                const totalCount = todaySuccessCount + todayFailedCount;
+                const successRate = totalCount > 0 ? Math.round((todaySuccessCount / totalCount) * 100) : 0;
 
                 if (totalCount === 0) return null;
 
@@ -973,7 +1073,7 @@ export default function App() {
                       ]} />
                     </View>
                     <Text style={styles.progressSubtext}>
-                      {successCount} dari {totalCount} paket berhasil diproses hari ini
+                      {todaySuccessCount} dari {totalCount} paket berhasil diproses hari ini
                     </Text>
                   </View>
                 );

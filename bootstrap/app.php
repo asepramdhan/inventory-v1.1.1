@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             '/api/mobile/login',
             '/finance/transactions/barcode-upload-proof',
+            '/finance/transactions/search-proof',
             '/api/mobile/product/update-stock'
         ]);
 

@@ -212,7 +212,7 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                       <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{formatIDR(summary.profit)}</p>
                       <div className="pt-2 flex flex-col gap-1 text-[10.5px] border-t border-zinc-100 dark:border-zinc-800 border-dashed mt-2">
                         <div className="flex justify-between gap-2">
-                          <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><Clock className="h-3 w-3" /> Pending</span>
+                          <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><Clock className="h-3 w-3" /> Pending / Packed</span>
                           <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(summary.profit_pending)}</span>
                         </div>
                         <div className="flex justify-between gap-2">
