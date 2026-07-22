@@ -15,7 +15,7 @@ class OperationalSupplyController extends Controller
         $search = $request->input('search');
         $status = $request->input('status', 'all');
 
-        $query = OperationalSupply::where('user_id', Auth::user()->id);
+        $query = OperationalSupply::where('user_id', Auth::user()->getOwnerId());
 
         if ($search) {
             $query->where('name', 'like', "%{$search}%");
@@ -28,8 +28,8 @@ class OperationalSupplyController extends Controller
         }
 
         // Summary metrics
-        $totalItems = OperationalSupply::where('user_id', Auth::user()->id)->count();
-        $lowStockItems = OperationalSupply::where('user_id', Auth::user()->id)
+        $totalItems = OperationalSupply::where('user_id', Auth::user()->getOwnerId())->count();
+        $lowStockItems = OperationalSupply::where('user_id', Auth::user()->getOwnerId())
             ->whereColumn('stock', '<=', 'min_stock')
             ->count();
         $safeStockItems = $totalItems - $lowStockItems;
@@ -38,7 +38,7 @@ class OperationalSupplyController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        $logs = OperationalSupplyLog::where('user_id', Auth::user()->id)
+        $logs = OperationalSupplyLog::where('user_id', Auth::user()->getOwnerId())
             ->with('operationalSupply')
             ->latest()
             ->paginate(50, ['*'], 'logs_page')
@@ -72,7 +72,7 @@ class OperationalSupplyController extends Controller
         ]);
 
         $supply = OperationalSupply::create([
-            'user_id' => Auth::user()->id,
+            'user_id' => Auth::user()->getOwnerId(),
             'name' => $request->name,
             'stock' => $request->stock,
             'unit' => $request->unit,
@@ -84,7 +84,7 @@ class OperationalSupplyController extends Controller
 
         // Log stok awal
         OperationalSupplyLog::create([
-            'user_id' => Auth::user()->id,
+            'user_id' => Auth::user()->getOwnerId(),
             'operational_supply_id' => $supply->id,
             'operational_supply_name' => $supply->name,
             'adjustment' => $supply->stock,
@@ -99,7 +99,7 @@ class OperationalSupplyController extends Controller
 
     public function update(Request $request, $id)
     {
-        $supply = OperationalSupply::where('user_id', Auth::user()->id)->findOrFail($id);
+        $supply = OperationalSupply::where('user_id', Auth::user()->getOwnerId())->findOrFail($id);
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -128,7 +128,7 @@ class OperationalSupplyController extends Controller
         if ($oldStock !== $newStock) {
             $adjustment = $newStock - $oldStock;
             OperationalSupplyLog::create([
-                'user_id' => Auth::user()->id,
+                'user_id' => Auth::user()->getOwnerId(),
                 'operational_supply_id' => $supply->id,
                 'operational_supply_name' => $supply->name,
                 'adjustment' => $adjustment,
@@ -144,7 +144,7 @@ class OperationalSupplyController extends Controller
 
     public function destroy($id)
     {
-        $supply = OperationalSupply::where('user_id', Auth::user()->id)->findOrFail($id);
+        $supply = OperationalSupply::where('user_id', Auth::user()->getOwnerId())->findOrFail($id);
         $supply->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Bahan operasional berhasil dihapus!']);
@@ -154,7 +154,7 @@ class OperationalSupplyController extends Controller
 
     public function updateStock(Request $request, $id)
     {
-        $supply = OperationalSupply::where('user_id', Auth::user()->id)->findOrFail($id);
+        $supply = OperationalSupply::where('user_id', Auth::user()->getOwnerId())->findOrFail($id);
 
         $request->validate([
             'stock' => 'required|integer|min:0',
@@ -170,7 +170,7 @@ class OperationalSupplyController extends Controller
         if ($oldStock !== $newStock) {
             $adjustment = $newStock - $oldStock;
             OperationalSupplyLog::create([
-                'user_id' => Auth::user()->id,
+                'user_id' => Auth::user()->getOwnerId(),
                 'operational_supply_id' => $supply->id,
                 'operational_supply_name' => $supply->name,
                 'adjustment' => $adjustment,
@@ -206,7 +206,7 @@ class OperationalSupplyController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
-        $supplies = OperationalSupply::where('user_id', $user->id)
+        $supplies = OperationalSupply::where('user_id', $user->getOwnerId())
             ->orderBy('name')
             ->get();
 
@@ -223,7 +223,7 @@ class OperationalSupplyController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
-        $supply = OperationalSupply::where('user_id', $user->id)->findOrFail($id);
+        $supply = OperationalSupply::where('user_id', $user->getOwnerId())->findOrFail($id);
 
         $request->validate([
             'stock' => 'required|integer|min:0',
@@ -239,7 +239,7 @@ class OperationalSupplyController extends Controller
         if ($oldStock !== $newStock) {
             $adjustment = $newStock - $oldStock;
             OperationalSupplyLog::create([
-                'user_id' => $user->id,
+                'user_id' => $user->getOwnerId(),
                 'operational_supply_id' => $supply->id,
                 'operational_supply_name' => $supply->name,
                 'adjustment' => $adjustment,

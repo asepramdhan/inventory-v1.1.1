@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
   ArrowRightLeft,
   Box,
@@ -34,42 +34,47 @@ interface CommandItem {
   url: string;
   action?: string;
   shortcut?: string;
+  adminOnly?: boolean;
+  permission?: string;
 }
 
 const commands: CommandItem[] = [
   // --- NAVIGASI ---
   { id: 'nav-dashboard', title: 'Buka Dashboard', category: 'Navigasi Menu', icon: LayoutGrid, url: '/dashboard', shortcut: 'D' },
-  { id: 'nav-margin', title: 'Buka Analisa Margin', category: 'Navigasi Menu', icon: ChartBar, url: '/finance/margin-analysis', shortcut: 'M' },
-  { id: 'nav-transactions', title: 'Buka Riwayat Transaksi', category: 'Navigasi Menu', icon: ShoppingBag, url: '/finance/transactions', shortcut: 'T' },
-  { id: 'nav-ads', title: 'Buka Iklan & Affiliasi', category: 'Navigasi Menu', icon: Megaphone, url: '/finance/ads-affiliate', shortcut: 'A' },
-  { id: 'nav-mutations', title: 'Buka Mutasi Kas', category: 'Navigasi Menu', icon: ArrowRightLeft, url: '/finance/mutations', shortcut: 'K' },
-  { id: 'nav-profit-loss', title: 'Buka Laporan Laba Rugi', category: 'Navigasi Menu', icon: DollarSign, url: '/finance/profit-loss' },
-  { id: 'nav-producer-stocks', title: 'Buka Faktur Produsen', category: 'Navigasi Menu', icon: PackagePlus, url: '/operational/producer-stocks', shortcut: 'F' },
-  { id: 'nav-products', title: 'Buka Stok & Produk', category: 'Navigasi Menu', icon: Box, url: '/operational/products', shortcut: 'S' },
-  { id: 'nav-supplies', title: 'Buka Bahan Operasional', category: 'Navigasi Menu', icon: ClipboardList, url: '/operational/supplies' },
-  { id: 'nav-producers', title: 'Buka Profil Produsen', category: 'Navigasi Menu', icon: Users, url: '/master-data/producers' },
-  { id: 'nav-categories', title: 'Buka Kategori Produk', category: 'Navigasi Menu', icon: Tags, url: '/master-data/categories' },
-  { id: 'nav-stores', title: 'Buka Daftar Toko', category: 'Navigasi Menu', icon: Store, url: '/master-data/stores' },
-  { id: 'nav-customers', title: 'Buka Daftar Pelanggan', category: 'Navigasi Menu', icon: Users, url: '/master-data/customers' },
-  { id: 'nav-backups', title: 'Buka Backup Database', category: 'Navigasi Menu', icon: Database, url: '/master-data/backups' },
+  { id: 'nav-margin', title: 'Buka Analisa Margin', category: 'Navigasi Menu', icon: ChartBar, url: '/finance/margin-analysis', shortcut: 'M', adminOnly: true },
+  { id: 'nav-transactions', title: 'Buka Riwayat Transaksi', category: 'Navigasi Menu', icon: ShoppingBag, url: '/finance/transactions', shortcut: 'T', permission: 'transactions' },
+  { id: 'nav-packing-station', title: 'Buka Stasiun Packing', category: 'Navigasi Menu', icon: Camera, url: '/finance/transactions/packing-station', shortcut: 'O', permission: 'scanner' },
+  { id: 'nav-ads', title: 'Buka Iklan & Affiliasi', category: 'Navigasi Menu', icon: Megaphone, url: '/finance/ads-affiliate', shortcut: 'A', adminOnly: true },
+  { id: 'nav-mutations', title: 'Buka Mutasi Kas', category: 'Navigasi Menu', icon: ArrowRightLeft, url: '/finance/mutations', shortcut: 'K', adminOnly: true },
+  { id: 'nav-profit-loss', title: 'Buka Laporan Laba Rugi', category: 'Navigasi Menu', icon: DollarSign, url: '/finance/profit-loss', adminOnly: true },
+  { id: 'nav-producer-stocks', title: 'Buka Faktur Produsen', category: 'Navigasi Menu', icon: PackagePlus, url: '/operational/producer-stocks', shortcut: 'F', permission: 'products' },
+  { id: 'nav-products', title: 'Buka Stok & Produk', category: 'Navigasi Menu', icon: Box, url: '/operational/products', shortcut: 'S', permission: 'products' },
+  { id: 'nav-supplies', title: 'Buka Bahan Operasional', category: 'Navigasi Menu', icon: ClipboardList, url: '/operational/supplies', permission: 'supplies' },
+  { id: 'nav-producers', title: 'Buka Profil Produsen', category: 'Navigasi Menu', icon: Users, url: '/master-data/producers', permission: 'products' },
+  { id: 'nav-categories', title: 'Buka Kategori Produk', category: 'Navigasi Menu', icon: Tags, url: '/master-data/categories', permission: 'products' },
+  { id: 'nav-stores', title: 'Buka Daftar Toko', category: 'Navigasi Menu', icon: Store, url: '/master-data/stores', adminOnly: true },
+  { id: 'nav-customers', title: 'Buka Daftar Pelanggan', category: 'Navigasi Menu', icon: Users, url: '/master-data/customers', permission: 'customers' },
+  { id: 'nav-backups', title: 'Buka Backup Database', category: 'Navigasi Menu', icon: Database, url: '/master-data/backups', adminOnly: true },
+  { id: 'nav-users', title: 'Buka Kelola Pengguna (User Management)', category: 'Navigasi Menu', icon: Users, url: '/master-data/users', shortcut: 'P', adminOnly: true },
 
   // --- AKSI CEPAT ---
-  { id: 'act-new-tx', title: 'Catat Transaksi Manual Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/transactions', action: 'create', shortcut: 'N' },
-  { id: 'act-new-prod', title: 'Tambah Produk Baru', category: 'Aksi Cepat', icon: Plus, url: '/operational/products', action: 'create' },
-  { id: 'act-new-mutation', title: 'Catat Mutasi Kas Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/mutations', action: 'create' },
-  { id: 'act-new-ads', title: 'Catat Biaya Iklan & Affiliate Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/ads-affiliate', action: 'create', shortcut: 'Shift+A' },
-  { id: 'act-new-account', title: 'Buat Akun Kas / Bank Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/mutations', action: 'create-account' },
-  { id: 'act-transfer', title: 'Transfer Saldo Antar Rekening/Kas', category: 'Aksi Cepat', icon: ArrowRightLeft, url: '/finance/mutations', action: 'transfer' },
-  { id: 'act-new-category', title: 'Tambah Kategori Produk Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/categories', action: 'create' },
-  { id: 'act-new-store', title: 'Tambah Toko / Marketplace Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/stores', action: 'create' },
-  { id: 'act-new-producer', title: 'Tambah Profil Produsen Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/producers', action: 'create' },
-  { id: 'act-new-stock-in', title: 'Catat Faktur / Stok Masuk Produsen', category: 'Aksi Cepat', icon: Plus, url: '/operational/producer-stocks', action: 'create' },
-  { id: 'act-new-supply', title: 'Tambah Bahan Operasional Baru', category: 'Aksi Cepat', icon: Plus, url: '/operational/supplies', action: 'create' },
-  { id: 'act-run-backup', title: 'Jalankan Backup Database Sekarang', category: 'Aksi Cepat', icon: Database, url: '/master-data/backups', action: 'run', shortcut: 'B' },
-  { id: 'act-import-shopee', title: 'Impor Excel Pesanan Shopee', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-shopee', shortcut: 'I' },
-  { id: 'act-import-status', title: 'Impor Excel Status Pesanan', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-status', shortcut: 'U' },
-  { id: 'act-export-profit', title: 'Unduh Excel Laporan Laba Rugi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/profit-loss/export' },
-  { id: 'act-export-tx', title: 'Unduh Excel Riwayat Transaksi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/transactions/export' }
+  { id: 'act-new-tx', title: 'Catat Transaksi Manual Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/transactions', action: 'create', shortcut: 'N', permission: 'transactions' },
+  { id: 'act-new-prod', title: 'Tambah Produk Baru', category: 'Aksi Cepat', icon: Plus, url: '/operational/products', action: 'create', permission: 'products' },
+  { id: 'act-new-mutation', title: 'Catat Mutasi Kas Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/mutations', action: 'create', adminOnly: true },
+  { id: 'act-new-ads', title: 'Catat Biaya Iklan & Affiliate Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/ads-affiliate', action: 'create', shortcut: 'Shift+A', adminOnly: true },
+  { id: 'act-new-account', title: 'Buat Akun Kas / Bank Baru', category: 'Aksi Cepat', icon: Plus, url: '/finance/mutations', action: 'create-account', adminOnly: true },
+  { id: 'act-transfer', title: 'Transfer Saldo Antar Rekening/Kas', category: 'Aksi Cepat', icon: ArrowRightLeft, url: '/finance/mutations', action: 'transfer', adminOnly: true },
+  { id: 'act-new-category', title: 'Tambah Kategori Produk Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/categories', action: 'create', permission: 'products' },
+  { id: 'act-new-store', title: 'Tambah Toko / Marketplace Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/stores', action: 'create', adminOnly: true },
+  { id: 'act-new-producer', title: 'Tambah Profil Produsen Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/producers', action: 'create', permission: 'products' },
+  { id: 'act-new-stock-in', title: 'Catat Faktur / Stok Masuk Produsen', category: 'Aksi Cepat', icon: Plus, url: '/operational/producer-stocks', action: 'create', permission: 'products' },
+  { id: 'act-new-supply', title: 'Tambah Bahan Operasional Baru', category: 'Aksi Cepat', icon: Plus, url: '/operational/supplies', action: 'create', permission: 'supplies' },
+  { id: 'act-run-backup', title: 'Jalankan Backup Database Sekarang', category: 'Aksi Cepat', icon: Database, url: '/master-data/backups', action: 'run', shortcut: 'B', adminOnly: true },
+  { id: 'act-import-shopee', title: 'Impor Excel Pesanan Shopee', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-shopee', shortcut: 'I', permission: 'transactions' },
+  { id: 'act-import-status', title: 'Impor Excel Status Pesanan', category: 'Aksi Cepat', icon: Upload, url: '/finance/transactions', action: 'import-status', shortcut: 'U', permission: 'transactions' },
+  { id: 'act-export-profit', title: 'Unduh Excel Laporan Laba Rugi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/profit-loss/export', adminOnly: true },
+  { id: 'act-export-tx', title: 'Unduh Excel Riwayat Transaksi', category: 'Aksi Cepat', icon: FileSpreadsheet, url: '/finance/transactions/export', permission: 'transactions' },
+  { id: 'act-new-user', title: 'Tambah Pengguna Baru', category: 'Aksi Cepat', icon: Plus, url: '/master-data/users', action: 'create', adminOnly: true }
 ];
 
 export function CommandPalette() {
@@ -82,6 +87,15 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  const { auth } = usePage<any>().props;
+  const user = auth?.user;
+  const isAdmin = user?.role === 'admin';
+
+  const hasPermission = (permission: string) => {
+    if (isAdmin) return true;
+    return Array.isArray(user?.permissions) && user.permissions.includes(permission);
+  };
+
   // ESC key listener for proof dialog
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -93,7 +107,7 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
-  // Keyboard shortcut listener Ctrl+K & Global hotkeys (I, U, B, P)
+  // Keyboard shortcut listener Ctrl+K & Global hotkeys (I, U, B, P, O)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -115,43 +129,62 @@ export function CommandPalette() {
       if (isOpen) return;
 
       if (e.key.toLowerCase() === 'i') {
+        if (!hasPermission('transactions')) return;
         e.preventDefault();
         router.visit('/finance/transactions?action=import-shopee');
       } else if (e.key.toLowerCase() === 'u') {
+        if (!hasPermission('transactions')) return;
         e.preventDefault();
         router.visit('/finance/transactions?action=import-status');
       } else if (e.key.toLowerCase() === 'b') {
+        if (!isAdmin) return;
         e.preventDefault();
         router.visit('/master-data/backups?action=run');
       } else if (e.key === 'd') {
         e.preventDefault();
         router.visit('/dashboard');
       } else if (e.key === 'm') {
+        if (!isAdmin) return;
         e.preventDefault();
         router.visit('/finance/margin-analysis');
       } else if (e.key === 't') {
+        if (!hasPermission('transactions')) return;
         e.preventDefault();
         router.visit('/finance/transactions');
       } else if (e.key === 'k') {
+        if (!isAdmin) return;
         e.preventDefault();
         router.visit('/finance/mutations');
       } else if (e.key === 'f') {
+        if (!hasPermission('products')) return;
         e.preventDefault();
         router.visit('/operational/producer-stocks');
       } else if (e.key === 'a') {
+        if (!isAdmin) return;
         e.preventDefault();
         router.visit('/finance/ads-affiliate');
       } else if (e.key === 'A') {
+        if (!isAdmin) return;
         e.preventDefault();
         router.visit('/finance/ads-affiliate?action=create');
       } else if (e.key === 's') {
+        if (!hasPermission('products')) return;
         e.preventDefault();
         router.visit('/operational/products');
+      } else if (e.key === 'p') {
+        if (!isAdmin) return;
+        e.preventDefault();
+        router.visit('/master-data/users');
+      } else if (e.key === 'o') {
+        if (!hasPermission('scanner')) return;
+        e.preventDefault();
+        router.visit('/finance/transactions/packing-station');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, user]);
+
 
   // Auto-focus input when opened
   useEffect(() => {
@@ -168,11 +201,16 @@ export function CommandPalette() {
     };
   }, [isOpen]);
 
-  // Filter commands based on query search
-  const filtered = commands.filter((cmd) =>
-    cmd.title.toLowerCase().includes(query.toLowerCase()) ||
-    cmd.category.toLowerCase().includes(query.toLowerCase())
-  );
+  // Filter commands based on query search and user permissions
+  const filtered = commands.filter((cmd) => {
+    if (cmd.adminOnly && !isAdmin) return false;
+    if (cmd.permission && !hasPermission(cmd.permission)) return false;
+
+    return (
+      cmd.title.toLowerCase().includes(query.toLowerCase()) ||
+      cmd.category.toLowerCase().includes(query.toLowerCase())
+    );
+  });
 
   // Jika query tidak kosong, tambahkan aksi pencarian bukti packing dinamis di posisi paling atas
   const queryClean = query.trim();

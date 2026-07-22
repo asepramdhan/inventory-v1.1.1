@@ -1,5 +1,5 @@
 /* eslint-disable @stylistic/padding-line-between-statements */
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { AlertCircle, ArrowRight, CheckCircle2, Clock, DollarSign, Package, ShoppingBag, TrendingUp, Truck, Wallet, XCircle, Coins } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -99,32 +99,43 @@ const formatAxisIDR = (value: number) => {
   return String(value);
 };
 
-function DashboardSkeleton() {
+function DashboardSkeleton({ isAdmin = true }: { isAdmin?: boolean }) {
   return (
     <div className="flex flex-col gap-6 animate-pulse">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm rounded-2xl">
-            <div className="absolute inset-x-0 top-0 h-1 bg-zinc-200 dark:bg-zinc-800" />
-            <CardContent className="p-5 space-y-3">
-              <div className="flex justify-between">
-                <div className="h-3 bg-muted rounded w-24" />
-                <div className="h-9 w-9 bg-muted rounded-lg" />
-              </div>
-              <div className="h-7 bg-muted rounded w-32" />
-              <div className="h-3 bg-muted/60 rounded w-full" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="grid gap-4 md:grid-cols-7">
-        <Card className="md:col-span-4 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
-        <Card className="md:col-span-3 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[220px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
-        <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[220px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
-      </div>
+      {isAdmin && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm rounded-2xl">
+              <div className="absolute inset-x-0 top-0 h-1 bg-zinc-200 dark:bg-zinc-800" />
+              <CardContent className="p-5 space-y-3">
+                <div className="flex justify-between">
+                  <div className="h-3 bg-muted rounded w-24" />
+                  <div className="h-9 w-9 bg-muted rounded-lg" />
+                </div>
+                <div className="h-7 bg-muted rounded w-32" />
+                <div className="h-3 bg-muted/60 rounded w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+      {isAdmin ? (
+        <>
+          <div className="grid gap-4 md:grid-cols-7">
+            <Card className="md:col-span-4 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+            <Card className="md:col-span-3 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[220px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+            <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[220px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+          </div>
+        </>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+          <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl"><CardContent className="h-[280px] p-4"><div className="h-full bg-muted/30 rounded" /></CardContent></Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -160,6 +171,14 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 
 export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasiTerbaru, chartData }: Props) {
   const [isLoading, setIsLoading] = useState(true);
+  const { auth } = usePage<any>().props;
+  const user = auth.user;
+  const isAdmin = user?.role === 'admin';
+
+  const hasPermission = (permission: string) => {
+    if (isAdmin) return true;
+    return Array.isArray(user?.permissions) && user.permissions.includes(permission);
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 350);
@@ -174,6 +193,115 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
 
   const hasChartData = chartDisplayData.some((d) => d.omzet > 0 || d.profit > 0);
 
+  const stokTipisCard = (
+    <Card className={`shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl relative overflow-hidden ${isAdmin ? 'md:col-span-3' : ''}`}>
+      <div className="absolute inset-y-0 left-0 w-1 bg-red-500" />
+      <CardHeader className="pb-2.5">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-rose-600">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+          </span>
+          Peringatan Stok Tipis
+        </CardTitle>
+        <CardDescription className="text-xs">Produk dengan sisa stok kritis (≤ 5 pcs).</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
+          {stokTipis.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+              <p className="text-xs text-muted-foreground">Semua stok produk aman.</p>
+            </div>
+          ) : (
+            stokTipis.map((item) => (
+              <div key={item.id} className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2.5 last:border-0 last:pb-0 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 p-1 rounded-xl transition-all duration-200">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {item.image ? (
+                    <img src={item.image} alt={item.name} className="h-10 w-10 rounded-lg border border-zinc-200/60 dark:border-zinc-800 object-cover shrink-0 transition-transform duration-300 hover:scale-105" />
+                  ) : (
+                    <div className="h-10 w-10 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-center shrink-0">
+                      <Package className="h-5 w-5 text-zinc-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-zinc-950 dark:text-zinc-100 truncate">{item.name}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Sisa stok gudang</p>
+                  </div>
+                </div>
+                <DashboardStockUpdater item={item} />
+              </div>
+            ))
+          )}
+        </div>
+        {stokTipis.length > 0 && (
+          <Link href={ProductController.index()} className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:underline mt-3">
+            Kelola produk <ArrowRight className="h-3 w-3" />
+          </Link>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const transaksiTerbaruCard = (
+    <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl overflow-hidden">
+      <CardHeader className="pb-2.5 flex flex-row items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+          <ShoppingBag className="h-4 w-4 text-emerald-500" />
+          Transaksi Penjualan Terbaru
+        </CardTitle>
+        {hasPermission('transactions') ? (
+          <Link href="/finance/transactions" className="text-[11px] font-medium text-blue-600 hover:underline flex items-center gap-0.5">
+            Lihat semua <ArrowRight className="h-3 w-3" />
+          </Link>
+        ) : hasPermission('scanner') ? (
+          <Link href="/finance/transactions/packing-station" className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5">
+            Buka Stasiun Packing <ArrowRight className="h-3 w-3" />
+          </Link>
+        ) : null}
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
+            <TableRow>
+              <TableHead className="text-xs">Tanggal</TableHead>
+              <TableHead className="text-xs">No. Nota</TableHead>
+              <TableHead className="text-xs">Toko</TableHead>
+              {isAdmin && <TableHead className="text-xs text-right">Nominal</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transaksiTerbaru.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-6 text-xs text-muted-foreground">
+                  Belum ada transaksi penjualan.
+                </TableCell>
+              </TableRow>
+            ) : (
+              transaksiTerbaru.map((tx) => (
+                <TableRow key={tx.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
+                  <TableCell className="py-2.5">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{formatDateTime(tx.transaction_date).dateStr}</span>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Pukul {formatDateTime(tx.transaction_date).timeStr}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-md border border-zinc-200/50 dark:border-zinc-700/50">{tx.invoice_number}</span>
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    <span className="inline-block max-w-[100px] truncate bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-full text-[10px] font-medium border border-zinc-200/30 dark:border-zinc-700/30">{tx.store?.name || '-'}</span>
+                  </TableCell>
+                  {isAdmin && <TableCell className="text-right text-xs font-bold text-emerald-600">{formatIDR(tx.grand_total)}</TableCell>}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <>
       <Head title="Dashboard Utama" />
@@ -181,15 +309,24 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
 
         <Heading
           title="Ringkasan Dashboard"
-          description="Pantau kondisi bisnis omnichannel Anda — omzet, profit, kas, dan stok hari ini."
+          description={isAdmin ? "Pantau kondisi bisnis omnichannel Anda — omzet, profit, kas, dan stok hari ini." : "Pantau stok produk kritis dan riwayat pengiriman Anda hari ini."}
         />
 
         {isLoading ? (
-          <DashboardSkeleton />
+          <DashboardSkeleton isAdmin={isAdmin} />
         ) : (
           <div className="flex flex-col gap-6">
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {!isAdmin && (
+              <Card className="relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm rounded-2xl p-6">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-indigo-500 opacity-80" />
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Selamat Bekerja, {user.name}! 👋</h2>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Anda masuk sebagai Petugas Gudang/Staff. Silakan pantau stok produk kritis dan perbarui bukti kirim di bawah ini woy.</p>
+              </Card>
+            )}
+
+            {isAdmin && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="group relative overflow-hidden bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 rounded-2xl">
                   <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80 group-hover:h-1.5 transition-all duration-200" />
                   <CardContent className="p-5 flex items-center justify-between gap-4">
@@ -258,197 +395,117 @@ export default function Dashboard({ summary, stokTipis, transaksiTerbaru, mutasi
                     </div>
                   </CardContent>
                 </Card>
-            </div>
+              </div>
+            )}
 
-            <div className="grid gap-4 md:grid-cols-7">
-              <Card className="md:col-span-4 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Tren Penjualan 7 Hari Terakhir</CardTitle>
-                  <CardDescription className="text-xs">Omzet kotor vs profit bersih harian.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[280px]">
-                  {!hasChartData ? (
-                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded-xl">
-                      Belum ada data penjualan 7 hari terakhir.
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartDisplayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="dashColorOmzet" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="dashColorProfit" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="4 4" vertical={false} className="stroke-zinc-100 dark:stroke-zinc-800/40" />
-                        <XAxis dataKey="dateLabel" fontSize={11} tickLine={false} axisLine={false} className="fill-zinc-400 dark:fill-zinc-500" />
-                        <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatAxisIDR} width={48} className="fill-zinc-400 dark:fill-zinc-500" />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                        <Area type="monotone" dataKey="omzet" name="Omzet" stroke="#10b981" strokeWidth={2} fill="url(#dashColorOmzet)" activeDot={{ r: 4, strokeWidth: 0 }} />
-                        <Area type="monotone" dataKey="profit" name="Profit" stroke="#6366f1" strokeWidth={2} fill="url(#dashColorProfit)" activeDot={{ r: 4, strokeWidth: 0 }} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="md:col-span-3 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl relative overflow-hidden">
-                <div className="absolute inset-y-0 left-0 w-1 bg-red-500" />
-                <CardHeader className="pb-2.5">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-rose-600">
-                    <span className="relative flex h-2 w-2 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                    </span>
-                    Peringatan Stok Tipis
-                  </CardTitle>
-                  <CardDescription className="text-xs">Produk dengan sisa stok kritis (≤ 5 pcs).</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
-                    {stokTipis.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
-                        <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                        <p className="text-xs text-muted-foreground">Semua stok produk aman.</p>
-                      </div>
-                    ) : (
-                      stokTipis.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2.5 last:border-0 last:pb-0 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 p-1 rounded-xl transition-all duration-200">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            {item.image ? (
-                              <img src={item.image} alt={item.name} className="h-10 w-10 rounded-lg border border-zinc-200/60 dark:border-zinc-800 object-cover shrink-0 transition-transform duration-300 hover:scale-105" />
-                            ) : (
-                              <div className="h-10 w-10 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-center shrink-0">
-                                <Package className="h-5 w-5 text-zinc-400" />
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-zinc-950 dark:text-zinc-100 truncate">{item.name}</p>
-                              <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Sisa stok gudang</p>
-                            </div>
-                          </div>
-                          <DashboardStockUpdater item={item} />
+            {isAdmin ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-7">
+                  <Card className="md:col-span-4 shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Tren Penjualan 7 Hari Terakhir</CardTitle>
+                      <CardDescription className="text-xs">Omzet kotor vs profit bersih harian.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[280px]">
+                      {!hasChartData ? (
+                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded-xl">
+                          Belum ada data penjualan 7 hari terakhir.
                         </div>
-                      ))
-                    )}
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartDisplayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="dashColorOmzet" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                              </linearGradient>
+                              <linearGradient id="dashColorProfit" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="4 4" vertical={false} className="stroke-zinc-100 dark:stroke-zinc-800/40" />
+                            <XAxis dataKey="dateLabel" fontSize={11} tickLine={false} axisLine={false} className="fill-zinc-400 dark:fill-zinc-500" />
+                            <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatAxisIDR} width={48} className="fill-zinc-400 dark:fill-zinc-500" />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                            <Area type="monotone" dataKey="omzet" name="Omzet" stroke="#10b981" strokeWidth={2} fill="url(#dashColorOmzet)" activeDot={{ r: 4, strokeWidth: 0 }} />
+                            <Area type="monotone" dataKey="profit" name="Profit" stroke="#6366f1" strokeWidth={2} fill="url(#dashColorProfit)" activeDot={{ r: 4, strokeWidth: 0 }} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {stokTipisCard}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  {transaksiTerbaruCard}
+
+                  <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl overflow-hidden">
+                    <CardHeader className="pb-2.5 flex flex-row items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+                        <Wallet className="h-4 w-4 text-purple-500" />
+                        Mutasi Kas Terbaru
+                      </CardTitle>
+                      <Link href="/finance/mutations" className="text-[11px] font-medium text-blue-600 hover:underline flex items-center gap-0.5">
+                        Lihat semua <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
+                          <TableRow>
+                            <TableHead className="text-xs">Tanggal</TableHead>
+                            <TableHead className="text-xs">Kategori</TableHead>
+                            <TableHead className="text-xs">Akun</TableHead>
+                            <TableHead className="text-xs text-right">Nominal</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {mutasiTerbaru.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center py-6 text-xs text-muted-foreground">
+                                Belum ada mutasi kas.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            mutasiTerbaru.map((mut) => (
+                              <TableRow key={mut.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
+                                <TableCell className="py-2.5">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{formatDateTimes(mut.created_at).dateStr}</span>
+                                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Pukul {formatDateTimes(mut.created_at).timeStr}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{mut.category}</TableCell>
+                                <TableCell className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[90px]">{mut.account?.name || '-'}</TableCell>
+                                <TableCell className="text-right py-2">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${mut.type === 'income' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                                    {mut.type === 'income' ? '+' : '-'}{formatIDR(mut.amount)}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2">
+                {hasPermission('products') && stokTipisCard}
+                {(hasPermission('transactions') || hasPermission('scanner')) && transaksiTerbaruCard}
+                {!hasPermission('products') && !hasPermission('transactions') && !hasPermission('scanner') && (
+                  <div className="md:col-span-2 text-center py-12 text-zinc-500 italic">
+                    Selamat bekerja woy! Silakan gunakan menu di sidebar sesuai hak akses Anda.
                   </div>
-                  {stokTipis.length > 0 && (
-                    <Link href={ProductController.index()} className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:underline mt-3">
-                      Kelola produk <ArrowRight className="h-3 w-3" />
-                    </Link>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl overflow-hidden">
-                <CardHeader className="pb-2.5 flex flex-row items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
-                    <ShoppingBag className="h-4 w-4 text-emerald-500" />
-                    Transaksi Penjualan Terbaru
-                  </CardTitle>
-                  <Link href="/finance/transactions" className="text-[11px] font-medium text-blue-600 hover:underline flex items-center gap-0.5">
-                    Lihat semua <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
-                      <TableRow>
-                        <TableHead className="text-xs">Tanggal</TableHead>
-                        <TableHead className="text-xs">No. Nota</TableHead>
-                        <TableHead className="text-xs">Toko</TableHead>
-                        <TableHead className="text-xs text-right">Nominal</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transaksiTerbaru.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-6 text-xs text-muted-foreground">
-                            Belum ada transaksi penjualan.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        transaksiTerbaru.map((tx) => (
-                          <TableRow key={tx.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
-                            <TableCell className="py-2.5">
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{formatDateTime(tx.transaction_date).dateStr}</span>
-                                <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Pukul {formatDateTime(tx.transaction_date).timeStr}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <span className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-md border border-zinc-200/50 dark:border-zinc-700/50">{tx.invoice_number}</span>
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              <span className="inline-block max-w-[100px] truncate bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-0.5 px-2 rounded-full text-[10px] font-medium border border-zinc-200/30 dark:border-zinc-700/30">{tx.store?.name || '-'}</span>
-                            </TableCell>
-                            <TableCell className="text-right text-xs font-bold text-emerald-600">{formatIDR(tx.grand_total)}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm bg-white dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/80 rounded-2xl overflow-hidden">
-                <CardHeader className="pb-2.5 flex flex-row items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
-                    <Wallet className="h-4 w-4 text-purple-500" />
-                    Mutasi Kas Terbaru
-                  </CardTitle>
-                  <Link href="/finance/mutations" className="text-[11px] font-medium text-blue-600 hover:underline flex items-center gap-0.5">
-                    Lihat semua <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader className="bg-zinc-50/55 dark:bg-zinc-800/30">
-                      <TableRow>
-                        <TableHead className="text-xs">Tanggal</TableHead>
-                        <TableHead className="text-xs">Kategori</TableHead>
-                        <TableHead className="text-xs">Akun</TableHead>
-                        <TableHead className="text-xs text-right">Nominal</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mutasiTerbaru.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-6 text-xs text-muted-foreground">
-                            Belum ada mutasi kas.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        mutasiTerbaru.map((mut) => (
-                          <TableRow key={mut.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
-                            <TableCell className="py-2.5">
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{formatDateTimes(mut.created_at).dateStr}</span>
-                                <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Pukul {formatDateTimes(mut.created_at).timeStr}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{mut.category}</TableCell>
-                            <TableCell className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[90px]">{mut.account?.name || '-'}</TableCell>
-                            <TableCell className="text-right py-2">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${mut.type === 'income' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
-                                {mut.type === 'income' ? '+' : '-'}{formatIDR(mut.amount)}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+              </div>
+            )}
 
           </div>
         )}
@@ -498,11 +555,10 @@ function DashboardStockUpdater({ item }: { item: StokTipisItem }) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div
-          className={`cursor-pointer px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 border transition-all duration-200 hover:scale-105 ${
-            isOutOfStock
+          className={`cursor-pointer px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 border transition-all duration-200 hover:scale-105 ${isOutOfStock
               ? 'bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20'
               : 'bg-amber-500/10 text-amber-605 border-amber-500/20 hover:bg-amber-500/20'
-          }`}
+            }`}
         >
           {item.stock} pcs
         </div>

@@ -27,7 +27,7 @@ class TransactionController extends Controller
 
         // Query transaksi bawa data toko & item produknya
         $transactions = Transaction::with(['store', 'items.product'])
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
 
             // Filter Pencarian (No Invoice atau Nama Produk di dalam item)
             ->when($search, function ($query, $search) {
@@ -62,14 +62,14 @@ class TransactionController extends Controller
             ->withQueryString();
 
         // Hitung jumlah transaksi & total item per toko per status untuk indicator cards & summary table
-        $storeStatusCounts = Transaction::where('transactions.user_id', Auth::user()->id)
+        $storeStatusCounts = Transaction::where('transactions.user_id', Auth::user()->getOwnerId())
             ->leftJoin('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
             ->selectRaw('transactions.store_id, transactions.status, COUNT(distinct transactions.id) as count, SUM(transaction_items.quantity) as items')
             ->groupBy('transactions.store_id', 'transactions.status')
             ->get()
             ->groupBy('store_id');
 
-        $storesList = Store::where('user_id', Auth::user()->id)
+        $storesList = Store::where('user_id', Auth::user()->getOwnerId())
             ->select('id', 'name', 'platform')
             ->orderBy('name', 'asc')
             ->get()
@@ -100,7 +100,7 @@ class TransactionController extends Controller
 
         // Ambil list produk yang punya HPP untuk form input manual
         $productsList = Product::with('hpp')
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->where('active', true)
             ->has('hpp') // Hanya produk yang sudah diset HPP-nya yang bisa dijual
             ->get(['id', 'name', 'sku', 'price', 'stock']);
@@ -108,7 +108,7 @@ class TransactionController extends Controller
         // Hitung jumlah transaksi & total item produk per status untuk badge tabs (dinamis terfilter)
         $rawCounts = DB::table('transactions')
             ->leftJoin('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
-            ->where('transactions.user_id', Auth::user()->id)
+            ->where('transactions.user_id', Auth::user()->getOwnerId())
 
             // Filter Pencarian (No Invoice atau Nama Produk di dalam item)
             ->when($search, function ($query, $search) {
@@ -167,7 +167,7 @@ class TransactionController extends Controller
             'transactions' => $transactions,
             'storesList' => $storesList,
             'productsList' => $productsList,
-            'customersList' => \App\Models\Customer::where('user_id', Auth::user()->id)->orderBy('name', 'asc')->get(['id', 'name', 'username', 'phone', 'platform']),
+            'customersList' => \App\Models\Customer::where('user_id', Auth::user()->getOwnerId())->orderBy('name', 'asc')->get(['id', 'name', 'username', 'phone', 'platform']),
             'statusCounts' => $statusCounts,
             'filters' => [
                 'search' => $search ?? '',
@@ -217,7 +217,7 @@ class TransactionController extends Controller
         DB::transaction(function () use ($request, $store) {
             // 1. Buat Induk Transaksi Sementara
             $transaction = Transaction::create([
-                'user_id' => Auth::user()->id,
+                'user_id' => Auth::user()->getOwnerId(),
                 'store_id' => $request->store_id,
                 'customer_id' => $request->customer_id,
                 'invoice_number' => $request->invoice_number,
@@ -391,7 +391,7 @@ class TransactionController extends Controller
         DB::transaction(function () use ($request) {
             // Ambil data transaksi terpilih milik user saat ini beserta relasi itemnya
             $transactions = Transaction::with('items')
-                ->where('user_id', Auth::user()->id)
+                ->where('user_id', Auth::user()->getOwnerId())
                 ->whereIn('id', $request->ids)
                 ->get();
 
@@ -460,7 +460,7 @@ class TransactionController extends Controller
                 ]);
             }
 
-            $userId = Auth::user()->id;
+            $userId = Auth::user()->getOwnerId();
 
             // 2. Kumpulkan semua nomor invoice terlebih dahulu
             $invoiceNumbers = [];
@@ -564,7 +564,7 @@ class TransactionController extends Controller
 
         // Ambil data transaksi milik user yang sedang login (Proteksi IDOR)
         $transactions = Transaction::whereIn('id', $idsArray)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->get();
 
         // Nama file berakhiran .xlsx
@@ -701,7 +701,7 @@ class TransactionController extends Controller
                 ]);
             }
 
-            $userId = Auth::user()->id;
+            $userId = Auth::user()->getOwnerId();
             $store = Store::findOrFail($storeId);
             $importedCount = 0;
             $skippedCount = 0;
@@ -930,7 +930,7 @@ class TransactionController extends Controller
 
     public function uploadProof(Request $request, Transaction $transaction)
     {
-        if ($transaction->user_id !== Auth::user()->id) {
+        if ($transaction->user_id !== Auth::user()->getOwnerId()) {
             abort(403);
         }
 
@@ -965,7 +965,7 @@ class TransactionController extends Controller
 
     public function deleteProof(Transaction $transaction)
     {
-        if ($transaction->user_id !== Auth::user()->id) {
+        if ($transaction->user_id !== Auth::user()->getOwnerId()) {
             abort(403);
         }
 
@@ -1069,7 +1069,7 @@ class TransactionController extends Controller
         }
 
         // 2. Baru cari transaksi di database
-        $transaction = Transaction::where('user_id', $user->id)
+        $transaction = Transaction::where('user_id', $user->getOwnerId())
             ->where(function ($query) use ($barcode) {
                 $query->where('invoice_number', $barcode)
                     ->orWhere('waybill_number', $barcode);
@@ -1162,7 +1162,7 @@ class TransactionController extends Controller
             ], 200);
         }
 
-        $transaction = Transaction::where('user_id', $user->id)
+        $transaction = Transaction::where('user_id', $user->getOwnerId())
             ->where(function ($q) use ($query) {
                 $q->where('invoice_number', $query)
                     ->orWhere('waybill_number', $query);
@@ -1223,6 +1223,8 @@ class TransactionController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'role' => $user->role,
+                    'permissions' => $user->permissions ?? [],
                 ]
             ]);
         }
@@ -1260,20 +1262,20 @@ class TransactionController extends Controller
             ], 401);
         }
 
-        $pendingCount = Transaction::where('user_id', $user->id)
+        $pendingCount = Transaction::where('user_id', $user->getOwnerId())
             ->where('status', 'pending')
             ->whereNull('package_proof')
             ->count();
 
-        $packedCount = Transaction::where('user_id', $user->id)
+        $packedCount = Transaction::where('user_id', $user->getOwnerId())
             ->where('status', 'packed')
             ->count();
 
-        $processingCount = Transaction::where('user_id', $user->id)
+        $processingCount = Transaction::where('user_id', $user->getOwnerId())
             ->where('status', 'processing')
             ->count();
 
-        $lowStockCount = \App\Models\Product::where('user_id', $user->id)
+        $lowStockCount = \App\Models\Product::where('user_id', $user->getOwnerId())
             ->where('stock', '<=', 10)
             ->count();
 
@@ -1286,6 +1288,8 @@ class TransactionController extends Controller
             'user' => [
                 'name' => $user->name,
                 'email' => $user->email,
+                'role' => $user->role,
+                'permissions' => $user->permissions ?? [],
             ]
         ]);
     }
@@ -1326,7 +1330,7 @@ class TransactionController extends Controller
         }
 
         $product = \App\Models\Product::with('category')
-            ->where('user_id', $user->id)
+            ->where('user_id', $user->getOwnerId())
             ->where(function ($query) use ($sku) {
                 $query->where('sku', $sku)
                     ->orWhere('sku', 'like', $sku);
@@ -1385,7 +1389,7 @@ class TransactionController extends Controller
             'stock' => 'required|integer|min:0',
         ]);
 
-        $product = \App\Models\Product::where('user_id', $user->id)
+        $product = \App\Models\Product::where('user_id', $user->getOwnerId())
             ->where('id', $request->product_id)
             ->first();
 

@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { ArrowRightLeft, Box, ChartBar, ClipboardList, Database, DollarSign, LayoutGrid, Megaphone, PackagePlus, ShoppingBagIcon, Store, Tags, Users, Camera } from 'lucide-react';
 import AdsAffiliateController from '@/actions/App/Http/Controllers/AdsAffiliateController';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
@@ -63,6 +63,10 @@ const transactionGroupItems: NavItem[] = [
                 href: TransactionController.index(),
             },
             {
+                title: 'Stasiun Packing',
+                href: '/finance/transactions/packing-station',
+            },
+            {
                 title: 'Iklan & Affiliasi',
                 href: AdsAffiliateController.index(),
             }
@@ -117,6 +121,10 @@ const systemGroupItems: NavItem[] = [
             {
                 title: 'Backup Database',
                 href: '/master-data/backups',
+            },
+            {
+                title: 'Kelola Pengguna',
+                href: '/master-data/users',
             }
         ]
     }
@@ -136,6 +144,63 @@ const systemGroupItems: NavItem[] = [
 // ];
 
 export function AppSidebar() {
+    const { auth } = usePage<any>().props;
+    const user = auth.user;
+    const isAdmin = user?.role === 'admin';
+
+    const hasPermission = (permission: string) => {
+        if (isAdmin) return true;
+        return Array.isArray(user?.permissions) && user.permissions.includes(permission);
+    };
+
+    // Filter transactionGroupItems dynamically
+    const filteredTransactionItems = transactionGroupItems.map(group => {
+        if (group.title === 'Analisa & Keuangan') {
+            return isAdmin ? group : null;
+        }
+        if (group.title === 'Penjualan & Gudang') {
+            const items = group.items?.filter(item => {
+                if (item.title === 'Iklan & Affiliasi') return isAdmin;
+                if (item.title === 'Riwayat Transaksi') return hasPermission('transactions');
+                if (item.title === 'Stasiun Packing') return hasPermission('scanner');
+                return true;
+            });
+            return items && items.length > 0 ? { ...group, items } : null;
+        }
+        return group;
+    }).filter(Boolean) as NavItem[];
+
+    // Filter inventoryGroupItems dynamically
+    const filteredInventoryItems = inventoryGroupItems.map(group => {
+        if (group.title === 'Manajemen Stok') {
+            const items = group.items?.filter(item => {
+                if (item.title === 'Stok & Produk') return hasPermission('products');
+                if (item.title === 'Faktur Produsen') return hasPermission('products');
+                if (item.title === 'Bahan Operasional') return hasPermission('supplies');
+                return true;
+            });
+            return items && items.length > 0 ? { ...group, items } : null;
+        }
+        return group;
+    }).filter(Boolean) as NavItem[];
+
+    // Filter systemGroupItems dynamically
+    const filteredSystemItems = systemGroupItems.map(group => {
+        if (group.title === 'Master & Sistem') {
+            const items = group.items?.filter(item => {
+                if (item.title === 'Daftar Pelanggan') return hasPermission('customers');
+                if (item.title === 'Profil Produsen') return hasPermission('products');
+                if (item.title === 'Kategori Produk') return hasPermission('products');
+                if (item.title === 'Daftar Toko') return isAdmin;
+                if (item.title === 'Backup Database') return isAdmin;
+                if (item.title === 'Kelola Pengguna') return isAdmin;
+                return true;
+            });
+            return items && items.length > 0 ? { ...group, items } : null;
+        }
+        return group;
+    }).filter(Boolean) as NavItem[];
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -152,9 +217,9 @@ export function AppSidebar() {
 
             <SidebarContent className="py-2">
                 <NavMain items={mainNavItems} label="Utama" />
-                <NavMain items={transactionGroupItems} label="Keuangan & Analisa" />
-                <NavMain items={inventoryGroupItems} label="Operasional & Stok" />
-                <NavMain items={systemGroupItems} label="Master Data & Sistem" />
+                {filteredTransactionItems.length > 0 && <NavMain items={filteredTransactionItems} label="Keuangan & Analisa" />}
+                {filteredInventoryItems.length > 0 && <NavMain items={filteredInventoryItems} label="Operasional & Stok" />}
+                {filteredSystemItems.length > 0 && <NavMain items={filteredSystemItems} label="Master Data & Sistem" />}
             </SidebarContent>
 
             <SidebarFooter>

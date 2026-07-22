@@ -172,7 +172,7 @@ class ProfitLossController extends Controller
      */
     public function index(Request $request)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $userStoreIds = DB::table('stores')->where('user_id', $userId)->pluck('id')->toArray();
 
         // 1. Resolve month & year query filters
@@ -222,7 +222,7 @@ class ProfitLossController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $month = $request->input('month', date('m'));
         $year = $request->input('year', date('Y'));
         $monthStr = str_pad($month, 2, '0', STR_PAD_LEFT);

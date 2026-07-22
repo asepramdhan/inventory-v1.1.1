@@ -13,7 +13,7 @@ class ProducerController extends Controller
     // Menampilkan halaman utama daftar produsen beserta ringkasan hutangnya
     public function index()
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
 
         $producers = Producer::where('user_id', $userId)
             ->withCount('invoices')
@@ -46,7 +46,7 @@ class ProducerController extends Controller
         ]);
 
         Producer::create([
-            'user_id' => Auth::user()->id,
+            'user_id' => Auth::user()->getOwnerId(),
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'address' => $validated['address'],
@@ -67,7 +67,7 @@ class ProducerController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $producer = Producer::where('user_id', $userId)->findOrFail($id);
 
         DB::transaction(function () use ($producer, $validated) {
@@ -87,7 +87,7 @@ class ProducerController extends Controller
 
     public function destroy(string $id)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $producer = Producer::where('user_id', $userId)->findOrFail($id);
 
         if ($producer->invoices()->exists()) {

@@ -16,7 +16,39 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
+        $user = Auth::user();
+
+        // Jika user biasa (staff), batasi data keuangan agar aman woy!
+        if ($user->role !== 'admin') {
+            $stokTipis = Product::where('user_id', $userId)
+                ->where('stock', '<=', 5)
+                ->orderBy('stock', 'asc')
+                ->limit(5)
+                ->get(['id', 'name', 'stock', 'image']);
+
+            $transaksiTerbaru = Transaction::with('store')
+                ->where('user_id', $userId)
+                ->latest('transaction_date')
+                ->limit(5)
+                ->get();
+
+            return Inertia::render('dashboard', [
+                'summary' => [
+                    'kas' => 0,
+                    'hutang' => 0,
+                    'omzet' => 0,
+                    'profit' => 0,
+                    'profit_pending' => 0,
+                    'profit_processing' => 0,
+                    'profit_cancelled' => 0,
+                ],
+                'stokTipis' => $stokTipis,
+                'transaksiTerbaru' => $transaksiTerbaru,
+                'mutasiTerbaru' => [],
+                'chartData' => [],
+            ]);
+        }
 
         // 1. HITUNG 4 WIDGET SUMMARY CARD
         $totalKas = FinancialAccount::where('user_id', $userId)->sum('current_balance');

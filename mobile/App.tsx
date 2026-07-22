@@ -54,6 +54,8 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('staff');
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [screen, setScreen] = useState<'LOGIN' | 'MAIN'>('LOGIN');
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'SCANNER' | 'HISTORY' | 'STOK' | 'PROFILE' | 'BAHAN'>('DASHBOARD');
 
@@ -151,6 +153,11 @@ export default function App() {
   useEffect(() => { serverUrlRef.current = serverUrl; }, [serverUrl]);
   useEffect(() => { tokenRef.current = token; }, [token]);
 
+  const hasMobilePermission = (perm: string) => {
+    if (userRole === 'admin') return true;
+    return Array.isArray(userPermissions) && userPermissions.includes(perm);
+  };
+
   const translateY = statusFadeAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [-20, 0]
@@ -168,6 +175,8 @@ export default function App() {
         const savedToken = await AsyncStorage.getItem('@auth_token');
         const savedName = await AsyncStorage.getItem('@user_name');
         const savedEmail = await AsyncStorage.getItem('@user_email');
+        const savedRole = await AsyncStorage.getItem('@user_role');
+        const savedPermissions = await AsyncStorage.getItem('@user_permissions');
         const savedHistory = await AsyncStorage.getItem('@scan_history');
         const savedMirror = await AsyncStorage.getItem('@mirror_preview');
 
@@ -185,6 +194,8 @@ export default function App() {
         if (savedHistory) setHistory(JSON.parse(savedHistory));
         if (savedName) setUserName(savedName);
         if (savedEmail) setEmail(savedEmail);
+        if (savedRole) setUserRole(savedRole);
+        if (savedPermissions) setUserPermissions(JSON.parse(savedPermissions));
 
         // Cek & muat penghitung pindaian hari ini
         const todayDateStr = new Date().toISOString().split('T')[0];
@@ -293,6 +304,15 @@ export default function App() {
           if (data.user.email) {
             setEmail(data.user.email);
             await AsyncStorage.setItem('@user_email', data.user.email);
+          }
+          if (data.user.role) {
+            setUserRole(data.user.role);
+            await AsyncStorage.setItem('@user_role', data.user.role);
+          }
+          if (data.user.permissions) {
+            const perms = Array.isArray(data.user.permissions) ? data.user.permissions : [];
+            setUserPermissions(perms);
+            await AsyncStorage.setItem('@user_permissions', JSON.stringify(perms));
           }
         }
       } else {
@@ -699,6 +719,21 @@ export default function App() {
         await AsyncStorage.setItem('@auth_token', data.token);
         await AsyncStorage.setItem('@user_name', data.user.name);
         await AsyncStorage.setItem('@user_email', data.user.email);
+        if (data.user.role) {
+          await AsyncStorage.setItem('@user_role', data.user.role);
+          setUserRole(data.user.role);
+        } else {
+          await AsyncStorage.setItem('@user_role', 'staff');
+          setUserRole('staff');
+        }
+        if (data.user.permissions) {
+          const perms = Array.isArray(data.user.permissions) ? data.user.permissions : [];
+          await AsyncStorage.setItem('@user_permissions', JSON.stringify(perms));
+          setUserPermissions(perms);
+        } else {
+          await AsyncStorage.setItem('@user_permissions', JSON.stringify([]));
+          setUserPermissions([]);
+        }
 
         setServerUrl(cleanUrl);
         setToken(data.token);
@@ -722,9 +757,13 @@ export default function App() {
       await AsyncStorage.removeItem('@auth_token');
       await AsyncStorage.removeItem('@user_email');
       await AsyncStorage.removeItem('@user_name');
+      await AsyncStorage.removeItem('@user_role');
+      await AsyncStorage.removeItem('@user_permissions');
       setToken('');
       setEmail('');
       setUserName('');
+      setUserRole('staff');
+      setUserPermissions([]);
       setScreen('LOGIN');
     } catch (err) {
       console.error(err);
@@ -934,8 +973,9 @@ export default function App() {
       try {
         if (cameraRef.current) {
           cameraRef.current.recordAsync({
-            maxDuration: 10, // Batasi 10 detik biar file sangat kecil & otomatis stop!
-            quality: '480p', // Turunkan kualitas ke 480p agar sizenya super kecil & hemat storage woy!
+            maxDuration: 60, // Batasi 60 detik agar waktu packing cukup woy!
+            quality: '480p', // Gunakan resolusi 480p agar size video di iOS & Android kecil woy!
+            mute: true,      // Nonaktifkan suara (tidak dibutuhkan) agar file berkurang drastis woy!
             codec: Platform.OS === 'ios' ? 'avc1' : undefined
           }).then(async (video: any) => {
             if (video && video.uri) {
@@ -1400,6 +1440,7 @@ export default function App() {
                   enableTorch={flash}
                   mode={cameraMode}
                   videoQuality="480p"
+                  videoBitrate={300000} // Batasi bitrate ke 300 kbps agar file sangat kecil woy!
                   barcodeScannerSettings={
                     isUploading || isRecording || cameraMode === 'video' || activeUploads > 0
                       ? DISABLED_BARCODE_SETTINGS
@@ -1465,7 +1506,7 @@ export default function App() {
                     <View style={styles.floatingTimerBadge}>
                       <View style={styles.recordingDot} />
                       <Text style={styles.floatingTimerText}>
-                        {Math.max(0, 10 - recordingSeconds)}
+                        {Math.max(0, 60 - recordingSeconds)}
                       </Text>
                     </View>
                   ) : (
@@ -1894,100 +1935,104 @@ export default function App() {
               </View>
 
               {/* Quick Expense Tracker Form */}
-              <View style={styles.settingsCard}>
-                <Text style={styles.settingsTitle}>💸 Catat Jajanan / Pengeluaran Gudang</Text>
-                
-                <Text style={styles.fieldLabel}>Sumber Kas/Dana:</Text>
-                <View style={styles.pickerWrapper}>
-                  {financialAccounts.length === 0 ? (
-                    <Text style={styles.emptyTextSimple}>Tidak ada akun kas aktif.</Text>
-                  ) : (
-                    <View style={styles.horizontalAccountsList}>
-                      {financialAccounts.map((acc) => {
-                        const isSelected = selectedAccountId === acc.id;
+              {hasMobilePermission('expenses') && (
+                <View style={styles.settingsCard}>
+                  <Text style={styles.settingsTitle}>💸 Catat Jajanan / Pengeluaran Gudang</Text>
+                  
+                  <Text style={styles.fieldLabel}>Sumber Kas/Dana:</Text>
+                  <View style={styles.pickerWrapper}>
+                    {financialAccounts.length === 0 ? (
+                      <Text style={styles.emptyTextSimple}>Tidak ada akun kas aktif.</Text>
+                    ) : (
+                      <View style={styles.horizontalAccountsList}>
+                        {financialAccounts.map((acc) => {
+                          const isSelected = selectedAccountId === acc.id;
+                          return (
+                            <TouchableOpacity
+                              key={acc.id}
+                              style={[
+                                styles.accountSelectCard,
+                                isSelected && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' }
+                              ]}
+                              onPress={() => setSelectedAccountId(acc.id)}
+                            >
+                              <Text style={styles.accountCardName}>{acc.name}</Text>
+                              {userRole === 'admin' && (
+                                <Text style={[styles.accountCardBalance, isSelected && { color: '#818cf8' }]}>
+                                  Rp {parseInt(acc.current_balance).toLocaleString('id-ID')}
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={styles.fieldLabel}>Kategori Pengeluaran:</Text>
+                  <View style={styles.pickerWrapper}>
+                    <View style={styles.horizontalCategoriesList}>
+                      {expenseCategories.map((cat) => {
+                        const isSelected = selectedCategory === cat;
                         return (
                           <TouchableOpacity
-                            key={acc.id}
+                            key={cat}
                             style={[
-                              styles.accountSelectCard,
-                              isSelected && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' }
+                              styles.categorySelectBadge,
+                              isSelected && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }
                             ]}
-                            onPress={() => setSelectedAccountId(acc.id)}
+                            onPress={() => setSelectedCategory(cat)}
                           >
-                            <Text style={styles.accountCardName}>{acc.name}</Text>
-                            <Text style={[styles.accountCardBalance, isSelected && { color: '#818cf8' }]}>
-                              Rp {parseInt(acc.current_balance).toLocaleString('id-ID')}
+                            <Text style={[
+                              styles.categoryBadgeText,
+                              isSelected && { color: '#ffffff' }
+                            ]}>
+                              {cat}
                             </Text>
                           </TouchableOpacity>
                         );
                       })}
                     </View>
-                  )}
-                </View>
-
-                <Text style={styles.fieldLabel}>Kategori Pengeluaran:</Text>
-                <View style={styles.pickerWrapper}>
-                  <View style={styles.horizontalCategoriesList}>
-                    {expenseCategories.map((cat) => {
-                      const isSelected = selectedCategory === cat;
-                      return (
-                        <TouchableOpacity
-                          key={cat}
-                          style={[
-                            styles.categorySelectBadge,
-                            isSelected && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }
-                          ]}
-                          onPress={() => setSelectedCategory(cat)}
-                        >
-                          <Text style={[
-                            styles.categoryBadgeText,
-                            isSelected && { color: '#ffffff' }
-                          ]}>
-                            {cat}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
                   </View>
-                </View>
 
-                <Text style={styles.fieldLabel}>Nominal Pengeluaran (Rupiah):</Text>
-                <View style={styles.inputContainerWithPrefix}>
-                  <Text style={styles.currencyPrefix}>Rp</Text>
+                  <Text style={styles.fieldLabel}>Nominal Pengeluaran (Rupiah):</Text>
+                  <View style={styles.inputContainerWithPrefix}>
+                    <Text style={styles.currencyPrefix}>Rp</Text>
+                    <TextInput
+                      style={styles.currencyInput}
+                      placeholder="Contoh: 15000"
+                      placeholderTextColor="#71717a"
+                      keyboardType="numeric"
+                      value={expenseAmount}
+                      onChangeText={setExpenseAmount}
+                    />
+                  </View>
+
+                  <Text style={styles.fieldLabel}>Keterangan / Catatan:</Text>
                   <TextInput
-                    style={styles.currencyInput}
-                    placeholder="Contoh: 15000"
+                    style={styles.textInputFull}
+                    placeholder="Contoh: Beli lakban cokelat eceran 2 roll"
                     placeholderTextColor="#71717a"
-                    keyboardType="numeric"
-                    value={expenseAmount}
-                    onChangeText={setExpenseAmount}
+                    value={expenseDescription}
+                    onChangeText={setExpenseDescription}
                   />
+
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryButton,
+                      { marginTop: 16, height: 44 },
+                      isSubmittingExpense && { opacity: 0.7 }
+                    ]}
+                    onPress={submitExpense}
+                    disabled={isSubmittingExpense}
+                  >
+                    <Ionicons name="cash-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                    <Text style={styles.primaryButtonText}>
+                      {isSubmittingExpense ? 'Menyimpan...' : '💸 Catat Pengeluaran'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-
-                <Text style={styles.fieldLabel}>Keterangan / Catatan:</Text>
-                <TextInput
-                  style={styles.textInputFull}
-                  placeholder="Contoh: Beli lakban cokelat eceran 2 roll"
-                  placeholderTextColor="#71717a"
-                  value={expenseDescription}
-                  onChangeText={setExpenseDescription}
-                />
-
-                <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    { marginTop: 16, height: 44 },
-                    isSubmittingExpense && { opacity: 0.7 }
-                  ]}
-                  onPress={submitExpense}
-                  disabled={isSubmittingExpense}
-                >
-                  <Ionicons name="cash-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                  <Text style={styles.primaryButtonText}>
-                    {isSubmittingExpense ? 'Menyimpan...' : '💸 Catat Pengeluaran'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              )}
 
               <TouchableOpacity style={styles.logoutBtnLarge} onPress={handleLogout}>
                 <Ionicons name="log-out-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
@@ -2165,51 +2210,59 @@ export default function App() {
               <Text style={[styles.tabBarLabel, activeTab === 'DASHBOARD' && styles.tabActiveColor]}>Home</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.tabBarItem}
-              onPress={() => setActiveTab('STOK')}
-            >
-              <Ionicons
-                name={activeTab === 'STOK' ? 'cube' : 'cube-outline'}
-                size={20}
-                color={activeTab === 'STOK' ? '#4f46e5' : '#a1a1aa'}
-              />
-              <Text style={[styles.tabBarLabel, activeTab === 'STOK' && styles.tabActiveColor]}>Stok</Text>
-            </TouchableOpacity>
+            {hasMobilePermission('products') && (
+              <TouchableOpacity
+                style={styles.tabBarItem}
+                onPress={() => setActiveTab('STOK')}
+              >
+                <Ionicons
+                  name={activeTab === 'STOK' ? 'cube' : 'cube-outline'}
+                  size={20}
+                  color={activeTab === 'STOK' ? '#4f46e5' : '#a1a1aa'}
+                />
+                <Text style={[styles.tabBarLabel, activeTab === 'STOK' && styles.tabActiveColor]}>Stok</Text>
+              </TouchableOpacity>
+            )}
 
-            <TouchableOpacity
-              style={styles.tabBarItem}
-              onPress={() => setActiveTab('BAHAN')}
-            >
-              <Ionicons
-                name={activeTab === 'BAHAN' ? 'construct' : 'construct-outline'}
-                size={20}
-                color={activeTab === 'BAHAN' ? '#4f46e5' : '#a1a1aa'}
-              />
-              <Text style={[styles.tabBarLabel, activeTab === 'BAHAN' && styles.tabActiveColor]}>Bahan</Text>
-            </TouchableOpacity>
+            {hasMobilePermission('supplies') && (
+              <TouchableOpacity
+                style={styles.tabBarItem}
+                onPress={() => setActiveTab('BAHAN')}
+              >
+                <Ionicons
+                  name={activeTab === 'BAHAN' ? 'construct' : 'construct-outline'}
+                  size={20}
+                  color={activeTab === 'BAHAN' ? '#4f46e5' : '#a1a1aa'}
+                />
+                <Text style={[styles.tabBarLabel, activeTab === 'BAHAN' && styles.tabActiveColor]}>Bahan</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Elevated Scanner Center Button */}
-            <View style={styles.centerTabContainer}>
-              <TouchableOpacity
-                style={styles.centerScanBtn}
-                onPress={() => setActiveTab('SCANNER')}
-              >
-                <Ionicons name="camera" size={26} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
+            {hasMobilePermission('scanner') && (
+              <View style={styles.centerTabContainer}>
+                <TouchableOpacity
+                  style={styles.centerScanBtn}
+                  onPress={() => setActiveTab('SCANNER')}
+                >
+                  <Ionicons name="camera" size={26} color="#ffffff" />
+                </TouchableOpacity>
+              </View>
+            )}
 
-            <TouchableOpacity
-              style={styles.tabBarItem}
-              onPress={() => setActiveTab('HISTORY')}
-            >
-              <Ionicons
-                name={activeTab === 'HISTORY' ? 'list' : 'list-outline'}
-                size={20}
-                color={activeTab === 'HISTORY' ? '#4f46e5' : '#a1a1aa'}
-              />
-              <Text style={[styles.tabBarLabel, activeTab === 'HISTORY' && styles.tabActiveColor]}>Riwayat</Text>
-            </TouchableOpacity>
+            {hasMobilePermission('scanner') && (
+              <TouchableOpacity
+                style={styles.tabBarItem}
+                onPress={() => setActiveTab('HISTORY')}
+              >
+                <Ionicons
+                  name={activeTab === 'HISTORY' ? 'list' : 'list-outline'}
+                  size={20}
+                  color={activeTab === 'HISTORY' ? '#4f46e5' : '#a1a1aa'}
+                />
+                <Text style={[styles.tabBarLabel, activeTab === 'HISTORY' && styles.tabActiveColor]}>Riwayat</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.tabBarItem}
@@ -3625,17 +3678,17 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.90)',
+    backgroundColor: 'rgba(9, 9, 11, 0.85)',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#ffffff',
+    borderColor: '#ef4444',
     gap: 6,
     zIndex: 9999,
   },
   floatingTimerText: {
-    color: '#ffffff',
+    color: '#ef4444',
     fontSize: 13,
     fontWeight: '900',
   },

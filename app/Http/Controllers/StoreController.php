@@ -23,7 +23,7 @@ class StoreController extends Controller
         $platform = $request->input('platform');
         $status = $request->input('status');
 
-        $stores = Store::where('user_id', Auth::user()->id)
+        $stores = Store::where('user_id', Auth::user()->getOwnerId())
             // Filter Pencarian
             ->when($search, function ($query, $search) {
                 return $query->where(function ($q) use ($search) {
@@ -75,7 +75,7 @@ class StoreController extends Controller
             'active' => 'required|boolean',
         ]);
 
-        Store::create($validated + ['user_id' => Auth::user()->id]);
+        Store::create($validated + ['user_id' => Auth::user()->getOwnerId()]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Toko / Marketplace berhasil ditambahkan.']);
 
@@ -113,7 +113,7 @@ class StoreController extends Controller
 
         // Cari toko berdasarkan ID DAN pastikan milik user yang sedang login
         $store = Store::where('id', $id)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->firstOrFail(); // Otomatis return 404 jika bukan pemiliknya
 
         // Eksekusi update data
@@ -134,7 +134,7 @@ class StoreController extends Controller
     {
         // Pastikan data yang dicari adalah milik user yang sedang login
         $store = Store::where('id', $id)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->firstOrFail(); // Akan otomatis 404 jika ID salah atau bukan milik user tersebut
 
         $store->delete();
@@ -156,7 +156,7 @@ class StoreController extends Controller
 
         // Hapus data secara massal, pastikan hanya menghapus milik user yang sedang login
         $deletedCount = Store::whereIn('id', $request->ids)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->delete();
 
         Inertia::flash('toast', [
@@ -178,7 +178,7 @@ class StoreController extends Controller
 
         // Ambil data toko milik user yang sedang login (Proteksi IDOR)
         $stores = Store::whereIn('id', $idsArray)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->get();
 
         // Nama file berakhiran .xlsx

@@ -20,7 +20,7 @@ class CategoryController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
 
-        $categories = Category::where('user_id', Auth::user()->id)
+        $categories = Category::where('user_id', Auth::user()->getOwnerId())
             // Filter Pencarian
             ->when($search, function ($query, $search) {
                 return $query->where(function ($q) use ($search) {
@@ -63,7 +63,7 @@ class CategoryController extends Controller
             'active' => 'required|boolean',
         ]);
 
-        Category::create($validated + ['user_id' => Auth::user()->id]);
+        Category::create($validated + ['user_id' => Auth::user()->getOwnerId()]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori berhasil ditambahkan.']);
 
@@ -96,7 +96,7 @@ class CategoryController extends Controller
             'active' => 'required|boolean',
         ]);
 
-        $category = Category::where('user_id', Auth::user()->id)->findOrFail($id);
+        $category = Category::where('user_id', Auth::user()->getOwnerId())->findOrFail($id);
 
         $category->update($validated);
 
@@ -110,7 +110,7 @@ class CategoryController extends Controller
      */
     public function destroy(string $id)
     {
-        $category = Category::where('user_id', Auth::user()->id)->findOrFail($id);
+        $category = Category::where('user_id', Auth::user()->getOwnerId())->findOrFail($id);
 
         $category->delete();
 
@@ -128,7 +128,7 @@ class CategoryController extends Controller
 
         // Hapus data secara massal, pastikan hanya menghapus milik user yang sedang login
         $deletedCount = Category::whereIn('id', $request->ids)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->delete();
 
         Inertia::flash('toast', [
@@ -150,7 +150,7 @@ class CategoryController extends Controller
 
         // Ambil data kategori milik user yang sedang login (Proteksi IDOR)
         $categories = Category::whereIn('id', $idsArray)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->get();
 
         // Nama file berakhiran .xlsx

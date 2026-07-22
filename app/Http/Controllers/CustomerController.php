@@ -17,7 +17,7 @@ class CustomerController extends Controller
         $search = $request->input('search');
         $platform = $request->input('platform');
 
-        $customers = Customer::where('user_id', Auth::id())
+        $customers = Customer::where('user_id', Auth::user()->getOwnerId())
             ->when($search, function ($query, $search) {
                 return $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -59,7 +59,7 @@ class CustomerController extends Controller
             'biteship_area_name' => 'nullable|string|max:255',
         ]);
 
-        Customer::create($validated + ['user_id' => Auth::id()]);
+        Customer::create($validated + ['user_id' => Auth::user()->getOwnerId()]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Pelanggan berhasil didaftarkan.']);
 
@@ -71,7 +71,7 @@ class CustomerController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $customer = Customer::where('user_id', Auth::id())->findOrFail($id);
+        $customer = Customer::where('user_id', Auth::user()->getOwnerId())->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -95,7 +95,7 @@ class CustomerController extends Controller
      */
     public function destroy($id)
     {
-        $customer = Customer::where('user_id', Auth::id())->findOrFail($id);
+        $customer = Customer::where('user_id', Auth::user()->getOwnerId())->findOrFail($id);
         
         $customer->delete();
 

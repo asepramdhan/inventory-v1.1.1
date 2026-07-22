@@ -14,7 +14,7 @@ class AdsAffiliateController extends Controller
 {
     public function index(Request $request)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $userStoreIds = Store::where('user_id', $userId)->pluck('id')->toArray();
 
         // 1. Filter Tanggal, Toko & Pencarian Search
@@ -153,7 +153,7 @@ class AdsAffiliateController extends Controller
      */
     public function store(Request $request)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $userStoreIds = Store::where('user_id', $userId)->pluck('id')->toArray();
 
         $validated = $request->validate([
@@ -209,7 +209,7 @@ class AdsAffiliateController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $userStoreIds = Store::where('user_id', $userId)->pluck('id')->toArray();
 
         // 1. Amankan objek berdasarkan kepemilikan toko user yang login
@@ -247,7 +247,7 @@ class AdsAffiliateController extends Controller
      */
     public function destroy($id)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $userStoreIds = Store::where('user_id', $userId)->pluck('id')->toArray();
 
         $expense = StoreDailyAds::whereIn('store_id', $userStoreIds)->findOrFail($id);
@@ -263,7 +263,7 @@ class AdsAffiliateController extends Controller
      */
     public function bulkDelete(Request $request)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $userStoreIds = Store::where('user_id', $userId)->pluck('id')->toArray();
 
         $validated = $request->validate([
@@ -297,7 +297,7 @@ class AdsAffiliateController extends Controller
      */
     public function export(Request $request)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $userStoreIds = Store::where('user_id', $userId)->pluck('id')->toArray();
 
         $ids = $request->input('ids');

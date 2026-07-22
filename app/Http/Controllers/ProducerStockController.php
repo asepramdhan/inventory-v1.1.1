@@ -15,7 +15,7 @@ class ProducerStockController extends Controller
 {
     public function index()
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
 
         // Ambil semua nota kiriman produsen
         $invoices = ProducerInvoice::with(['items', 'payments' => function ($query) use ($userId) {
@@ -57,7 +57,7 @@ class ProducerStockController extends Controller
             'items.*.cost_per_item' => 'required|numeric|min:0',
         ]);
 
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
 
         DB::transaction(function () use ($request, $userId) {
             $producerMaster = \App\Models\Producer::find($request->producer_id);
@@ -123,7 +123,7 @@ class ProducerStockController extends Controller
             'amount_to_pay' => 'required|numeric|min:1'
         ]);
 
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $invoice = ProducerInvoice::where('user_id', $userId)->findOrFail($id);
 
         if ($invoice->status === 'paid') {
@@ -184,7 +184,7 @@ class ProducerStockController extends Controller
             'description' => 'nullable|string|max:500'
         ]);
 
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $invoice = ProducerInvoice::where('user_id', $userId)->findOrFail($id);
 
         $invoice->update([

@@ -15,7 +15,7 @@ class MarginAnalysisController extends Controller
     public function index(Request $request)
     {
         // 0. Ambil ID Toko-Toko yang Hanya Miliki User Login
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
         $userStoreIds = Store::where('user_id', $userId)->pluck('id')->toArray();
 
         // 1. Tentukan Default Filter

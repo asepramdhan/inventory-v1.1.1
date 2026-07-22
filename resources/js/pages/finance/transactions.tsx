@@ -82,6 +82,21 @@ const getLocalDatetimeString = () => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
+const getProofUrl = (path: string) => {
+  if (!path) return '';
+  const trimmed = path.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/storage/')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('storage/')) {
+    return `/${trimmed}`;
+  }
+  return `/storage/${trimmed}`;
+};
+
 // --- KOMKOMPEN SKELETON LOADER KHUSUS DATA TRANSAKSI (PRESISI 100%) ---
 function TransactionsTableSkeleton() {
   return (
@@ -307,9 +322,11 @@ export default function Transactions({ transactions, storesList, productsList, c
       
       for (let i = 0; i < paths.length; i++) {
         const path = paths[i].trim();
-        const ext = path.split('?')[0].split('.').pop()?.toLowerCase() || 'jpg';
-        const response = await fetch(`/storage/${path}`);
-        if (!response.ok) throw new Error(`Failed to fetch file: ${path}`);
+        if (!path) continue;
+        const fetchUrl = getProofUrl(path);
+        const ext = fetchUrl.split('?')[0].split('.').pop()?.toLowerCase() || 'jpg';
+        const response = await fetch(fetchUrl);
+        if (!response.ok) throw new Error(`Failed to fetch file: ${fetchUrl}`);
         const blob = await response.blob();
         zip.file(`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}-${i + 1}.${ext}`, blob);
       }
@@ -2815,7 +2832,7 @@ export default function Transactions({ transactions, storesList, productsList, c
                           </Button>
                         ) : (
                           <a
-                            href={`/storage/${selectedTransaction.package_proof}`}
+                            href={getProofUrl(selectedTransaction.package_proof)}
                             download={`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}.${selectedTransaction.package_proof.split('.').pop()?.toLowerCase() || 'jpg'}`}
                             className="h-6 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 px-2 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
                           >
@@ -2843,13 +2860,13 @@ export default function Transactions({ transactions, storesList, productsList, c
                           <div key={idx} className="group relative rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden aspect-[4/3] bg-muted shadow-sm hover:shadow-md transition-all duration-300">
                             {isVideo ? (
                               <video 
-                                src={`/storage/${proofPath}`} 
+                                src={getProofUrl(proofPath)} 
                                 controls
                                 className="w-full h-full object-contain bg-zinc-950"
                               />
                             ) : (
                               <img 
-                                src={`/storage/${proofPath}`} 
+                                src={getProofUrl(proofPath)} 
                                 alt={`Bukti Packing ${idx + 1}`} 
                                 className="w-full h-full object-cover"
                               />
@@ -2871,7 +2888,7 @@ export default function Transactions({ transactions, storesList, productsList, c
                                   <DialogContent className="sm:max-w-3xl p-1 bg-black border-none rounded-2xl overflow-hidden shadow-2xl">
                                     <div className="relative w-full max-h-[85vh] bg-zinc-950 flex items-center justify-center">
                                       <img 
-                                        src={`/storage/${proofPath}`} 
+                                        src={getProofUrl(proofPath)} 
                                         alt={`Detail Bukti Packing ${idx + 1}`} 
                                         className="max-w-full max-h-[85vh] object-contain"
                                       />
@@ -2879,7 +2896,7 @@ export default function Transactions({ transactions, storesList, productsList, c
                                   </DialogContent>
                                 </Dialog>
                                 <a
-                                  href={`/storage/${proofPath}`}
+                                  href={getProofUrl(proofPath)}
                                   download={`bukti-packing-${selectedTransaction.invoice_number || 'pesanan'}-${idx + 1}.${proofPath.split('?')[0].split('.').pop()?.toLowerCase() || 'jpg'}`}
                                   className="inline-flex items-center justify-center rounded-md bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 h-8 px-3 text-xs font-semibold gap-1 hover:scale-105 transition-transform cursor-pointer"
                                 >

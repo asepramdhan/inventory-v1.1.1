@@ -27,7 +27,7 @@ class ProductController extends Controller
         $status = $request->input('status');
 
         $products = Product::with(['category', 'hpp']) // Eager load relasi 'category' & 'hpp'
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             // Filter Pencarian (Nama, SKU atau Kategori)
             ->when($search, function ($query, $search) {
                 return $query->where(function ($q) use ($search) {
@@ -75,12 +75,12 @@ class ProductController extends Controller
         });
 
         // AMBIL DAFTAR KATEGORI MILIK USER (Kirim ke React Form)
-        $categoriesList = Category::where('user_id', Auth::user()->id)
+        $categoriesList = Category::where('user_id', Auth::user()->getOwnerId())
             ->select('id', 'name', 'active')
             ->get();
 
         // AMBIL DAFTAR TOKO MILIK USER (Kirim ke React Form HPP)
-        $storesList = Store::where('user_id', Auth::user()->id)
+        $storesList = Store::where('user_id', Auth::user()->getOwnerId())
             ->where('active', true)
             ->select('id', 'name', 'platform', 'admin_fee', 'processing_fee')
             ->get();
@@ -113,7 +113,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'category_id' => [
                 'required',
-                Rule::exists('categories', 'id')->where('user_id', Auth::user()->id)
+                Rule::exists('categories', 'id')->where('user_id', Auth::user()->getOwnerId())
             ],
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // Maks 2MB
             'sku' => 'required|string|unique:products,sku|max:255',
@@ -150,7 +150,7 @@ class ProductController extends Controller
             $validated['gallery'] = json_encode($galleryPaths);
         }
 
-        Product::create($validated + ['user_id' => Auth::user()->id]);
+        Product::create($validated + ['user_id' => Auth::user()->getOwnerId()]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk berhasil ditambahkan.']);
 
@@ -181,7 +181,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'category_id' => [
                 'required',
-                Rule::exists('categories', 'id')->where('user_id', Auth::user()->id)
+                Rule::exists('categories', 'id')->where('user_id', Auth::user()->getOwnerId())
             ],
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'sku' => 'required|string|unique:products,sku,' . $id . '|max:255',
@@ -203,7 +203,7 @@ class ProductController extends Controller
         ]);
 
         $product = Product::where('id', $id)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->firstOrFail();
 
         // Logika Update Gambar
@@ -264,7 +264,7 @@ class ProductController extends Controller
     public function destroy(string $id)
     {
         $product = Product::where('id', $id)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->firstOrFail();
 
         if ($product->image) {
@@ -287,7 +287,7 @@ class ProductController extends Controller
         ]);
 
         // Pastikan hanya menghapus produk milik user yang sedang login
-        $products = Product::where('user_id', Auth::user()->id)
+        $products = Product::where('user_id', Auth::user()->getOwnerId())
             ->whereIn('id', $request->ids);
 
         // Hapus data secara massal dan hapus juga gambar jika ada
@@ -315,7 +315,7 @@ class ProductController extends Controller
 
         // Ambil data produk milik user yang sedang login (Proteksi IDOR)
         $products = Product::whereIn('id', $idsArray)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->get();
 
         // Nama file berakhiran .xlsx
@@ -396,7 +396,7 @@ class ProductController extends Controller
         ProductHpp::updateOrCreate(
             [
                 'product_id' => $request->product_id,
-                'user_id' => Auth::user()->id
+                'user_id' => Auth::user()->getOwnerId()
             ],
             [
                 'purchase_price' => $request->purchase_price,
@@ -422,7 +422,7 @@ class ProductController extends Controller
 
         // Ambil data produk hpp milik user yang sedang login (Proteksi IDOR)
         $productHpps = Product::whereIn('id', $idsArray)
-            ->where('user_id', Auth::user()->id)
+            ->where('user_id', Auth::user()->getOwnerId())
             ->get();
 
         // Nama file berakhiran .xlsx

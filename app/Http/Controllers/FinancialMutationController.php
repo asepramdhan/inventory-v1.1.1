@@ -15,7 +15,7 @@ class FinancialMutationController extends Controller
 {
     public function index(Request $request)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
 
         // 1. Ambil Semua Daftar Akun Keuangan Milik User (untuk dropdown form & widget saldo)
         $accounts = FinancialAccount::where('user_id', $userId)->get();
@@ -111,7 +111,7 @@ class FinancialMutationController extends Controller
             'description' => 'nullable|string'
         ]);
 
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
 
         // Ambil data akun keuangan & pastikan milik user yang login
         $account = FinancialAccount::where('id', $request->financial_account_id)
@@ -166,7 +166,7 @@ class FinancialMutationController extends Controller
         ]);
 
         \App\Models\FinancialAccount::create([
-            'user_id' => Auth::user()->id,
+            'user_id' => Auth::user()->getOwnerId(),
             'name' => $request->name,
             'type' => $request->type,
             'current_balance' => $request->current_balance,
@@ -187,7 +187,7 @@ class FinancialMutationController extends Controller
         ]);
 
         $account = FinancialAccount::where('id', $id)
-            ->where('user_id', Auth::id())
+            ->where('user_id', Auth::user()->getOwnerId())
             ->firstOrFail();
 
         $account->update([
@@ -204,7 +204,7 @@ class FinancialMutationController extends Controller
     public function toggleAccountStatus($id)
     {
         $account = FinancialAccount::where('id', $id)
-            ->where('user_id', Auth::id())
+            ->where('user_id', Auth::user()->getOwnerId())
             ->firstOrFail();
 
         // Cegah menonaktifkan jika akun ini adalah akun default
@@ -227,7 +227,7 @@ class FinancialMutationController extends Controller
     // 3. Fungsi Menjadikan Akun Ini Sebagai Default Pencairan Transaksi
     public function setDefaultAccount($id)
     {
-        $userId = Auth::id();
+        $userId = Auth::user()->getOwnerId();
 
         DB::transaction(function () use ($id, $userId) {
             // Matikan status default akun lain milik user ini
@@ -258,7 +258,7 @@ class FinancialMutationController extends Controller
             'description' => 'nullable|string'
         ]);
 
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
 
         // 1. Ambil akun asal (Sumber Dana)
         $fromAccount = FinancialAccount::where('id', $request->from_account_id)
@@ -325,7 +325,7 @@ class FinancialMutationController extends Controller
 
     public function destroy($id)
     {
-        $userId = Auth::user()->id;
+        $userId = Auth::user()->getOwnerId();
 
         // 1. Cari data mutasi dan pastikan milik user yang sedang login
         $mutation = FinancialMutation::where('id', $id)
@@ -399,8 +399,14 @@ class FinancialMutationController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
-        $accounts = \App\Models\FinancialAccount::where('user_id', $user->id)
-            ->get();
+        $accounts = \App\Models\FinancialAccount::where('user_id', $user->getOwnerId())
+            ->get()
+            ->map(function ($acc) use ($user) {
+                if ($user->role !== 'admin') {
+                    $acc->current_balance = 0;
+                }
+                return $acc;
+            });
 
         $categories = [
             'Jajan Gudang',
@@ -445,7 +451,7 @@ class FinancialMutationController extends Controller
         ]);
 
         $account = \App\Models\FinancialAccount::where('id', $request->financial_account_id)
-            ->where('user_id', $user->id)
+            ->where('user_id', $user->getOwnerId())
             ->first();
 
         if (!$account) {
@@ -453,9 +459,12 @@ class FinancialMutationController extends Controller
         }
 
         if ($account->current_balance < $request->amount) {
+            $msg = $user->role === 'admin'
+                ? 'Saldo tidak mencukupi! Saldo terkini ' . $account->name . ' adalah Rp ' . number_format($account->current_balance, 0, ',', '.')
+                : 'Saldo kas tidak mencukupi untuk melakukan transaksi ini.';
             return response()->json([
                 'success' => false,
-                'message' => 'Saldo tidak mencukupi! Saldo terkini ' . $account->name . ' adalah Rp ' . number_format($account->current_balance, 0, ',', '.')
+                'message' => $msg
             ], 200);
         }
 
@@ -465,7 +474,7 @@ class FinancialMutationController extends Controller
             $account->save();
 
             \App\Models\FinancialMutation::create([
-                'user_id' => $user->id,
+                'user_id' => $user->getOwnerId(),
                 'financial_account_id' => $account->id,
                 'date' => now()->toDateString(),
                 'type' => 'expense',
@@ -479,7 +488,7 @@ class FinancialMutationController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Pengeluaran/jajanan gudang berhasil dicatat!',
-            'balance' => $account->current_balance
+            'balance' => $user->role === 'admin' ? $account->current_balance : 0
         ]);
     }
 }
