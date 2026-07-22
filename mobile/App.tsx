@@ -108,7 +108,7 @@ export default function App() {
   const [supplies, setSupplies] = useState<any[]>([]);
   const [isLoadingSupplies, setIsLoadingSupplies] = useState(false);
   const [searchSupply, setSearchSupply] = useState('');
-  
+
   // Quick Expense Tracker States
   const [financialAccounts, setFinancialAccounts] = useState<any[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<string[]>([]);
@@ -218,6 +218,13 @@ export default function App() {
       }
     })();
   }, []);
+
+  // Fetch scan history from server whenever the activeTab transitions to HISTORY
+  useEffect(() => {
+    if (activeTab === 'HISTORY' && token) {
+      fetchScanHistoryFromServer();
+    }
+  }, [activeTab, token]);
 
   // Beep sound player
   const playBeep = async (isSuccess: boolean) => {
@@ -345,17 +352,38 @@ export default function App() {
     setRefreshing(false);
   };
 
+  const fetchScanHistoryFromServer = async () => {
+    try {
+      const activeUrl = serverUrlRef.current || serverUrl;
+      const activeToken = tokenRef.current || token;
+      if (!activeUrl || !activeToken) return;
+
+      const response = await fetch(`${activeUrl}/finance/transactions/scanner-history`, {
+        headers: {
+          'Authorization': `Bearer ${activeToken}`,
+          'X-Mobile-Token': activeToken || '',
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success && Array.isArray(data.history)) {
+        setHistory(data.history);
+        await AsyncStorage.setItem('@scan_history', JSON.stringify(data.history));
+      }
+    } catch (err) {
+      console.error('Failed to fetch scanner history:', err);
+    }
+  };
+
   const onRefreshHistory = async () => {
     setRefreshing(true);
-    // Reload history local storage dan sync statistik kasir di background secara pararel
-    const [savedHistory] = await Promise.all([
-      AsyncStorage.getItem('@scan_history'),
+    // Sync riwayat dari server database dan statistik secara paralel
+    await Promise.all([
+      fetchScanHistoryFromServer(),
       fetchStats(),
       new Promise(resolve => setTimeout(resolve, 700))
     ]);
-    if (savedHistory) {
-      setHistory(JSON.parse(savedHistory));
-    }
     triggerHaptic(true);
     setRefreshing(false);
   };
@@ -777,9 +805,9 @@ export default function App() {
 
     // Filter jika sedang sibuk merekam atau mengunggah agar sesi kamera stabil
     if (
-      isUploadingRef.current || 
-      isRecordingRef.current || 
-      cameraModeRef.current === 'video' || 
+      isUploadingRef.current ||
+      isRecordingRef.current ||
+      cameraModeRef.current === 'video' ||
       activeUploadsRef.current > 0
     ) {
       return;
@@ -813,7 +841,7 @@ export default function App() {
 
       // Tampilkan indikator persiapan agar petugas menahan HP dengan stabil
       showStatus('📸 Mempersiapkan kamera...', 'success', 1000);
-      
+
       // Jeda 1200ms agar hardware kamera selesai menonaktifkan decoder barcode, menstabilkan fokus, dan merestart frame buffer sebelum jepret
       setTimeout(() => {
         checkAndStartRecording(cleanData);
@@ -828,8 +856,8 @@ export default function App() {
     showStatus('🔍 Memverifikasi resi di database...', 'success', 2000);
 
     const isAlreadyScanned = historyRef.current.some(
-      (item) => 
-        item.status === 'success' && 
+      (item) =>
+        item.status === 'success' &&
         (item.invoice_number === data || item.waybill_number === data)
     );
 
@@ -886,16 +914,20 @@ export default function App() {
           '⚠️ Resi Sudah Dipacking',
           `Resi "${data}" sudah dipacking sebelumnya hari ini. Apakah Anda yakin ingin memproses ulang?`,
           [
-            { text: 'Batal', style: 'cancel', onPress: () => {
-              setActiveChecklist(null);
-              setLastScannedBarcode('');
-              lastScannedBarcodeRef.current = '';
-              setIsUploading(false);
-              isUploadingRef.current = false;
-            }},
-            { text: 'Lanjutkan', onPress: () => {
-              startVideoRecordingWorkflow(data);
-            }}
+            {
+              text: 'Batal', style: 'cancel', onPress: () => {
+                setActiveChecklist(null);
+                setLastScannedBarcode('');
+                lastScannedBarcodeRef.current = '';
+                setIsUploading(false);
+                isUploadingRef.current = false;
+              }
+            },
+            {
+              text: 'Lanjutkan', onPress: () => {
+                startVideoRecordingWorkflow(data);
+              }
+            }
           ]
         );
       } else {
@@ -1034,35 +1066,35 @@ export default function App() {
     // LANGSUNG PINDAH LAGI KE SCAN (TIDAK MENUNGGU BERES KIRIM)
     activeUploadsRef.current = activeUploadsRef.current + 1;
     setActiveUploads(prev => prev + 1);
-    
+
     setIsUploading(false);
     isUploadingRef.current = false;
-    
+
     setCameraMode('picture');
     cameraModeRef.current = 'picture';
-    
+
     setIsRecording(false);
     isRecordingRef.current = false;
-    
+
     setBarcode('');
     setLastScannedBarcode(''); // Reset debouncer agar bisa langsung scan barcode selanjutnya
     capturedPhotoUriRef.current = null;
-    
+
     // Perbarui waktu scan terakhir dengan waktu saat ini agar mendapatkan masa tenggang 4 detik baru setelah scanning aktif kembali
     const nowTime = Date.now();
     lastScanTimeRef.current = nowTime;
     setLastScanTime(nowTime);
-    
+
     if (recordTimerIdRef.current) {
       clearInterval(recordTimerIdRef.current);
       recordTimerIdRef.current = null;
     }
-    
+
     showStatus('📤 Mengirim bukti foto & video di latar belakang...', 'success', 0, true);
-    
+
     const formData = new FormData();
     formData.append('barcode', targetBarcode);
-    
+
     // Lampirkan Foto
     if (photoUri) {
       formData.append('package_proof_photo', {
@@ -1177,16 +1209,6 @@ export default function App() {
     await AsyncStorage.setItem('@scan_history', JSON.stringify(updatedHistory));
   };
 
-  const clearHistory = async () => {
-    setHistory([]);
-    await AsyncStorage.removeItem('@scan_history');
-  };
-
-  const deleteHistoryItem = async (itemId: string) => {
-    const updated = history.filter((item) => item.id !== itemId);
-    setHistory(updated);
-    await AsyncStorage.setItem('@scan_history', JSON.stringify(updated));
-  };
 
   if (!permission) {
     return (
@@ -1288,9 +1310,17 @@ export default function App() {
                 />
               }
             >
-              {/* Dashboard Title */}
-              <View style={styles.tabHeaderRow}>
-                <Text style={styles.tabHeaderTitle}>Dashboard Gudang</Text>
+              {/* Dashboard Greeting Header */}
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{ color: '#6366f1', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>
+                  STASIUN PACKING GUDANG
+                </Text>
+                <Text style={{ color: '#ffffff', fontSize: 24, fontWeight: '800', marginTop: 2 }}>
+                  Halo, {userName || 'Petugas'}! 👋
+                </Text>
+                <Text style={{ color: '#71717a', fontSize: 11, marginTop: 4 }}>
+                  Pantau antrean pesanan dan lakukan packing dengan scan barcode resi.
+                </Text>
               </View>
 
               {/* Connection Error Alert */}
@@ -1306,15 +1336,18 @@ export default function App() {
               {/* Row 1: Status Pesanan */}
               <View style={[styles.statsRow, { marginBottom: 12 }]}>
                 <View style={styles.statsCard}>
-                  <Text style={[styles.statsValue, { color: '#f43f5e' }]}>{pendingCount}</Text>
+                  <Ionicons name="list-outline" size={18} color="#f43f5e" />
+                  <Text style={[styles.statsValue, { color: '#f43f5e', marginTop: 6 }]}>{pendingCount}</Text>
                   <Text style={styles.statsLabel}>Antrean</Text>
                 </View>
                 <View style={styles.statsCard}>
-                  <Text style={[styles.statsValue, { color: '#a855f7' }]}>{packedCount}</Text>
+                  <Ionicons name="archive-outline" size={18} color="#a855f7" />
+                  <Text style={[styles.statsValue, { color: '#a855f7', marginTop: 6 }]}>{packedCount}</Text>
                   <Text style={styles.statsLabel}>Packed</Text>
                 </View>
                 <View style={styles.statsCard}>
-                  <Text style={[styles.statsValue, { color: '#3b82f6' }]}>{processingCount}</Text>
+                  <Ionicons name="cube-outline" size={18} color="#3b82f6" />
+                  <Text style={[styles.statsValue, { color: '#3b82f6', marginTop: 6 }]}>{processingCount}</Text>
                   <Text style={styles.statsLabel}>Dikirim</Text>
                 </View>
               </View>
@@ -1322,11 +1355,13 @@ export default function App() {
               {/* Row 2: Aktivitas Pindaian Hari Ini */}
               <View style={styles.statsRow}>
                 <View style={styles.statsCard}>
-                  <Text style={[styles.statsValue, { color: '#22c55e' }]}>{todaySuccessCount}</Text>
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#22c55e" />
+                  <Text style={[styles.statsValue, { color: '#22c55e', marginTop: 6 }]}>{todaySuccessCount}</Text>
                   <Text style={styles.statsLabel}>Sukses Hari Ini</Text>
                 </View>
                 <View style={styles.statsCard}>
-                  <Text style={[styles.statsValue, { color: '#f59e0b' }]}>{todayFailedCount}</Text>
+                  <Ionicons name="close-circle-outline" size={18} color="#f59e0b" />
+                  <Text style={[styles.statsValue, { color: '#f59e0b', marginTop: 6 }]}>{todayFailedCount}</Text>
                   <Text style={styles.statsLabel}>Gagal Hari Ini</Text>
                 </View>
               </View>
@@ -1440,7 +1475,7 @@ export default function App() {
                   enableTorch={flash}
                   mode={cameraMode}
                   videoQuality="480p"
-                  videoBitrate={300000} // Batasi bitrate ke 300 kbps agar file sangat kecil woy!
+                  videoBitrate={800000} // Batasi bitrate ke 800 kbps woy!
                   barcodeScannerSettings={
                     isUploading || isRecording || cameraMode === 'video' || activeUploads > 0
                       ? DISABLED_BARCODE_SETTINGS
@@ -1459,9 +1494,17 @@ export default function App() {
                       statusMsg.type === 'success' ? { backgroundColor: 'rgba(21, 128, 61, 0.95)' } : { backgroundColor: 'rgba(185, 28, 28, 0.95)' },
                       {
                         opacity: statusFadeAnim,
-                        transform: [{ translateY }]
+                        transform: [{ translateY }],
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6
                       }
                     ]}>
+                      <Ionicons 
+                        name={statusMsg.type === 'success' ? "checkmark-circle" : "alert-circle"} 
+                        size={15} 
+                        color="#ffffff" 
+                      />
                       <Text style={styles.floatingStatusText}>{statusMsg.text}</Text>
                     </Animated.View>
                   )}
@@ -1562,23 +1605,40 @@ export default function App() {
                     <>
                       {/* Toolbar: Flash, Flip Camera, Mirror, Manual Toggle */}
                       <View style={styles.bottomToolbar}>
-                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFlash(!flash)}>
-                          <Text style={styles.toolbarBtnText}>{flash ? '⚡ Flash On' : '⚡ Flash Off'}</Text>
+                        <TouchableOpacity 
+                          style={[styles.toolbarBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} 
+                          onPress={() => setFlash(!flash)}
+                        >
+                          <Ionicons name={flash ? "flash" : "flash-outline"} size={12} color={flash ? "#eab308" : "#ffffff"} />
+                          <Text style={styles.toolbarBtnText}>Flash</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => setFacing(prev => prev === 'back' ? 'front' : 'back')}>
-                          <Text style={styles.toolbarBtnText}>🔄 {facing === 'back' ? 'Belakang' : 'Depan'}</Text>
+                        <TouchableOpacity 
+                          style={[styles.toolbarBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} 
+                          onPress={() => setFacing(prev => prev === 'back' ? 'front' : 'back')}
+                        >
+                          <Ionicons name="camera-reverse" size={12} color="#ffffff" />
+                          <Text style={styles.toolbarBtnText}>{facing === 'back' ? 'Belakang' : 'Depan'}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.toolbarBtn} onPress={toggleMirror}>
-                          <Text style={styles.toolbarBtnText}>🪞 {mirrorPreview ? 'Mirror' : 'Normal'}</Text>
+                        <TouchableOpacity 
+                          style={[styles.toolbarBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} 
+                          onPress={toggleMirror}
+                        >
+                          <Ionicons name="swap-horizontal" size={12} color={mirrorPreview ? "#6366f1" : "#ffffff"} />
+                          <Text style={styles.toolbarBtnText}>{mirrorPreview ? 'Mirror' : 'Normal'}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          style={[styles.toolbarBtn, showManualInput && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }]}
+                          style={[
+                            styles.toolbarBtn, 
+                            { flexDirection: 'row', alignItems: 'center', gap: 4 },
+                            showManualInput && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }
+                          ]}
                           onPress={() => setShowManualInput(!showManualInput)}
                         >
-                          <Text style={styles.toolbarBtnText}>✍️ Manual</Text>
+                          <Ionicons name="create-outline" size={12} color="#ffffff" />
+                          <Text style={styles.toolbarBtnText}>Manual</Text>
                         </TouchableOpacity>
                       </View>
 
@@ -1636,11 +1696,6 @@ export default function App() {
                 <Text style={styles.tabHeaderTitle}>
                   Riwayat Scan Hari Ini {history.length > 0 ? `(${history.length})` : ''}
                 </Text>
-                {history.length > 0 && (
-                  <TouchableOpacity onPress={clearHistory}>
-                    <Text style={styles.clearText}>Hapus Semua</Text>
-                  </TouchableOpacity>
-                )}
               </View>
 
               <FlatList
@@ -1658,6 +1713,19 @@ export default function App() {
                 }
                 renderItem={({ item }) => {
                   const CardWrapper = item.status === 'success' ? TouchableOpacity : View;
+
+                  // Styles platform woy
+                  const getPlatformStyles = (platform: string) => {
+                    const name = (platform || '').toLowerCase();
+                    if (name.includes('shopee')) return { bg: 'rgba(234, 88, 12, 0.12)', text: '#f97316', border: 'rgba(234, 88, 12, 0.25)' };
+                    if (name.includes('tokopedia')) return { bg: 'rgba(22, 163, 74, 0.12)', text: '#22c55e', border: 'rgba(22, 163, 74, 0.25)' };
+                    if (name.includes('lazada')) return { bg: 'rgba(59, 130, 246, 0.12)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.25)' };
+                    if (name.includes('tiktok')) return { bg: 'rgba(255, 255, 255, 0.08)', text: '#e4e4e7', border: 'rgba(255, 255, 255, 0.15)' };
+                    return { bg: 'rgba(107, 114, 128, 0.12)', text: '#9ca3af', border: 'rgba(107, 114, 128, 0.25)' };
+                  };
+
+                  const pStyles = getPlatformStyles(item.platform);
+
                   return (
                     <CardWrapper
                       activeOpacity={item.status === 'success' ? 0.75 : 1}
@@ -1669,30 +1737,56 @@ export default function App() {
                           : { borderLeftWidth: 4, borderLeftColor: '#ef4444' }
                       ]}
                     >
-                      <View style={styles.historyMain}>
-                        <Text style={styles.itemBarcode}>{item.invoice_number}</Text>
+                      <View style={{ marginRight: 10, justifyContent: 'center' }}>
                         {item.status === 'success' ? (
-                          <View style={styles.badgeRow}>
-                            <Text style={styles.itemStore}>{item.store_name} ({item.platform})</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Text style={styles.successText}>Success</Text>
-                              <Ionicons name="play-circle-outline" size={13} color="#22c55e" />
-                            </View>
+                          <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', padding: 6, borderRadius: 20 }}>
+                            <Ionicons name="play" size={14} color="#22c55e" />
                           </View>
                         ) : (
-                          <View style={styles.badgeRow}>
-                            <Text style={styles.errorText}>Failed: {item.errorMessage}</Text>
+                          <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: 6, borderRadius: 20 }}>
+                            <Ionicons name="alert-circle" size={14} color="#ef4444" />
                           </View>
                         )}
                       </View>
-                      <View style={{ alignItems: 'flex-end', gap: 8 }}>
+
+                      <View style={styles.historyMain}>
+                        <Text style={styles.itemBarcode}>{item.invoice_number}</Text>
+
+                        {item.waybill_number && item.waybill_number !== '-' && (
+                          <Text style={{ color: '#a1a1aa', fontSize: 10, fontFamily: 'monospace', marginTop: 2 }}>
+                            Resi: {item.waybill_number}
+                          </Text>
+                        )}
+
+                        <View style={styles.badgeRow}>
+                          {item.status === 'success' ? (
+                            <>
+                              <View style={{
+                                backgroundColor: pStyles.bg,
+                                borderColor: pStyles.border,
+                                borderWidth: 1,
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 6
+                              }}>
+                                <Text style={{ color: pStyles.text, fontSize: 9, fontWeight: '700' }}>
+                                  {item.store_name} ({item.platform})
+                                </Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                <Text style={styles.successText}>Success</Text>
+                              </View>
+                            </>
+                          ) : (
+                            <Text style={styles.errorText} numberOfLines={1}>
+                              Gagal: {item.errorMessage}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+
+                      <View style={{ alignItems: 'flex-end', justifyContent: 'center', marginLeft: 8 }}>
                         <Text style={styles.itemTime}>{item.scanned_at}</Text>
-                        <TouchableOpacity
-                          onPress={() => deleteHistoryItem(item.id)}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                          <Ionicons name="trash-outline" size={14} color="#ef4444" style={{ opacity: 0.8 }} />
-                        </TouchableOpacity>
                       </View>
                     </CardWrapper>
                   );
@@ -1879,20 +1973,33 @@ export default function App() {
                   <Text style={styles.avatarLetterLarge}>{userName ? userName.charAt(0).toUpperCase() : 'P'}</Text>
                 </View>
                 <Text style={styles.profileNameLarge}>{userName || 'Petugas'}</Text>
-                <Text style={styles.profileRoleLarge}>Petugas Gudang / Packing</Text>
+                <Text style={styles.profileRoleLarge}>
+                  {userRole === 'admin' ? 'Owner / Admin Utama' : 'Petugas Gudang / Packing'}
+                </Text>
 
                 <View style={styles.divider} />
 
                 <View style={styles.profileDetailRow}>
-                  <Text style={styles.profileDetailLabel}>Email</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="mail-outline" size={14} color="#71717a" style={{ marginRight: 6 }} />
+                    <Text style={styles.profileDetailLabel}>Email</Text>
+                  </View>
                   <Text style={styles.profileDetailValue}>{email || '-'}</Text>
                 </View>
                 <View style={styles.profileDetailRow}>
-                  <Text style={styles.profileDetailLabel}>Server URL</Text>
-                  <Text style={styles.profileDetailValue}>{serverUrl}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 }}>
+                    <Ionicons name="server-outline" size={14} color="#71717a" style={{ marginRight: 6 }} />
+                    <Text style={styles.profileDetailLabel}>Server URL</Text>
+                  </View>
+                  <Text style={[styles.profileDetailValue, { flex: 1, textAlign: 'right' }]} numberOfLines={1}>
+                    {serverUrl}
+                  </Text>
                 </View>
                 <View style={styles.profileDetailRow}>
-                  <Text style={styles.profileDetailLabel}>Status</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="link-outline" size={14} color="#71717a" style={{ marginRight: 6 }} />
+                    <Text style={styles.profileDetailLabel}>Status</Text>
+                  </View>
                   <Text style={[styles.profileDetailValue, { color: '#22c55e', fontWeight: 'bold' }]}>● Terhubung</Text>
                 </View>
               </View>
@@ -1938,7 +2045,7 @@ export default function App() {
               {hasMobilePermission('expenses') && (
                 <View style={styles.settingsCard}>
                   <Text style={styles.settingsTitle}>💸 Catat Jajanan / Pengeluaran Gudang</Text>
-                  
+
                   <Text style={styles.fieldLabel}>Sumber Kas/Dana:</Text>
                   <View style={styles.pickerWrapper}>
                     {financialAccounts.length === 0 ? (
@@ -2281,12 +2388,12 @@ export default function App() {
             const files = viewingProofItem.package_proof ? viewingProofItem.package_proof.split(',') : [];
             const photoFile = files.find(f => f.endsWith('.jpg') || f.endsWith('.jpeg') || f.endsWith('.png'));
             const videoFile = files.find(f => f.endsWith('.mp4') || f.endsWith('.mov') || f.endsWith('.avi') || f.endsWith('.webm'));
-            
+
             const getFullUrl = (filePath: string) => {
               if (!filePath) return '';
               const trimmed = filePath.trim();
               const activeUrl = serverUrlRef.current || serverUrl;
-              
+
               // Cek jika ini file video, gunakan streamVideo controller agar support range requests woy!
               const isVideo = trimmed.endsWith('.mp4') || trimmed.endsWith('.mov') || trimmed.endsWith('.avi') || trimmed.endsWith('.webm');
               if (isVideo) {
@@ -2315,12 +2422,12 @@ export default function App() {
 
                   <ScrollView contentContainerStyle={styles.modalScrollContent}>
                     <View style={styles.modalMetaCard}>
-                      <Text style={styles.modalMetaText}>Invoice: <Text style={{fontWeight: 'bold', color: '#ffffff'}}>{viewingProofItem.invoice_number}</Text></Text>
+                      <Text style={styles.modalMetaText}>Invoice: <Text style={{ fontWeight: 'bold', color: '#ffffff' }}>{viewingProofItem.invoice_number}</Text></Text>
                       {viewingProofItem.waybill_number && viewingProofItem.waybill_number !== '-' && (
-                        <Text style={styles.modalMetaText}>Resi: <Text style={{fontWeight: 'bold', color: '#ffffff'}}>{viewingProofItem.waybill_number}</Text></Text>
+                        <Text style={styles.modalMetaText}>Resi: <Text style={{ fontWeight: 'bold', color: '#ffffff' }}>{viewingProofItem.waybill_number}</Text></Text>
                       )}
-                      <Text style={styles.modalMetaText}>Toko: <Text style={{color: '#ffffff', fontWeight: '600'}}>{viewingProofItem.store_name} ({viewingProofItem.platform})</Text></Text>
-                      <Text style={styles.modalMetaText}>Waktu: <Text style={{color: '#a1a1aa'}}>{viewingProofItem.scanned_at}</Text></Text>
+                      <Text style={styles.modalMetaText}>Toko: <Text style={{ color: '#ffffff', fontWeight: '600' }}>{viewingProofItem.store_name} ({viewingProofItem.platform})</Text></Text>
+                      <Text style={styles.modalMetaText}>Waktu: <Text style={{ color: '#a1a1aa' }}>{viewingProofItem.scanned_at}</Text></Text>
                     </View>
 
                     {photoUrl && (

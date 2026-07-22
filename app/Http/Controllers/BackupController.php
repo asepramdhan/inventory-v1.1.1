@@ -39,12 +39,25 @@ class BackupController extends Controller
         $totalSize = $backups->sum('size');
         $lastBackup = $backups->first() ? $backups->first()['created_at'] : null;
 
+        // Hitung total kapasitas bukti packing yang terpakai woy!
+        $proofFiles = Storage::disk('public')->allFiles('package_proofs');
+        $totalProofSize = 0;
+        foreach ($proofFiles as $file) {
+            try {
+                $totalProofSize += Storage::disk('public')->size($file);
+            } catch (\Exception $e) {
+                // Abaikan jika file corrupt/hilang secara fisik woy
+            }
+        }
+
         return Inertia::render('master-data/backup', [
             'backups' => $backups,
             'summary' => [
                 'total_backups' => $totalBackups,
                 'total_size' => $totalSize,
                 'last_backup' => $lastBackup ? date('Y-m-d H:i:s', $lastBackup) : null,
+                'proof_total_size' => $totalProofSize,
+                'proof_files_count' => count($proofFiles)
             ]
         ]);
     }
@@ -56,7 +69,7 @@ class BackupController extends Controller
     {
         try {
             $this->backupService->createBackup();
-            
+
             return back()->with('toast', [
                 'type' => 'success',
                 'message' => 'Backup database baru berhasil dibuat!'
@@ -99,7 +112,7 @@ class BackupController extends Controller
 
         try {
             $this->backupService->restoreBackup($path);
-            
+
             return back()->with('toast', [
                 'type' => 'success',
                 'message' => 'Database berhasil dipulihkan ke backup #' . $filename . '! Silakan muat ulang halaman jika ada masalah sesi.'
@@ -121,7 +134,7 @@ class BackupController extends Controller
         ]);
 
         $file = $request->file('file');
-        
+
         // Save temporarily in storage/app/backups/
         $tempFilename = 'temp_upload_' . uniqid() . '.zip';
         $tempPath = $file->storeAs('backups', $tempFilename, 'local');
@@ -129,7 +142,7 @@ class BackupController extends Controller
 
         try {
             $this->backupService->restoreBackup($fullPath);
-            
+
             // Clean up the temporary upload file
             if (file_exists($fullPath)) {
                 unlink($fullPath);
@@ -161,7 +174,7 @@ class BackupController extends Controller
 
         if (Storage::disk('local')->exists($path)) {
             Storage::disk('local')->delete($path);
-            
+
             return back()->with('toast', [
                 'type' => 'success',
                 'message' => 'File backup berhasil dihapus dari server!'
@@ -170,6 +183,45 @@ class BackupController extends Controller
 
         return back()->withErrors([
             'backup' => 'Gagal menghapus: File tidak ditemukan.'
+        ]);
+    }
+
+    /**
+     * Bersihkan bukti packing (foto / video) lama woy!
+     */
+    public function cleanProofs(Request $request)
+    {
+        $request->validate([
+            'age_days' => 'required|integer|in:14,30,60'
+        ]);
+
+        $days = (int) $request->age_days;
+        $dateLimit = now()->subDays($days);
+
+        // Cari transaksi di bawah kepemilikan Admin ini yang sudah berumur lebih dari batas woy!
+        $transactions = \App\Models\Transaction::where('user_id', \Illuminate\Support\Facades\Auth::user()->getOwnerId())
+            ->whereNotNull('package_proof')
+            ->where('updated_at', '<', $dateLimit)
+            ->get();
+
+        $deletedCount = 0;
+        foreach ($transactions as $tx) {
+            $files = explode(',', $tx->package_proof);
+            foreach ($files as $file) {
+                $trimmed = trim($file);
+                if ($trimmed) {
+                    Storage::disk('public')->delete($trimmed);
+                }
+            }
+            $tx->update([
+                'package_proof' => null
+            ]);
+            $deletedCount++;
+        }
+
+        return redirect()->back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Berhasil membersihkan bukti packing dari ' . $deletedCount . ' transaksi lama woy!'
         ]);
     }
 }

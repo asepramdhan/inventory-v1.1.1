@@ -1484,4 +1484,60 @@ class TransactionController extends Controller
         fclose($stream);
         exit;
     }
+
+    public function scannerHistory(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid.'
+                ], 200);
+            }
+        } else {
+            $user = Auth::user();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan login terlebih dahulu.'
+            ], 200);
+        }
+
+        // Ambil transaksi yang diupdate hari ini (yang sudah status packed) woy!
+        $transactions = Transaction::where('user_id', $user->getOwnerId())
+            ->where('status', 'packed')
+            ->whereNotNull('package_proof')
+            ->whereDate('updated_at', now()->toDateString())
+            ->with('store')
+            ->orderBy('updated_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        $history = $transactions->map(function ($tx) {
+            return [
+                'id' => (string) $tx->id,
+                'invoice_number' => $tx->invoice_number,
+                'waybill_number' => $tx->waybill_number ?: '-',
+                'store_name' => $tx->store ? $tx->store->name : 'Toko',
+                'platform' => $tx->store ? $tx->store->platform : 'Marketplace',
+                'status' => 'success',
+                'scanned_at' => $tx->updated_at->setTimezone('Asia/Jakarta')->format('H:i'),
+                'package_proof' => $tx->package_proof
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'history' => $history
+        ]);
+    }
 }

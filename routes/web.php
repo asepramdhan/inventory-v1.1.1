@@ -25,6 +25,7 @@ Route::get('/api/mobile/stats', [TransactionController::class, 'mobileStats'])->
 Route::get('/api/mobile/product/scan', [TransactionController::class, 'mobileScanProduct'])->name('api.mobile-product-scan')->middleware('permission:products');
 Route::post('/api/mobile/product/update-stock', [TransactionController::class, 'mobileUpdateProductStock'])->name('api.mobile-product-update-stock')->middleware('permission:products');
 Route::post('/finance/transactions/barcode-upload-proof', [TransactionController::class, 'uploadProofByBarcode'])->name('transactions.barcode-upload-proof')->middleware('permission:scanner');
+Route::get('/finance/transactions/scanner-history', [TransactionController::class, 'scannerHistory'])->name('transactions.scanner-history')->middleware('permission:scanner');
 
 Route::get('/clear-route-cache', function() {
     \Illuminate\Support\Facades\Artisan::call('optimize:clear');
@@ -145,6 +146,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/master-data/backups/{filename}/download', [BackupController::class, 'download'])->name('backups.download');
         Route::post('/master-data/backups/{filename}/restore', [BackupController::class, 'restore'])->name('backups.restore');
         Route::post('/master-data/backups/upload-restore', [BackupController::class, 'uploadAndRestore'])->name('backups.upload-restore');
+        Route::post('/master-data/backups/clean-proofs', [BackupController::class, 'cleanProofs'])->name('backups.clean-proofs');
         Route::delete('/master-data/backups/{filename}', [BackupController::class, 'destroy'])->name('backups.destroy');
 
         Route::resource('master-data/users', UserController::class)->names('users');

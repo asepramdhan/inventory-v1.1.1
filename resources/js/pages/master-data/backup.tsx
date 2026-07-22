@@ -18,6 +18,8 @@ interface SummaryStats {
   total_backups: number;
   total_size: number;
   last_backup: string | null;
+  proof_total_size: number;
+  proof_files_count: number;
 }
 
 interface Props {
@@ -29,12 +31,32 @@ interface Props {
 export default function Backup({ backups, summary, errors }: Props) {
   const [isBackupProcessing, setIsBackupProcessing] = useState(false);
   const [selectedFilename, setSelectedFilename] = useState<string | null>(null);
-  
+
   // Dialog visibility states
   const [isRestoreOpen, setIsRestoreOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+
+  // Pembersihan Bukti states
+  const [cleanAgeDays, setCleanAgeDays] = useState(30);
+  const [isCleanConfirmOpen, setIsCleanConfirmOpen] = useState(false);
+  const [isRefreshingProofs, setIsRefreshingProofs] = useState(false);
+
+  const handleRefreshProofStats = () => {
+    setIsRefreshingProofs(true);
+    router.reload({
+      only: ['summary'],
+      onSuccess: () => {
+        setIsRefreshingProofs(false);
+        toast.success('Kapasitas bukti terpakai berhasil diperbarui woy!');
+      },
+      onError: () => {
+        setIsRefreshingProofs(false);
+        toast.error('Gagal memperbarui statistik bukti.');
+      }
+    });
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data, setData, post, processing, reset } = useForm({
@@ -94,7 +116,7 @@ export default function Backup({ backups, summary, errors }: Props) {
     if (!selectedFilename) return;
     setIsRestoreOpen(false);
     toast.info('Memulai proses pemulihan database... Mohon tunggu.');
-    
+
     router.post(
       `/master-data/backups/${selectedFilename}/restore`,
       {},
@@ -115,7 +137,7 @@ export default function Backup({ backups, summary, errors }: Props) {
   const handleDeleteBackup = () => {
     if (!selectedFilename) return;
     setIsDeleteOpen(false);
-    
+
     router.delete(
       `/master-data/backups/${selectedFilename}`,
       {
@@ -144,7 +166,7 @@ export default function Backup({ backups, summary, errors }: Props) {
     if (!uploadFile) return;
 
     toast.info('Mengunggah & memulihkan database... Mohon tunggu.');
-    
+
     post('/master-data/backups/upload-restore', {
       preserveScroll: true,
       onSuccess: () => {
@@ -159,6 +181,25 @@ export default function Backup({ backups, summary, errors }: Props) {
         reset();
       },
     });
+  };
+
+  const handleCleanProofs = () => {
+    setIsCleanConfirmOpen(false);
+    toast.info('Memulai pembersihan bukti packing lama... Mohon tunggu.');
+
+    router.post(
+      '/master-data/backups/clean-proofs',
+      { age_days: cleanAgeDays },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          toast.success('Bukti packing lama berhasil dibersihkan woy!');
+        },
+        onError: (err: any) => {
+          toast.error(err.message || 'Gagal membersihkan bukti packing.');
+        },
+      }
+    );
   };
 
   return (
@@ -255,6 +296,80 @@ export default function Backup({ backups, summary, errors }: Props) {
             </CardContent>
           </Card>
         </div>
+
+        {/* Pembersihan Bukti Packing Card */}
+        <Card className="rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm overflow-hidden bg-white dark:bg-zinc-900/50">
+          <div className="p-5 border-b border-zinc-100 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Pembersihan Storage Bukti Packing (Foto / Video)</h3>
+              <p className="text-[11px] text-zinc-400">Hapus berkas bukti video & foto lama woy agar server Anda tidak cepat penuh.</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="p-2.5 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl font-semibold text-xs flex items-center gap-1.5 border border-amber-100/30 w-fit">
+                <HardDrive className="h-4 w-4" />
+                Kapasitas Bukti Terpakai: {formatBytes(summary.proof_total_size)} ({summary.proof_files_count} berkas)
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleRefreshProofStats}
+                disabled={isRefreshingProofs}
+                className="h-9 w-9 rounded-xl border-zinc-200/80 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
+                title="Perbarui Statistik Kapasitas"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-zinc-500 ${isRefreshingProofs ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+          <CardContent className="p-5">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Pilih Batas Umur Bukti Yang Dihapus</label>
+                <div className="flex flex-wrap gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setCleanAgeDays(14)}
+                    className={`px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all ${cleanAgeDays === 14
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 scale-[1.01]'
+                      : 'bg-zinc-50 dark:bg-zinc-800/40 border-zinc-200/60 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-zinc-800'
+                      }`}
+                  >
+                    Lebih dari 2 Minggu (14 Hari)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCleanAgeDays(30)}
+                    className={`px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all ${cleanAgeDays === 30
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 scale-[1.01]'
+                      : 'bg-zinc-50 dark:bg-zinc-800/40 border-zinc-200/60 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-zinc-800'
+                      }`}
+                  >
+                    Lebih dari 1 Bulan (30 Hari) - Rekomendasi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCleanAgeDays(60)}
+                    className={`px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all ${cleanAgeDays === 60
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 scale-[1.01]'
+                      : 'bg-zinc-50 dark:bg-zinc-800/40 border-zinc-200/60 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-zinc-800'
+                      }`}
+                  >
+                    Lebih dari 2 Bulan (60 Hari)
+                  </button>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setIsCleanConfirmOpen(true)}
+                className="rounded-xl text-xs font-semibold h-10 px-4 gap-2 transition-all shadow-sm hover:scale-[1.01] active:scale-[0.99] shrink-0"
+              >
+                <Trash2 className="h-4 w-4" />
+                Hapus Bukti Lama
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Data Table */}
         <Card className="rounded-2xl border border-zinc-200/50 dark:border-zinc-800/80 shadow-sm overflow-hidden bg-white dark:bg-zinc-900/50">
@@ -424,6 +539,36 @@ export default function Backup({ backups, summary, errors }: Props) {
               className="rounded-xl text-xs h-9 font-medium shadow-sm transition-colors"
             >
               Unggah & Pulihkan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clean Proofs Confirmation Dialog */}
+      <AlertDialog open={isCleanConfirmOpen} onOpenChange={setIsCleanConfirmOpen}>
+        <AlertDialogContent className="rounded-2xl max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-500 text-base">
+              <AlertTriangle className="h-5 w-5 animate-pulse" />
+              Konfirmasi Pembersihan Bukti Packing
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs leading-relaxed space-y-2 pt-2">
+              <p>
+                Apakah Anda yakin ingin menghapus seluruh berkas bukti packing (foto & video) yang umurnya **lebih dari {cleanAgeDays} hari**?
+              </p>
+              <p className="font-semibold text-amber-600 dark:text-amber-400">
+                Peringatan: Berkas fisik video dan foto di server akan dihapus secara permanen. Riwayat transaksi di database akan tetap ada, namun tautan bukti packing akan dikosongkan (null). Tindakan ini tidak dapat dibatalkan woy!
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 pt-4">
+            <AlertDialogCancel className="rounded-xl text-xs h-9">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCleanProofs}
+              variant="destructive"
+              className="rounded-xl text-xs h-9 font-medium shadow-sm transition-colors"
+            >
+              Ya, Hapus Bukti Lama woy!
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
