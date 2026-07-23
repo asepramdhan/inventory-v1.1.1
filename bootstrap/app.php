@@ -23,7 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
             '/finance/transactions/search-proof',
             '/api/mobile/product/update-stock',
             '/operational/supplies/*/update-stock-mobile',
-            '/api/mobile/expense/store'
+            '/api/mobile/expense/store',
+            '/api/mobile/clean-proofs',
+            '/api/mobile/users/store',
+            '/api/mobile/users/*/update',
+            '/api/mobile/users/*/delete',
+            'api/mobile/users/*'
         ]);
 
         $middleware->web(append: [

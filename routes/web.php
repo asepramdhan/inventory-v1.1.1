@@ -26,6 +26,13 @@ Route::get('/api/mobile/product/scan', [TransactionController::class, 'mobileSca
 Route::post('/api/mobile/product/update-stock', [TransactionController::class, 'mobileUpdateProductStock'])->name('api.mobile-product-update-stock')->middleware('permission:products');
 Route::post('/finance/transactions/barcode-upload-proof', [TransactionController::class, 'uploadProofByBarcode'])->name('transactions.barcode-upload-proof')->middleware('permission:scanner');
 Route::get('/finance/transactions/scanner-history', [TransactionController::class, 'scannerHistory'])->name('transactions.scanner-history')->middleware('permission:scanner');
+Route::get('/api/mobile/proof-stats', [\App\Http\Controllers\BackupController::class, 'mobileProofStats'])->name('api.mobile-proof-stats');
+Route::post('/api/mobile/clean-proofs', [\App\Http\Controllers\BackupController::class, 'cleanProofs'])->name('api.mobile-clean-proofs');
+Route::get('/api/mobile/finance/mutations', [\App\Http\Controllers\FinancialMutationController::class, 'mobileMutations'])->name('api.mobile-finance-mutations');
+Route::get('/api/mobile/users', [\App\Http\Controllers\UserController::class, 'mobileIndex'])->name('api.mobile-users');
+Route::post('/api/mobile/users/store', [\App\Http\Controllers\UserController::class, 'mobileStore'])->name('api.mobile-users-store');
+Route::match(['PUT', 'POST'], '/api/mobile/users/{id}/update', [\App\Http\Controllers\UserController::class, 'mobileUpdate'])->name('api.mobile-users-update');
+Route::match(['DELETE', 'POST'], '/api/mobile/users/{id}/delete', [\App\Http\Controllers\UserController::class, 'mobileDestroy'])->name('api.mobile-users-delete');
 
 Route::get('/clear-route-cache', function() {
     \Illuminate\Support\Facades\Artisan::call('optimize:clear');

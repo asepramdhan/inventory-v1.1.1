@@ -414,6 +414,7 @@ class FinancialMutationController extends Controller
             'Alat Tulis & Lakban',
             'Biaya Kurir / Ongkir',
             'Uang Makan / Lembur',
+            'Tarik Tunai',
             'Lain-lain'
         ];
 
@@ -489,6 +490,77 @@ class FinancialMutationController extends Controller
             'success' => true,
             'message' => 'Pengeluaran/jajanan gudang berhasil dicatat!',
             'balance' => $user->role === 'admin' ? $account->current_balance : 0
+        ]);
+    }
+
+    public function mobileMutations(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid.'
+                ], 401);
+            }
+        } else {
+            $user = Auth::user();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan login terlebih dahulu.'
+            ], 401);
+        }
+
+        if ($user->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak.'
+            ], 403);
+        }
+
+        $userId = $user->getOwnerId();
+
+        // 1. Ambil akun keuangan
+        $accounts = FinancialAccount::where('user_id', $userId)->get()->map(function ($acc) {
+            return [
+                'id' => $acc->id,
+                'name' => $acc->name,
+                'current_balance' => (float) $acc->current_balance
+            ];
+        });
+
+        // 2. Ambil 20 mutasi kas terbaru
+        $mutations = FinancialMutation::with('account')
+            ->where('user_id', $userId)
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($mut) {
+                return [
+                    'id' => $mut->id,
+                    'account_name' => $mut->account ? $mut->account->name : 'N/A',
+                    'type' => $mut->type, // income / expense
+                    'amount' => (float) $mut->amount,
+                    'category' => $mut->category,
+                    'description' => $mut->description ?: '-',
+                    'date' => $mut->date
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'accounts' => $accounts,
+            'mutations' => $mutations
         ]);
     }
 }

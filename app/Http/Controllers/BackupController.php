@@ -191,6 +191,44 @@ class BackupController extends Controller
      */
     public function cleanProofs(Request $request)
     {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid.'
+                ], 401);
+            }
+        } else {
+            $user = \Illuminate\Support\Facades\Auth::user();
+        }
+
+        if (!$user) {
+            if ($token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Silakan login terlebih dahulu.'
+                ], 401);
+            }
+            return redirect()->back()->withErrors(['message' => 'Silakan login terlebih dahulu.']);
+        }
+
+        if ($user->role !== 'admin') {
+            if ($token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hanya Admin yang dapat melakukan pembersihan bukti packing.'
+                ], 403);
+            }
+            abort(403);
+        }
+
         $request->validate([
             'age_days' => 'required|integer|in:14,30,60'
         ]);
@@ -199,7 +237,7 @@ class BackupController extends Controller
         $dateLimit = now()->subDays($days);
 
         // Cari transaksi di bawah kepemilikan Admin ini yang sudah berumur lebih dari batas woy!
-        $transactions = \App\Models\Transaction::where('user_id', \Illuminate\Support\Facades\Auth::user()->getOwnerId())
+        $transactions = \App\Models\Transaction::where('user_id', $user->getOwnerId())
             ->whereNotNull('package_proof')
             ->where('updated_at', '<', $dateLimit)
             ->get();
@@ -219,9 +257,81 @@ class BackupController extends Controller
             $deletedCount++;
         }
 
+        // Hitung ulang total kapasitas terpakai woy!
+        $proofFiles = Storage::disk('public')->allFiles('package_proofs');
+        $totalProofSize = 0;
+        foreach ($proofFiles as $file) {
+            try {
+                $totalProofSize += Storage::disk('public')->size($file);
+            } catch (\Exception $e) {
+            }
+        }
+
+        if ($token) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil membersihkan bukti packing dari ' . $deletedCount . ' transaksi lama woy!',
+                'proof_total_size' => $totalProofSize,
+                'proof_files_count' => count($proofFiles)
+            ]);
+        }
+
         return redirect()->back()->with('toast', [
             'type' => 'success',
             'message' => 'Berhasil membersihkan bukti packing dari ' . $deletedCount . ' transaksi lama woy!'
+        ]);
+    }
+
+    /**
+     * Get proof files stats for mobile admin woy!
+     */
+    public function mobileProofStats(Request $request)
+    {
+        $token = $request->bearerToken() ?? $request->header('X-Mobile-Token');
+        $user = null;
+
+        if ($token) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($token);
+                $parts = explode('|', $decrypted);
+                $user = \App\Models\User::find($parts[0]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi tidak valid.'
+                ], 401);
+            }
+        } else {
+            $user = \Illuminate\Support\Facades\Auth::user();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan login terlebih dahulu.'
+            ], 401);
+        }
+
+        if ($user->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak.'
+            ], 403);
+        }
+
+        $proofFiles = Storage::disk('public')->allFiles('package_proofs');
+        $totalProofSize = 0;
+        foreach ($proofFiles as $file) {
+            try {
+                $totalProofSize += Storage::disk('public')->size($file);
+            } catch (\Exception $e) {
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'proof_total_size' => $totalProofSize,
+            'proof_files_count' => count($proofFiles)
         ]);
     }
 }
