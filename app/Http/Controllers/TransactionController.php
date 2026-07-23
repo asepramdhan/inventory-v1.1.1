@@ -1103,7 +1103,8 @@ class TransactionController extends Controller
         if ($path) {
             $transaction->update([
                 'package_proof' => $path,
-                'status' => 'packed'
+                'status' => 'packed',
+                'packer_name' => $user->name
             ]);
 
             return response()->json([
@@ -1116,6 +1117,7 @@ class TransactionController extends Controller
                     'package_proof' => $path,
                     'store_name' => $transaction->store ? $transaction->store->name : 'Toko',
                     'platform' => $transaction->store ? $transaction->store->platform : 'Marketplace',
+                    'packer_name' => $user->name,
                     'updated_at' => $transaction->updated_at->toIso8601String()
                 ]
             ]);
@@ -1531,7 +1533,8 @@ class TransactionController extends Controller
                 'platform' => $tx->store ? $tx->store->platform : 'Marketplace',
                 'status' => 'success',
                 'scanned_at' => $tx->updated_at->setTimezone('Asia/Jakarta')->format('H:i'),
-                'package_proof' => $tx->package_proof
+                'package_proof' => $tx->package_proof,
+                'packer_name' => $tx->packer_name ?: '-'
             ];
         });
 

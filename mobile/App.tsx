@@ -27,6 +27,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio, Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 interface ScannedPackage {
   id: string;
@@ -38,6 +39,7 @@ interface ScannedPackage {
   scanned_at: string;
   status: 'success' | 'error';
   errorMessage?: string;
+  packer_name?: string;
 }
 
 const BARCODE_SETTINGS = {
@@ -62,6 +64,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PACKING' | 'INVENTARIS' | 'KAS' | 'PROFILE'>('DASHBOARD');
   const [packingSubTab, setPackingSubTab] = useState<'SCANNER' | 'HISTORY'>('SCANNER');
   const [inventarisSubTab, setInventarisSubTab] = useState<'STOK' | 'BAHAN'>('STOK');
+
+  // Biometric States woy
+  const [isBiometricsSupported, setIsBiometricsSupported] = useState(false);
+  const [isBiometricsEnabled, setIsBiometricsEnabled] = useState(false);
+  const [savedPassword, setSavedPassword] = useState('');
+  const [showBioPasswordModal, setShowBioPasswordModal] = useState(false);
+  const [bioVerifyPasswordInput, setBioVerifyPasswordInput] = useState('');
 
   // Cek & Update Stok States
   const [searchSku, setSearchSku] = useState('');
@@ -209,6 +218,21 @@ export default function App() {
         const savedHistory = await AsyncStorage.getItem('@scan_history');
         const savedMirror = await AsyncStorage.getItem('@mirror_preview');
 
+        // Check biometric compatibility woy
+        const compatible = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        setIsBiometricsSupported(compatible && enrolled);
+
+        const bioEnabled = await AsyncStorage.getItem('@biometric_login_enabled');
+        if (bioEnabled === 'true') {
+          setIsBiometricsEnabled(true);
+        }
+
+        const savedPass = await AsyncStorage.getItem('@saved_password');
+        if (savedPass) {
+          setSavedPassword(savedPass);
+        }
+
         const savedSound = await AsyncStorage.getItem('@enable_sound');
         const savedHaptic = await AsyncStorage.getItem('@enable_haptic');
         if (savedSound !== null) setEnableSound(savedSound === 'true');
@@ -219,6 +243,13 @@ export default function App() {
         if (savedToken) {
           setToken(savedToken);
           setScreen('MAIN');
+        } else {
+          // If token not present, and biometric is enabled woy, auto-trigger prompt woy
+          if (compatible && enrolled && bioEnabled === 'true' && savedPass && savedEmail) {
+            setTimeout(() => {
+              handleBiometricLogin();
+            }, 600);
+          }
         }
         if (savedHistory) setHistory(JSON.parse(savedHistory));
         if (savedName) setUserName(savedName);
@@ -378,7 +409,7 @@ export default function App() {
           data.message?.toLowerCase().includes('unauthorized') ||
           data.message?.toLowerCase().includes('login terlebih dahulu')
         ) {
-          handleLogout();
+          handleLogout(true);
           return;
         }
         setConnectionError(true);
@@ -460,7 +491,7 @@ export default function App() {
           data.message?.toLowerCase().includes('unauthorized') ||
           data.message?.toLowerCase().includes('login terlebih dahulu')
         ) {
-          handleLogout();
+          handleLogout(true);
           return;
         }
         alert(data.message || 'Produk tidak ditemukan');
@@ -510,7 +541,7 @@ export default function App() {
           data.message?.toLowerCase().includes('unauthorized') ||
           data.message?.toLowerCase().includes('login terlebih dahulu')
         ) {
-          handleLogout();
+          handleLogout(true);
           return;
         }
         alert(data.message || 'Gagal memperbarui stok.');
@@ -541,7 +572,7 @@ export default function App() {
 
       const data = await response.json();
       if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
-        handleLogout();
+        handleLogout(true);
         return;
       }
 
@@ -577,7 +608,7 @@ export default function App() {
 
       const data = await response.json();
       if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
-        handleLogout();
+        handleLogout(true);
         return;
       }
 
@@ -612,7 +643,7 @@ export default function App() {
 
       const data = await response.json();
       if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
-        handleLogout();
+        handleLogout(true);
         return;
       }
 
@@ -682,7 +713,7 @@ export default function App() {
 
       const data = await response.json();
       if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
-        handleLogout();
+        handleLogout(true);
         return false;
       }
 
@@ -754,7 +785,7 @@ export default function App() {
 
       const data = await response.json();
       if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
-        handleLogout();
+        handleLogout(true);
         return;
       }
 
@@ -825,7 +856,7 @@ export default function App() {
       }
 
       if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
-        handleLogout();
+        handleLogout(true);
         return false;
       }
 
@@ -878,7 +909,7 @@ export default function App() {
 
                const data = await response.json();
                if (response.status === 401 || data.message === 'Unauthorized' || data.message === 'Sesi tidak valid') {
-                 handleLogout();
+                 handleLogout(true);
                  return;
                }
 
@@ -1090,7 +1121,38 @@ export default function App() {
         setUserName(data.user.name);
         setEmail(data.user.email);
         setScreen('MAIN');
+        setSavedPassword(password);
         setPassword('');
+
+        // Offer biometric activation woy
+        const compatible = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        const bioEnabled = await AsyncStorage.getItem('@biometric_login_enabled');
+        if (compatible && enrolled && bioEnabled !== 'true') {
+          setTimeout(() => {
+            Alert.alert(
+              'Aktifkan Sidik Jari woy?',
+              'Apakah Anda ingin mengaktifkan login sidik jari untuk masuk lebih cepat berikutnya woy?',
+              [
+                { text: 'Nanti Saja', style: 'cancel' },
+                {
+                  text: 'Aktifkan',
+                  onPress: async () => {
+                    const result = await LocalAuthentication.authenticateAsync({
+                      promptMessage: 'Konfirmasi sidik jari Anda woy',
+                    });
+                    if (result.success) {
+                      await AsyncStorage.setItem('@biometric_login_enabled', 'true');
+                      await AsyncStorage.setItem('@saved_password', password);
+                      setIsBiometricsEnabled(true);
+                      Alert.alert('Berhasil', 'Login sidik jari berhasil diaktifkan woy!');
+                    }
+                  }
+                }
+              ]
+            );
+          }, 800);
+        }
       } else {
         alert(data.message || 'Login gagal, email atau password salah.');
       }
@@ -1102,19 +1164,145 @@ export default function App() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleBiometricLogin = async () => {
+    try {
+      const savedEmail = await AsyncStorage.getItem('@user_email');
+      const savedPass = await AsyncStorage.getItem('@saved_password');
+      const savedUrl = await AsyncStorage.getItem('@server_url');
+
+      if (!savedEmail || !savedPass || !savedUrl) {
+        Alert.alert('Error', 'Tidak ada data sidik jari yang terdaftar di perangkat ini woy.');
+        return;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Pindai sidik jari atau wajah Anda untuk masuk woy',
+        fallbackLabel: 'Gunakan Password',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        setIsUploading(true);
+        try {
+          const response = await fetch(`${savedUrl}/api/mobile/login`, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: savedEmail, password: savedPass })
+          });
+
+          const data = await response.json();
+          if (response.ok && data.success) {
+            await AsyncStorage.setItem('@auth_token', data.token);
+            await AsyncStorage.setItem('@user_name', data.user.name);
+            if (data.user.role) {
+              await AsyncStorage.setItem('@user_role', data.user.role);
+              setUserRole(data.user.role);
+            }
+            if (data.user.permissions) {
+              const perms = Array.isArray(data.user.permissions) ? data.user.permissions : [];
+              await AsyncStorage.setItem('@user_permissions', JSON.stringify(perms));
+              setUserPermissions(perms);
+            }
+
+            setToken(data.token);
+            setUserName(data.user.name);
+            setEmail(data.user.email);
+            setSavedPassword(savedPass);
+            setScreen('MAIN');
+            setPassword('');
+            triggerHaptic(true);
+            showStatus('Login sidik jari berhasil woy!', 'success');
+          } else {
+            Alert.alert('Gagal Masuk', data.message || 'Gagal login biometrik, silakan masuk manual woy.');
+          }
+        } catch (err) {
+          Alert.alert('Koneksi Error', 'Gagal menghubungkan ke server woy.');
+        } finally {
+          setIsUploading(false);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleVerifyBioPassword = async () => {
+    if (!bioVerifyPasswordInput.trim()) {
+      Alert.alert('Input Tidak Valid', 'Silakan masukkan password Anda woy.');
+      return;
+    }
+
+    const activeUrl = serverUrlRef.current || serverUrl;
+    if (!activeUrl || !email) {
+      Alert.alert('Error', 'Data server atau email tidak ditemukan woy.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const response = await fetch(`${activeUrl}/api/mobile/login`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password: bioVerifyPasswordInput })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Pindai sidik jari Anda untuk menyelesaikan aktivasi woy',
+        });
+
+        if (result.success) {
+          await AsyncStorage.setItem('@biometric_login_enabled', 'true');
+          await AsyncStorage.setItem('@saved_password', bioVerifyPasswordInput);
+          setIsBiometricsEnabled(true);
+          setSavedPassword(bioVerifyPasswordInput);
+          setShowBioPasswordModal(false);
+          setBioVerifyPasswordInput('');
+          Alert.alert('Berhasil', 'Login sidik jari berhasil diaktifkan woy!');
+          triggerHaptic(true);
+        }
+      } else {
+        Alert.alert('Gagal Verifikasi', data.message || 'Password yang Anda masukkan salah woy.');
+      }
+    } catch (err) {
+      Alert.alert('Koneksi Error', 'Gagal memverifikasi password ke server woy.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleLogout = async (isSessionExpired: boolean = false) => {
     try {
       await AsyncStorage.removeItem('@auth_token');
-      await AsyncStorage.removeItem('@user_email');
       await AsyncStorage.removeItem('@user_name');
       await AsyncStorage.removeItem('@user_role');
       await AsyncStorage.removeItem('@user_permissions');
       setToken('');
-      setEmail('');
       setUserName('');
       setUserRole('staff');
       setUserPermissions([]);
       setScreen('LOGIN');
+
+      // Keep email if biometrics enabled woy
+      const bioEnabled = await AsyncStorage.getItem('@biometric_login_enabled');
+      if (bioEnabled !== 'true') {
+        await AsyncStorage.removeItem('@user_email');
+        setEmail('');
+      }
+
+      if (isSessionExpired) {
+        Alert.alert(
+          'Sesi Berakhir',
+          'Sesi Anda telah kedaluwarsa. Silakan masuk kembali woy.'
+        );
+      }
     } catch (err) {
       console.error(err);
     }
@@ -1125,12 +1313,10 @@ export default function App() {
     const { data } = scanningResult;
     if (!data) return;
 
-    // Filter jika sedang sibuk merekam atau mengunggah agar sesi kamera stabil
     if (
       isUploadingRef.current ||
       isRecordingRef.current ||
-      cameraModeRef.current === 'video' ||
-      activeUploadsRef.current > 0
+      cameraModeRef.current === 'video'
     ) {
       return;
     }
@@ -1207,7 +1393,7 @@ export default function App() {
           resData.message?.toLowerCase().includes('unauthorized') ||
           resData.message?.toLowerCase().includes('login terlebih dahulu')
         ) {
-          handleLogout();
+          handleLogout(true);
           return;
         }
         const errMsg = resData.message || 'Resi tidak ditemukan di database.';
@@ -1471,7 +1657,8 @@ export default function App() {
           store_name: data.transaction.store_name,
           platform: data.transaction.platform,
           scanned_at: new Date().toLocaleTimeString('id-ID'),
-          status: 'success'
+          status: 'success',
+          packer_name: data.transaction.packer_name || userName || 'Petugas'
         };
 
         const updatedHistory = [newScan, ...(historyRef.current || history).slice(0, 19)];
@@ -1485,7 +1672,7 @@ export default function App() {
           data.message?.toLowerCase().includes('unauthorized') ||
           data.message?.toLowerCase().includes('login terlebih dahulu')
         ) {
-          handleLogout();
+          handleLogout(true);
           return;
         }
         showStatus(`Gagal menyimpan ${targetBarcode}: ${data.message || 'Resi tidak ditemukan'}`, 'error');
@@ -1523,7 +1710,8 @@ export default function App() {
       platform: 'Error',
       scanned_at: new Date().toLocaleTimeString('id-ID'),
       status: 'error',
-      errorMessage: reason
+      errorMessage: reason,
+      packer_name: userName || 'Petugas'
     };
 
     const updatedHistory = [failedScan, ...(historyRef.current || history).slice(0, 19)];
@@ -1599,13 +1787,38 @@ export default function App() {
             />
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={isUploading}>
-            {isUploading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Hubungkan Scanner</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            <TouchableOpacity 
+              style={[styles.primaryButton, { flex: 1, marginTop: 0 }]} 
+              onPress={handleLogin} 
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Hubungkan Scanner</Text>
+              )}
+            </TouchableOpacity>
+
+            {isBiometricsSupported && isBiometricsEnabled && (
+              <TouchableOpacity 
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                  borderColor: '#6366f1',
+                  borderWidth: 1,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+                onPress={handleBiometricLogin}
+                disabled={isUploading}
+              >
+                <Ionicons name="finger-print-outline" size={24} color="#6366f1" />
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+          </View>
         </View>
       ) : (
         <View style={styles.scannerWrapper}>
@@ -1821,7 +2034,7 @@ export default function App() {
                   videoQuality="480p"
                   videoBitrate={800000} // Batasi bitrate ke 800 kbps woy!
                   barcodeScannerSettings={
-                    isUploading || isRecording || cameraMode === 'video' || activeUploads > 0
+                    isUploading || isRecording || cameraMode === 'video'
                       ? DISABLED_BARCODE_SETTINGS
                       : BARCODE_SETTINGS
                   }
@@ -1889,16 +2102,21 @@ export default function App() {
                     </View>
                   )}
 
-                  {isRecording ? (
+                  {isRecording && (
                     <View style={styles.floatingTimerBadge}>
-                      <View style={styles.recordingDot} />
+                      <View style={[styles.recordingDot, { opacity: recordingSeconds % 2 === 0 ? 1 : 0.2 }]} />
                       <Text style={styles.floatingTimerText}>
-                        {Math.max(0, 60 - recordingSeconds)}
+                        {(() => {
+                          const rem = Math.max(0, 60 - recordingSeconds);
+                          return `REC 00:${rem < 10 ? `0${rem}` : rem}`;
+                        })()}
                       </Text>
                     </View>
-                  ) : (
+                  )}
+
+                  {!isRecording && (
                     <>
-                      {/* Floating Auto-Foto Toggle Button */}
+                      {/* Floating Auto-Foto Toggle Button restored to top-right woy */}
                       <TouchableOpacity
                         style={[
                           styles.floatingAutoToggleBtn,
@@ -1947,7 +2165,7 @@ export default function App() {
                     </View>
                   ) : (
                     <>
-                      {/* Toolbar: Flash, Flip Camera, Mirror, Manual Toggle */}
+                      {/* Toolbar: Flash, Flip Camera, Mirror, Manual Toggle (Clean 4 buttons woy!) */}
                       <View style={styles.bottomToolbar}>
                         <TouchableOpacity 
                           style={[styles.toolbarBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} 
@@ -2136,14 +2354,52 @@ export default function App() {
                                   {item.store_name} ({item.platform})
                                 </Text>
                               </View>
+                              {item.packer_name && item.packer_name !== '-' && (
+                                <View style={{
+                                  backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                                  borderColor: 'rgba(99, 102, 241, 0.25)',
+                                  borderWidth: 1,
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 2,
+                                  borderRadius: 6,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 3
+                                }}>
+                                  <Ionicons name="person-outline" size={8} color="#818cf8" />
+                                  <Text style={{ color: '#818cf8', fontSize: 9, fontWeight: '700' }}>
+                                    {item.packer_name}
+                                  </Text>
+                                </View>
+                              )}
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                                 <Text style={styles.successText}>Success</Text>
                               </View>
                             </>
                           ) : (
-                            <Text style={styles.errorText} numberOfLines={1}>
-                              Gagal: {item.errorMessage}
-                            </Text>
+                            <>
+                              <Text style={styles.errorText} numberOfLines={1}>
+                                Gagal: {item.errorMessage}
+                              </Text>
+                              {item.packer_name && item.packer_name !== '-' && (
+                                <View style={{
+                                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                  borderColor: 'rgba(255, 255, 255, 0.15)',
+                                  borderWidth: 1,
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 2,
+                                  borderRadius: 6,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 3
+                                }}>
+                                  <Ionicons name="person-outline" size={8} color="#a1a1aa" />
+                                  <Text style={{ color: '#a1a1aa', fontSize: 9, fontWeight: '700' }}>
+                                    {item.packer_name}
+                                  </Text>
+                                </View>
+                              )}
+                            </>
                           )}
                         </View>
                       </View>
@@ -2617,6 +2873,42 @@ export default function App() {
                     }}
                   />
                 </View>
+
+                {isBiometricsSupported && (
+                  <View style={[styles.settingsRow, { marginTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(63, 63, 70, 0.2)', paddingTop: 12 }]}>
+                    <View>
+                      <Text style={styles.settingsLabel}>Login Sidik Jari</Text>
+                      <Text style={styles.settingsDesc}>Masuk cepat dengan pemindai sidik jari/wajah</Text>
+                    </View>
+                    <Switch
+                      trackColor={{ false: '#2c2c2e', true: '#4f46e5' }}
+                      thumbColor={isBiometricsEnabled ? '#ffffff' : '#a1a1aa'}
+                      value={isBiometricsEnabled}
+                      onValueChange={async (value) => {
+                        if (value) {
+                          if (!savedPassword) {
+                            setShowBioPasswordModal(true);
+                          } else {
+                            const result = await LocalAuthentication.authenticateAsync({
+                              promptMessage: 'Konfirmasi sidik jari Anda woy',
+                            });
+                            if (result.success) {
+                              setIsBiometricsEnabled(true);
+                              await AsyncStorage.setItem('@biometric_login_enabled', 'true');
+                              await AsyncStorage.setItem('@saved_password', savedPassword);
+                              Alert.alert('Berhasil', 'Login sidik jari berhasil diaktifkan woy!');
+                            }
+                          }
+                        } else {
+                          setIsBiometricsEnabled(false);
+                          await AsyncStorage.setItem('@biometric_login_enabled', 'false');
+                          await AsyncStorage.removeItem('@saved_password');
+                          Alert.alert('Berhasil', 'Login sidik jari dinonaktifkan woy.');
+                        }
+                      }}
+                    />
+                  </View>
+                )}
               </View>
 
               {/* Proof Clean-up Card (Admin Only) woy! */}
@@ -2742,7 +3034,7 @@ export default function App() {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity style={styles.logoutBtnLarge} onPress={handleLogout}>
+              <TouchableOpacity style={styles.logoutBtnLarge} onPress={() => handleLogout()}>
                 <Ionicons name="log-out-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
                 <Text style={styles.logoutBtnLargeText}>Keluar dari Sistem</Text>
               </TouchableOpacity>
@@ -3006,6 +3298,104 @@ export default function App() {
             </TouchableOpacity>
           </View>
 
+          {/* Modal Verifikasi Password untuk Biometrik woy */}
+          <Modal
+            visible={showBioPasswordModal}
+            animationType="fade"
+            transparent={true}
+            onRequestClose={() => {
+              setShowBioPasswordModal(false);
+              setBioVerifyPasswordInput('');
+            }}
+          >
+            <View style={{
+              flex: 1,
+              backgroundColor: 'rgba(9, 9, 11, 0.85)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: 20
+            }}>
+              <View style={{
+                backgroundColor: '#18181b',
+                borderRadius: 20,
+                borderColor: 'rgba(63, 63, 70, 0.4)',
+                borderWidth: 1,
+                padding: 24,
+                width: '100%',
+                maxWidth: 340,
+              }}>
+                <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                  <View style={{
+                    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                    padding: 12,
+                    borderRadius: 14,
+                    marginBottom: 10
+                  }}>
+                    <Ionicons name="finger-print" size={28} color="#6366f1" />
+                  </View>
+                  <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800', textAlign: 'center' }}>
+                    Verifikasi Password
+                  </Text>
+                  <Text style={{ color: '#a1a1aa', fontSize: 11, textAlign: 'center', marginTop: 4 }}>
+                    Masukkan password akun Anda untuk mengaktifkan login sidik jari woy.
+                  </Text>
+                </View>
+
+                <TextInput
+                  style={{
+                    backgroundColor: 'rgba(9, 9, 11, 0.8)',
+                    borderColor: 'rgba(63, 63, 70, 0.4)',
+                    borderWidth: 1,
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    color: '#ffffff',
+                    fontSize: 13,
+                    marginBottom: 16
+                  }}
+                  placeholder="Masukkan password Anda..."
+                  placeholderTextColor="#71717a"
+                  value={bioVerifyPasswordInput}
+                  onChangeText={setBioVerifyPasswordInput}
+                  secureTextEntry
+                />
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(24, 24, 27, 0.8)',
+                      borderColor: 'rgba(63, 63, 70, 0.4)',
+                      borderWidth: 1,
+                      borderRadius: 10,
+                      paddingVertical: 10,
+                      alignItems: 'center'
+                    }}
+                    onPress={() => {
+                      setShowBioPasswordModal(false);
+                      setBioVerifyPasswordInput('');
+                    }}
+                  >
+                    <Text style={{ color: '#a1a1aa', fontSize: 13, fontWeight: '700' }}>Batal</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#6366f1',
+                      borderRadius: 10,
+                      paddingVertical: 10,
+                      alignItems: 'center'
+                    }}
+                    onPress={handleVerifyBioPassword}
+                  >
+                    <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '700' }}>Aktifkan</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+
           {/* Modal Catat Pengeluaran woy */}
           <Modal
             visible={showExpenseModal}
@@ -3211,6 +3601,9 @@ export default function App() {
                         <Text style={styles.modalMetaText}>Resi: <Text style={{ fontWeight: 'bold', color: '#ffffff' }}>{viewingProofItem.waybill_number}</Text></Text>
                       )}
                       <Text style={styles.modalMetaText}>Toko: <Text style={{ color: '#ffffff', fontWeight: '600' }}>{viewingProofItem.store_name} ({viewingProofItem.platform})</Text></Text>
+                      {viewingProofItem.packer_name && viewingProofItem.packer_name !== '-' && (
+                        <Text style={styles.modalMetaText}>Petugas: <Text style={{ color: '#818cf8', fontWeight: '800' }}>{viewingProofItem.packer_name}</Text></Text>
+                      )}
                       <Text style={styles.modalMetaText}>Waktu: <Text style={{ color: '#a1a1aa' }}>{viewingProofItem.scanned_at}</Text></Text>
                     </View>
 
@@ -4251,19 +4644,20 @@ const styles = StyleSheet.create({
   },
   floatingStatusBanner: {
     position: 'absolute',
-    top: 155, // Floats below the top Auto-Foto pill woy
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    maxWidth: '90%',
+    bottom: 220, // Floating above the bottom control panel woy
+    alignSelf: 'center', // Centered horizontally woy
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 20, // Rounded pill shape woy
+    maxWidth: '85%',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 9999,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 99999,
   },
   floatingStatusText: {
     color: '#ffffff',
@@ -4273,7 +4667,7 @@ const styles = StyleSheet.create({
   },
   floatingAutoToggleBtn: {
     position: 'absolute',
-    top: 105, // Shifted down to clear top subtabs woy
+    top: 105, // Floats in the top-right woy
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -4805,14 +5199,16 @@ const styles = StyleSheet.create({
   },
   backgroundUploadBadge: {
     position: 'absolute',
-    top: 50,
-    right: 20,
-    backgroundColor: 'rgba(79, 70, 229, 0.9)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    bottom: 160, // Positioned beautifully above the bottom toolbar woy!
+    alignSelf: 'center', // Centered as a floating pill woy!
+    backgroundColor: 'rgba(99, 102, 241, 0.95)', // Premium Indigo woy!
+    borderRadius: 20, // Pill shape woy!
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.5)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -4872,7 +5268,7 @@ const styles = StyleSheet.create({
   },
   checklistCard: {
     position: 'absolute',
-    top: 105, // Shifted down below top subtabs woy
+    top: 150, // Shifted down to prevent overlapping woy
     left: 20,
     right: 20,
     backgroundColor: 'rgba(24, 24, 27, 0.90)',
@@ -4942,19 +5338,26 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(9, 9, 11, 0.85)',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)', // Neon red transparent bg woy!
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#ef4444',
-    gap: 6,
+    borderColor: 'rgba(239, 68, 68, 0.6)', // Neon red outline woy!
+    gap: 8,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 3,
     zIndex: 9999,
   },
   floatingTimerText: {
     color: '#ef4444',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', // Monospaced to stop number shaking woy!
   },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
